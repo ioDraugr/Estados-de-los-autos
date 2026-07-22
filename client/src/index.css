@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* Base para modo kiosko del showroom: fondo oscuro, alto contraste,
+   sin selección de texto ni resaltado al tocar (pantalla táctil). */
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+}

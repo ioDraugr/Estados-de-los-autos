@@ -1,0 +1,15 @@
+# Dependencias
+node_modules/
+
+# Builds
+client/dist/
+server/dist/
+
+# Base de datos local (se regenera sola)
+server/data/*.db
+server/data/*.db-shm
+server/data/*.db-wal
+
+# Logs y sistema
+*.log
+.DS_Store

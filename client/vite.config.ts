@@ -8,6 +8,11 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
+    // Escucha en toda la red local (no solo en localhost), así se puede probar
+    // /display desde el celular o la tablet del taller con la IP de la compu.
+    // El proxy de abajo lo resuelve Vite en la compu, así que los otros
+    // dispositivos no necesitan saber nada del backend.
+    host: true,
     proxy: {
       '/api': 'http://localhost:3000',
       '/socket.io': {

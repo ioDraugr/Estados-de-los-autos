@@ -54,13 +54,21 @@ export function Display() {
 
   return (
     <div className="min-h-full bg-zinc-950 text-white">
-      <header className="flex flex-wrap items-center justify-between gap-4 border-b-4 border-zinc-800 px-8 py-6">
-        <h1 className="text-5xl font-black tracking-tight">Taller ML Center</h1>
-        <div className="flex gap-6">
+      {/* En el celular el título y la referencia de colores se apilan; en la
+          pantalla del showroom van uno a cada lado y bien grandes. */}
+      <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 border-b-4 border-zinc-800 px-4 py-4 sm:px-8 sm:py-6">
+        <h1 className="text-2xl font-black tracking-tight sm:text-4xl lg:text-5xl 2xl:text-6xl">
+          Taller ML Center
+        </h1>
+        <div className="flex flex-wrap gap-x-4 gap-y-2 sm:gap-6">
           {AREAS.map((tipo) => (
             <div key={tipo} className="flex items-center gap-2">
-              <Cono color={COLOR_AREA[tipo]} estado="esperando" size={40} />
-              <span className="text-2xl text-zinc-300">
+              <Cono
+                color={COLOR_AREA[tipo]}
+                estado="esperando"
+                className="h-7 w-7 shrink-0 sm:h-9 sm:w-9 lg:h-10 lg:w-10"
+              />
+              <span className="text-base text-zinc-300 sm:text-xl lg:text-2xl">
                 {NOMBRE_AREA[tipo]}
               </span>
             </div>
@@ -69,21 +77,23 @@ export function Display() {
       </header>
 
       {sinConexion && huboDatos.current && (
-        <p className="bg-amber-500 px-8 py-3 text-center text-2xl font-bold text-black">
+        <p className="bg-amber-500 px-4 py-2 text-center text-lg font-bold text-black sm:px-8 sm:py-3 sm:text-2xl">
           Sin conexión con el servidor — reintentando…
         </p>
       )}
 
       {cargando ? (
-        <p className="p-16 text-center text-4xl text-zinc-400">Cargando…</p>
+        <p className="p-10 text-center text-2xl text-zinc-400 sm:p-16 sm:text-4xl">
+          Cargando…
+        </p>
       ) : vehiculos.length === 0 ? (
-        <p className="p-16 text-center text-4xl text-zinc-400">
+        <p className="p-10 text-center text-2xl text-zinc-400 sm:p-16 sm:text-4xl">
           {sinConexion
             ? "Sin conexión con el servidor — reintentando…"
             : "No hay autos en el taller."}
         </p>
       ) : (
-        <main className="grid grid-cols-1 gap-6 p-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <main className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2 sm:gap-6 sm:p-8 lg:grid-cols-3 xl:grid-cols-4">
           {vehiculos.map((v) => (
             <TarjetaVehiculo
               key={v.id}

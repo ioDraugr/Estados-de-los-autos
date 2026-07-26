@@ -1,20 +1,21 @@
 // Ícono de cono de tránsito coloreado, uno por área de trabajo.
 // El estado "terminado" se atenúa un poco para que se note de un vistazo.
+// El tamaño va por className (ej. "h-10 w-10 sm:h-14 sm:w-14") para que pueda
+// achicarse en el celular y agrandarse en la pantalla del showroom.
 import type { EstadoServicio } from "../types";
 
 interface Props {
   color: string;
   estado: EstadoServicio;
-  size?: number;
+  className?: string;
 }
 
-export function Cono({ color, estado, size = 56 }: Props) {
+export function Cono({ color, estado, className = "h-14 w-14" }: Props) {
   const atenuado = estado === "terminado";
   return (
     <svg
-      width={size}
-      height={size}
       viewBox="0 0 64 64"
+      className={className}
       aria-hidden="true"
       style={{ opacity: atenuado ? 0.4 : 1 }}
     >

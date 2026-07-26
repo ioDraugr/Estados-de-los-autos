@@ -6,18 +6,33 @@ import { Server as SocketServer } from "socket.io";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import "./db.js"; // inicializa la base y crea las tablas
+import { sembrarSiVacia } from "./seed.js";
+import { listarVehiculosVisibles } from "./vehiculos.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
+
+// La primera vez que arranca, deja unos autos de ejemplo para poder ver el
+// tablero funcionando. Después de eso no vuelve a tocar los datos.
+sembrarSiVacia();
 
 const app = express();
 app.use(express.json());
 
 // --- API REST ---
-// Fase 1: solo un healthcheck. Los endpoints de vehículos/servicios llegan
-// en la próxima fase, cuando /display lea de la base.
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
+});
+
+// Autos que se muestran en el showroom. En la Fase 3, /admin va a necesitar
+// también los ya entregados (con un ?todos=1).
+app.get("/api/vehiculos", (_req, res) => {
+  try {
+    res.json(listarVehiculosVisibles());
+  } catch (error) {
+    console.error("Error al listar vehículos:", error);
+    res.status(500).json({ error: "No se pudieron obtener los vehículos" });
+  }
 });
 
 // --- Front (build de Vite) ---

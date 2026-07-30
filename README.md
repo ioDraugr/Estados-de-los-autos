@@ -129,16 +129,31 @@ Los endpoints que **escriben** exigen el header `x-pin` con el PIN (si no, `401`
 | `PATCH /api/servicios/:id` | Cambia el estado de un servicio (body `{ estado }`). |
 | `DELETE /api/servicios/:id` | Quita un servicio (soft delete; `400` si es el último activo del auto). |
 
-## Estado actual (Fase 3)
+## Tiempo real (Socket.IO)
 
-- ✅ Vista `/display` leyendo los autos **reales** de SQLite. Se refresca sola cada
-  30 s; si se cae el server, mantiene los últimos datos y avisa "Sin conexión".
+Cuando en `/admin` pasa algo que cambia lo que se ve (crear/editar/retirar un auto,
+agregar/quitar un servicio, cambiar un estado), el server emite un evento
+`vehiculos:cambio` y **`/display` se actualiza al instante**, sin esperar el
+refresco. `/display` reconecta solo si se corta el wifi y, al volver, se pone al
+día.
+
+El **poll de 30 s se mantiene** a propósito: es la red de seguridad para el paso
+del tiempo. Ocultar un auto terminado al cruzar `HORAS_VISIBLE_TERMINADO` no lo
+dispara ningún evento (nadie "toca" nada cuando el auto envejece), así que de eso
+se encarga el poll. Socket.IO cubre los cambios; el poll, el tiempo.
+
+## Estado actual (Fase 4)
+
+- ✅ Vista `/display` leyendo los autos **reales** de SQLite. Se actualiza al
+  instante por Socket.IO ante cambios de `/admin`; si se cae el server mantiene los
+  últimos datos, avisa "Sin conexión" y reconecta sola.
 - ✅ Vista `/admin` con login por PIN (validado en el server), alta de autos, cambio
-  de estado por servicio, agregar/quitar servicios y retirar autos. Refetch tras
-  cada acción.
+  de estado por servicio, agregar/quitar servicios y retirar autos.
 - ✅ Tablas + datos de ejemplo que se crean solos la primera vez; migración
   automática de las columnas nuevas sobre bases ya existentes.
-- ✅ Los autos con todos los servicios terminados se ocultan solos a las 4 horas.
-- ✅ Socket.IO enganchado al server (todavía sin emitir eventos).
-- ⏳ Pendiente (Fase 4): tiempo real con Socket.IO (que las pantallas se actualicen
-  solas al instante, sin esperar el refresco ni recargar).
+- ✅ Los autos con todos los servicios terminados se ocultan solos a las 4 horas
+  (vía el poll de 30 s, como red de seguridad).
+- ✅ Tiempo real con Socket.IO: el server emite en cada escritura y `/display`
+  refetchea al recibir el evento.
+
+App completa: las cuatro fases de funcionalidad están terminadas.

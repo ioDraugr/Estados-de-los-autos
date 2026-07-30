@@ -13,3 +13,6 @@ server/data/*.db-wal
 # Logs y sistema
 *.log
 .DS_Store
+
+# Archivos temporales de Claude Code
+.claude/*.tmp.*

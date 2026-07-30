@@ -32,6 +32,17 @@ sembrarSiVacia();
 const app = express();
 app.use(express.json());
 
+// --- Servidor HTTP + Socket.IO ---
+// Lo creamos ANTES de las rutas para que los endpoints puedan avisar los cambios.
+const httpServer = createServer(app);
+const io = new SocketServer(httpServer);
+
+// Aviso genérico "algo cambió": /display responde volviendo a pedir la lista.
+// Lo llaman los endpoints de escritura después de guardar con éxito en la DB.
+function emitirCambio(): void {
+  io.emit("vehiculos:cambio");
+}
+
 // --- API REST ---
 // Helper: corre un handler y traduce los errores a la respuesta HTTP adecuada.
 // ErrorValidacion => 400 (datos del cliente); cualquier otro => 500.
@@ -76,6 +87,7 @@ app.post("/api/vehiculos", exigirPin, (req, res) => {
   manejar(res, "crear vehículo", () => {
     const { marca, modelo, color, matricula, servicios } = req.body ?? {};
     const id = crearVehiculo({ marca, modelo, color, matricula }, servicios);
+    emitirCambio();
     res.status(201).json({ id });
   });
 });
@@ -94,6 +106,7 @@ app.patch("/api/vehiculos/:id", exigirPin, (req, res) => {
       res.status(404).json({ error: "Auto no encontrado" });
       return;
     }
+    emitirCambio();
     res.json({ ok: true });
   });
 });
@@ -106,6 +119,7 @@ app.post("/api/vehiculos/:id/retirar", exigirPin, (req, res) => {
       res.status(404).json({ error: "Auto no encontrado" });
       return;
     }
+    emitirCambio();
     res.json({ ok: true });
   });
 });
@@ -114,6 +128,7 @@ app.post("/api/vehiculos/:id/retirar", exigirPin, (req, res) => {
 app.post("/api/vehiculos/:id/servicios", exigirPin, (req, res) => {
   manejar(res, "agregar servicio", () => {
     agregarServicio(Number(req.params.id), req.body?.tipo);
+    emitirCambio();
     res.status(201).json({ ok: true });
   });
 });
@@ -126,6 +141,7 @@ app.patch("/api/servicios/:id", exigirPin, (req, res) => {
       res.status(404).json({ error: "Servicio no encontrado" });
       return;
     }
+    emitirCambio();
     res.json({ ok: true });
   });
 });
@@ -138,6 +154,7 @@ app.delete("/api/servicios/:id", exigirPin, (req, res) => {
       res.status(404).json({ error: "Servicio no encontrado" });
       return;
     }
+    emitirCambio();
     res.json({ ok: true });
   });
 });
@@ -152,11 +169,8 @@ app.get(/^(?!\/api).*/, (_req, res) => {
   res.sendFile(join(distFront, "index.html"));
 });
 
-// --- Servidor HTTP + Socket.IO ---
-// Socket.IO queda enganchado y listo, pero todavía no emitimos eventos (Fase 1).
-const httpServer = createServer(app);
-const io = new SocketServer(httpServer);
-
+// --- Conexiones de Socket.IO ---
+// Los eventos de cambio se emiten desde los endpoints (ver emitirCambio).
 io.on("connection", (socket) => {
   console.log("Cliente conectado:", socket.id);
   socket.on("disconnect", () => {

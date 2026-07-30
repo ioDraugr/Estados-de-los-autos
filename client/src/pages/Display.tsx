@@ -1,7 +1,10 @@
 // Vista /display: pantalla del showroom para clientes (solo lectura, modo kiosko).
-// Fase 2: lee los autos de la API real. El tiempo real (Socket.IO) llega en la
-// Fase 3, junto con /admin; por ahora la pantalla se refresca sola cada tanto.
+// Fase 4: tiempo real con Socket.IO. Ante un cambio en /admin, el server emite un
+// evento y acá volvemos a pedir la lista al instante. El poll de 30 s se mantiene
+// como red de seguridad para el paso del tiempo (que un auto terminado se oculte
+// solo al cruzar las horas) y por si el socket estuvo caído.
 import { useEffect, useRef, useState } from "react";
+import { io } from "socket.io-client";
 import type { Vehiculo } from "../types";
 import { obtenerVehiculos } from "../api";
 import { COLOR_AREA, NOMBRE_AREA } from "../dominio";
@@ -46,9 +49,19 @@ export function Display() {
 
     cargar();
     const id = setInterval(cargar, MS_REFRESCO);
+
+    // Tiempo real: el server avisa "vehiculos:cambio" tras cada cambio en /admin.
+    // io() sin URL conecta al mismo origen (en dev lo proxya Vite); reconecta solo
+    // si se corta el wifi. Al (re)conectar refrescamos para no perder cambios que
+    // hayan pasado mientras estuvo caído.
+    const socket = io();
+    socket.on("vehiculos:cambio", cargar);
+    socket.on("connect", cargar);
+
     return () => {
       vigente = false;
       clearInterval(id);
+      socket.disconnect();
     };
   }, []);
 

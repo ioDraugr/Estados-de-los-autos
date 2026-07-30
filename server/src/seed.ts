@@ -107,11 +107,13 @@ const SEMILLA: VehiculoSemilla[] = [
   },
 ];
 
-// Fecha de hace N días, en formato YYYY-MM-DD.
+// Fecha de hace N días, con día + hora ("YYYY-MM-DD HH:MM:SS", en UTC como
+// datetime('now') de SQLite). Con hora, el orden de /display queda definido
+// aunque dos autos hayan entrado el mismo día.
 function fechaHaceDias(dias: number): string {
   const d = new Date();
   d.setDate(d.getDate() - dias);
-  return d.toISOString().slice(0, 10);
+  return d.toISOString().slice(0, 19).replace("T", " ");
 }
 
 export function sembrarSiVacia(): void {

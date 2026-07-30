@@ -18,6 +18,6 @@ export interface Vehiculo {
   modelo: string;
   color: string;
   matricula: string;
-  fecha_ingreso: string; // ISO date
+  fecha_ingreso: string; // "YYYY-MM-DD HH:MM:SS"
   servicios: Servicio[];
 }

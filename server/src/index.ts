@@ -1,13 +1,26 @@
 // Servidor del taller: Express (API REST + sirve el build del front) + Socket.IO.
 // Corre local en la red del taller, sin internet.
-import express from "express";
+import express, { type Response } from "express";
 import { createServer } from "node:http";
 import { Server as SocketServer } from "socket.io";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import "./db.js"; // inicializa la base y crea las tablas
+import { exigirPin, pinEsValido } from "./auth.js";
+import { ErrorValidacion } from "./errores.js";
 import { sembrarSiVacia } from "./seed.js";
-import { listarVehiculosVisibles } from "./vehiculos.js";
+import {
+  agregarServicio,
+  cambiarEstado,
+  quitarServicio,
+} from "./servicios.js";
+import {
+  crearVehiculo,
+  editarVehiculo,
+  listarTodos,
+  listarVehiculosVisibles,
+  retirarVehiculo,
+} from "./vehiculos.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -20,19 +33,113 @@ const app = express();
 app.use(express.json());
 
 // --- API REST ---
+// Helper: corre un handler y traduce los errores a la respuesta HTTP adecuada.
+// ErrorValidacion => 400 (datos del cliente); cualquier otro => 500.
+function manejar(res: Response, contexto: string, fn: () => unknown): void {
+  try {
+    fn();
+  } catch (error) {
+    if (error instanceof ErrorValidacion) {
+      res.status(400).json({ error: error.message });
+      return;
+    }
+    console.error(`Error en ${contexto}:`, error);
+    res.status(500).json({ error: "Error del servidor" });
+  }
+}
+
 app.get("/api/health", (_req, res) => {
   res.json({ ok: true });
 });
 
-// Autos que se muestran en el showroom. En la Fase 3, /admin va a necesitar
-// también los ya entregados (con un ?todos=1).
-app.get("/api/vehiculos", (_req, res) => {
-  try {
-    res.json(listarVehiculosVisibles());
-  } catch (error) {
-    console.error("Error al listar vehículos:", error);
-    res.status(500).json({ error: "No se pudieron obtener los vehículos" });
+// Login: valida el PIN para que el front rechace uno mal al iniciar. Igual cada
+// endpoint que escribe revalida el PIN por su cuenta (exigirPin).
+app.post("/api/login", (req, res) => {
+  if (pinEsValido(req.body?.pin)) {
+    res.json({ ok: true });
+    return;
   }
+  res.status(401).json({ error: "PIN inválido" });
+});
+
+// Autos a mostrar. Sin parámetros: los del showroom (/display). Con ?todos=1:
+// todos los no retirados, incluidos los terminados hace rato (para /admin).
+app.get("/api/vehiculos", (req, res) => {
+  manejar(res, "listar vehículos", () => {
+    const lista = req.query.todos ? listarTodos() : listarVehiculosVisibles();
+    res.json(lista);
+  });
+});
+
+// Alta de un auto con sus servicios iniciales.
+app.post("/api/vehiculos", exigirPin, (req, res) => {
+  manejar(res, "crear vehículo", () => {
+    const { marca, modelo, color, matricula, servicios } = req.body ?? {};
+    const id = crearVehiculo({ marca, modelo, color, matricula }, servicios);
+    res.status(201).json({ id });
+  });
+});
+
+// Editar los datos de un auto (no toca fecha_ingreso ni servicios).
+app.patch("/api/vehiculos/:id", exigirPin, (req, res) => {
+  manejar(res, "editar vehículo", () => {
+    const { marca, modelo, color, matricula } = req.body ?? {};
+    const ok = editarVehiculo(Number(req.params.id), {
+      marca,
+      modelo,
+      color,
+      matricula,
+    });
+    if (!ok) {
+      res.status(404).json({ error: "Auto no encontrado" });
+      return;
+    }
+    res.json({ ok: true });
+  });
+});
+
+// Retirar un auto (soft delete): sale de las vistas al instante.
+app.post("/api/vehiculos/:id/retirar", exigirPin, (req, res) => {
+  manejar(res, "retirar vehículo", () => {
+    const ok = retirarVehiculo(Number(req.params.id));
+    if (!ok) {
+      res.status(404).json({ error: "Auto no encontrado" });
+      return;
+    }
+    res.json({ ok: true });
+  });
+});
+
+// Agregar un servicio a un auto existente.
+app.post("/api/vehiculos/:id/servicios", exigirPin, (req, res) => {
+  manejar(res, "agregar servicio", () => {
+    agregarServicio(Number(req.params.id), req.body?.tipo);
+    res.status(201).json({ ok: true });
+  });
+});
+
+// Cambiar el estado de un servicio.
+app.patch("/api/servicios/:id", exigirPin, (req, res) => {
+  manejar(res, "cambiar estado", () => {
+    const ok = cambiarEstado(Number(req.params.id), req.body?.estado);
+    if (!ok) {
+      res.status(404).json({ error: "Servicio no encontrado" });
+      return;
+    }
+    res.json({ ok: true });
+  });
+});
+
+// Quitar un servicio (soft delete). Falla si es el último activo del auto.
+app.delete("/api/servicios/:id", exigirPin, (req, res) => {
+  manejar(res, "quitar servicio", () => {
+    const ok = quitarServicio(Number(req.params.id));
+    if (!ok) {
+      res.status(404).json({ error: "Servicio no encontrado" });
+      return;
+    }
+    res.json({ ok: true });
+  });
 });
 
 // --- Front (build de Vite) ---

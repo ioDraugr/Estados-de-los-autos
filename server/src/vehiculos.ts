@@ -1,6 +1,8 @@
-// Consultas de vehículos para la API.
+// Consultas y comandos de vehículos para la API.
 import { db } from "./db.js";
-import type { Servicio, Vehiculo } from "./tipos.js";
+import { ErrorValidacion } from "./errores.js";
+import { TIPOS_SERVICIO } from "./servicios.js";
+import type { Servicio, TipoServicio, Vehiculo } from "./tipos.js";
 
 // Un auto con TODOS sus servicios terminados se sigue mostrando en el showroom
 // durante estas horas (para que el cliente lo vea) y después desaparece solo.
@@ -10,15 +12,25 @@ export const HORAS_VISIBLE_TERMINADO =
 type FilaVehiculo = Omit<Vehiculo, "servicios">;
 type FilaServicio = Servicio & { actualizado_en: string };
 
-/**
- * Vehículos que tiene que mostrar /display: los que están en el taller, más
- * los terminados hace poco. El que hace más tiempo que entró va primero.
- */
-export function listarVehiculosVisibles(): Vehiculo[] {
+interface DatosVehiculo {
+  marca: string;
+  modelo: string;
+  color: string;
+  matricula: string;
+}
+
+// Trae los autos NO retirados que cumplan `condicionExtra` (si se pasa), con sus
+// servicios NO eliminados anidados. El que hace más tiempo que entró va primero;
+// se desempata por id para que el orden sea estable entre autos del mismo día.
+function cargarVehiculos(condicionExtra = ""): {
+  vehiculos: FilaVehiculo[];
+  porVehiculo: Map<number, FilaServicio[]>;
+} {
   const vehiculos = db
     .prepare(
       `SELECT id, marca, modelo, color, matricula, fecha_ingreso
        FROM vehiculos
+       WHERE retirado_en IS NULL ${condicionExtra}
        ORDER BY fecha_ingreso ASC, id ASC`,
     )
     .all() as FilaVehiculo[];
@@ -27,6 +39,7 @@ export function listarVehiculosVisibles(): Vehiculo[] {
     .prepare(
       `SELECT id, vehiculo_id, tipo, estado, actualizado_en
        FROM servicios
+       WHERE eliminado_en IS NULL
        ORDER BY id ASC`,
     )
     .all() as FilaServicio[];
@@ -39,17 +52,124 @@ export function listarVehiculosVisibles(): Vehiculo[] {
     porVehiculo.set(servicio.vehiculo_id, lista);
   }
 
+  return { vehiculos, porVehiculo };
+}
+
+// Arma el Vehiculo que espera el front: sin actualizado_en, que no le sirve.
+function anidar(v: FilaVehiculo, servicios: FilaServicio[]): Vehiculo {
+  return {
+    ...v,
+    servicios: servicios.map(
+      ({ actualizado_en: _omitido, ...servicio }) => servicio,
+    ),
+  };
+}
+
+/**
+ * Vehículos que tiene que mostrar /display: los que están en el taller, más
+ * los terminados hace poco. Esconde los retirados y los terminados hace rato.
+ */
+export function listarVehiculosVisibles(): Vehiculo[] {
+  const { vehiculos, porVehiculo } = cargarVehiculos();
   const limite = Date.now() - HORAS_VISIBLE_TERMINADO * 60 * 60 * 1000;
 
   return vehiculos
     .filter((v) => !estaVencido(porVehiculo.get(v.id) ?? [], limite))
-    .map((v) => ({
-      ...v,
-      // Fuera del filtro, actualizado_en no le sirve al front: no lo mandamos.
-      servicios: (porVehiculo.get(v.id) ?? []).map(
-        ({ actualizado_en: _omitido, ...servicio }) => servicio,
-      ),
-    }));
+    .map((v) => anidar(v, porVehiculo.get(v.id) ?? []));
+}
+
+/**
+ * Todos los autos NO retirados (incluidos los terminados hace rato, que /display
+ * esconde). Para la lista de /admin (?todos=1).
+ */
+export function listarTodos(): Vehiculo[] {
+  const { vehiculos, porVehiculo } = cargarVehiculos();
+  return vehiculos.map((v) => anidar(v, porVehiculo.get(v.id) ?? []));
+}
+
+/**
+ * Alta de un auto con sus servicios iniciales (todos en "esperando").
+ * La fecha de ingreso queda con día + hora para que /display tenga un orden
+ * estable entre autos del mismo día.
+ */
+export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): number {
+  const limpio = validarDatos(datos);
+  const tipos = validarServicios(servicios);
+
+  const insertarVehiculo = db.prepare(`
+    INSERT INTO vehiculos (marca, modelo, color, matricula, fecha_ingreso)
+    VALUES (@marca, @modelo, @color, @matricula, datetime('now'))
+  `);
+  const insertarServicio = db.prepare(`
+    INSERT INTO servicios (vehiculo_id, tipo, estado)
+    VALUES (?, ?, 'esperando')
+  `);
+
+  // Todo o nada: si algo falla, no queda un auto a medio crear.
+  const crear = db.transaction((): number => {
+    const { lastInsertRowid } = insertarVehiculo.run(limpio);
+    const id = Number(lastInsertRowid);
+    for (const tipo of tipos) insertarServicio.run(id, tipo);
+    return id;
+  });
+
+  return crear();
+}
+
+/**
+ * Edita solo los datos del auto (marca/modelo/color/matrícula). NO toca la
+ * fecha de ingreso ni los servicios: el auto sigue siendo el mismo.
+ */
+export function editarVehiculo(id: number, datos: DatosVehiculo): boolean {
+  const limpio = validarDatos(datos);
+  const { changes } = db
+    .prepare(
+      `UPDATE vehiculos
+       SET marca = @marca, modelo = @modelo, color = @color, matricula = @matricula
+       WHERE id = @id AND retirado_en IS NULL`,
+    )
+    .run({ ...limpio, id });
+  return changes > 0;
+}
+
+// Retirar = soft delete: el auto no se borra, se marca con fecha y desaparece
+// de /display y de /admin al instante.
+export function retirarVehiculo(id: number): boolean {
+  const { changes } = db
+    .prepare(
+      "UPDATE vehiculos SET retirado_en = datetime('now') WHERE id = ? AND retirado_en IS NULL",
+    )
+    .run(id);
+  return changes > 0;
+}
+
+// --- Validaciones ---
+
+function validarDatos(datos: DatosVehiculo): DatosVehiculo {
+  const limpio = {
+    marca: (datos?.marca ?? "").trim(),
+    modelo: (datos?.modelo ?? "").trim(),
+    color: (datos?.color ?? "").trim(),
+    matricula: (datos?.matricula ?? "").trim(),
+  };
+  if (!limpio.marca || !limpio.modelo || !limpio.color || !limpio.matricula) {
+    throw new ErrorValidacion("Faltan datos del auto (marca, modelo, color, matrícula).");
+  }
+  return limpio;
+}
+
+function validarServicios(servicios: TipoServicio[]): TipoServicio[] {
+  if (!Array.isArray(servicios) || servicios.length === 0) {
+    throw new ErrorValidacion("Elegí al menos un servicio.");
+  }
+  const unicos = [...new Set(servicios)];
+  if (unicos.length !== servicios.length) {
+    throw new ErrorValidacion("Hay servicios repetidos.");
+  }
+  if (!unicos.every((t) => TIPOS_SERVICIO.includes(t))) {
+    throw new ErrorValidacion("Tipo de servicio inválido.");
+  }
+  return unicos;
 }
 
 // Vencido = todos sus servicios terminados y el último se terminó hace rato.

@@ -115,7 +115,7 @@ export function FormVehiculo({
             type="button"
             onClick={guardar}
             disabled={!listo || guardando}
-            className={`${BOTON_MARCA} flex-1 py-4 text-xl disabled:opacity-40 sm:text-2xl`}
+            className={`${BOTON_MARCA} flex-1 py-4 text-xl sm:text-2xl`}
           >
             {guardando ? "Guardando…" : esAlta ? "Crear" : "Guardar"}
           </button>

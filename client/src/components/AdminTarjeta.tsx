@@ -93,7 +93,7 @@ export function AdminTarjeta({
                     ? "Si terminó, retiralo"
                     : `Quitar ${NOMBRE_AREA[s.tipo]}`
                 }
-                className={`${BOTON_SUAVE} shrink-0 px-3 py-2 text-base disabled:opacity-40 sm:text-lg`}
+                className={`${BOTON_SUAVE} shrink-0 px-3 py-2 text-base sm:text-lg`}
               >
                 Quitar
               </button>

@@ -70,24 +70,29 @@ body {
   }
 }
 
-/* Latido suave para la invitación de la pantalla de bienvenida: llama la
-   atención sin parpadear ni marear. Se desactiva si el sistema pide menos
-   movimiento. */
-@keyframes latir {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.06);
+/* Misma curva, más suave: la cabecera de las vistas con lista es baja y con el
+   radio del hero se comería el logo contra los bordes. */
+.curva-baja {
+  border-bottom-left-radius: 50% 28px;
+  border-bottom-right-radius: 50% 28px;
+}
+
+@media (min-width: 640px) {
+  .curva-baja {
+    border-bottom-left-radius: 50% 44px;
+    border-bottom-right-radius: 50% 44px;
   }
 }
 
-.animate-latir {
-  animation: latir 2s ease-in-out infinite;
+@media (min-width: 1280px) {
+  .curva-baja {
+    border-bottom-left-radius: 50% 62px;
+    border-bottom-right-radius: 50% 62px;
+  }
 }
 
-/* La flecha del hero: baja y sube apenas, invitando a tocar/bajar. */
+/* La flecha de la bienvenida baja y sube apenas: llama la atención sin
+   parpadear ni marear. Se desactiva si el sistema pide menos movimiento. */
 @keyframes flotar {
   0%,
   100% {
@@ -103,7 +108,6 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-latir,
   .animate-flotar {
     animation: none;
   }

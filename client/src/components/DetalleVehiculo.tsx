@@ -10,6 +10,7 @@ import {
   autoTerminado,
   ultimosDigitos,
 } from "../dominio";
+import { BOTON_SUAVE, PASTILLA_LISTO } from "../tema";
 import { Cono } from "./Cono";
 
 interface Props {
@@ -22,24 +23,26 @@ export function DetalleVehiculo({ vehiculo, onCerrar }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-10 flex items-center justify-center bg-black/80 p-3 sm:p-4"
+      className="fixed inset-0 z-10 flex items-center justify-center bg-tinta/80 p-3 sm:p-4"
       onClick={onCerrar}
     >
       <div
-        className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-2xl border-4 border-zinc-700 bg-zinc-900 p-5 sm:rounded-3xl sm:p-8"
+        className="flex max-h-[90dvh] w-full max-w-2xl flex-col rounded-3xl bg-crema p-5 shadow-2xl sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-start justify-between gap-3 sm:gap-4">
           <div className="min-w-0">
-            <p className="text-2xl font-bold break-words text-white sm:text-4xl">
+            <p className="text-2xl font-black break-words text-tinta sm:text-4xl">
               {vehiculo.marca} {vehiculo.modelo}
             </p>
-            <p className="text-lg text-zinc-300 sm:text-3xl">
+            <p className="text-lg text-tinta-suave sm:text-3xl">
               {vehiculo.color} · …{ultimosDigitos(vehiculo.matricula)}
             </p>
           </div>
           {terminado && (
-            <span className="shrink-0 rounded-full bg-green-600 px-3 py-1 text-base font-bold text-white sm:px-5 sm:py-2 sm:text-2xl">
+            <span
+              className={`${PASTILLA_LISTO} px-3 py-1 text-base sm:px-5 sm:py-2 sm:text-2xl`}
+            >
               Listo
             </span>
           )}
@@ -50,7 +53,7 @@ export function DetalleVehiculo({ vehiculo, onCerrar }: Props) {
           {vehiculo.servicios.map((s) => (
             <li
               key={s.id}
-              className="flex shrink-0 items-center gap-3 rounded-2xl bg-zinc-800 p-3 sm:gap-5 sm:p-4"
+              className="flex shrink-0 items-center gap-3 rounded-2xl border border-linea bg-crema-alta p-3 sm:gap-5 sm:p-4"
             >
               <Cono
                 color={COLOR_AREA[s.tipo]}
@@ -60,7 +63,7 @@ export function DetalleVehiculo({ vehiculo, onCerrar }: Props) {
               {/* En el celular el estado va debajo del área (no entran a lo
                   ancho); de tablet para arriba, uno a cada lado. */}
               <div className="flex min-w-0 flex-1 flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-5">
-                <span className="text-xl font-semibold text-white sm:text-3xl">
+                <span className="text-xl font-bold text-tinta sm:text-3xl">
                   {NOMBRE_AREA[s.tipo]}
                 </span>
                 <span
@@ -76,7 +79,7 @@ export function DetalleVehiculo({ vehiculo, onCerrar }: Props) {
         <button
           type="button"
           onClick={onCerrar}
-          className="mt-5 w-full shrink-0 rounded-2xl bg-zinc-700 py-4 text-2xl font-bold text-white active:scale-[0.98] sm:mt-8 sm:py-5 sm:text-3xl"
+          className={`${BOTON_SUAVE} mt-5 w-full shrink-0 py-4 text-2xl active:scale-[0.98] sm:mt-8 sm:py-5 sm:text-3xl`}
         >
           Cerrar
         </button>

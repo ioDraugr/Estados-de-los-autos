@@ -28,14 +28,14 @@ export function CabeceraCurva({ alto, conos, acciones, children }: Props) {
 
   return (
     <div
-      className={`curva relative overflow-hidden bg-tinta text-white ${
+      className={`relative overflow-hidden bg-tinta text-white ${
         hero
-          ? "flex min-h-[86dvh] flex-col px-4 pt-4 pb-16 sm:px-8 sm:pt-6 sm:pb-24"
-          : "px-4 pt-4 pb-10 sm:px-8 sm:pt-5 sm:pb-14 xl:pb-20"
+          ? "curva flex min-h-[86dvh] flex-col px-4 pt-4 pb-16 sm:px-8 sm:pt-6 sm:pb-24"
+          : "curva-baja px-4 pt-4 pb-12 sm:px-8 sm:pt-5 sm:pb-16 xl:pb-20"
       }`}
       style={{
         boxShadow:
-          "inset 0 -70px 55px -55px rgba(242, 194, 48, 0.8), 0 12px 40px -12px rgba(242, 194, 48, 0.25)",
+          "inset 0 -42px 28px -32px rgba(238, 172, 28, 0.85), 0 8px 28px -14px rgba(242, 194, 48, 0.2)",
       }}
     >
       {/* Fila de arriba: logo a la izquierda, referencia y botones a la derecha.

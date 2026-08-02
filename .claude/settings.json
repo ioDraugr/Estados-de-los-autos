@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(timeout 90 firefox --headless --window-size=1500,1040 --screenshot bienvenida.png http://localhost:5173/display)",
+      "Bash(mkdir -p ffprofile)",
+      "Bash(timeout 90 firefox --headless --profile ./ffprofile --window-size=1500,1040 --screenshot bienvenida.png http://localhost:5173/display)",
+      "Bash(sed -i 's/useState\\(true\\);\\\\\\(\\\\s*\\\\\\)$/useState\\(false\\);/' src/pages/Display.tsx)",
+      "Bash(grep -n \"useState\\(false\\); *$\" src/pages/Display.tsx)",
+      "Bash(curl -s http://localhost:3000/api/vehiculos)",
+      "Bash(git diff *)",
+      "Bash(sqlite3 server/data/taller.db \"SELECT valor FROM config WHERE clave='pin';\")",
+      "Bash(node -e \"const db=require\\('/home/iodraugr/Escritorio/proyectoML2/server/node_modules/better-sqlite3'\\)\\('/home/iodraugr/Escritorio/proyectoML2/server/data/taller.db'\\);console.log\\(db.prepare\\(\\\\\"SELECT valor FROM config WHERE clave='pin'\\\\\"\\).get\\(\\)\\);\")",
+      "Bash(git -C /home/iodraugr/Escritorio/proyectoML2 status --short)",
+      "Bash(grep -viE \"^\\\\+\\\\+\\\\+|^---|classname|class=|<div|<p |<main|<span|</|^\\\\+\\\\s*$|^-\\\\s*$|/\\\\*|\\\\*/|//|>$|^\\\\+\\\\s*\\\\}$|^-\\\\s*\\\\}$\")",
+      "Bash(sed -i 's/${BOTON_MARCA} flex-1 py-4 text-xl disabled:opacity-40 sm:text-2xl/${BOTON_MARCA} flex-1 py-4 text-xl sm:text-2xl/' src/components/FormVehiculo.tsx)",
+      "Bash(sed -i 's/${BOTON_SUAVE} shrink-0 px-3 py-2 text-base disabled:opacity-40 sm:text-lg/${BOTON_SUAVE} shrink-0 px-3 py-2 text-base sm:text-lg/' src/components/AdminTarjeta.tsx)"
+    ]
+  }
+}

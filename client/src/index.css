@@ -1,7 +1,36 @@
 @import "tailwindcss";
 
-/* Base para modo kiosko del showroom: fondo oscuro, alto contraste,
-   sin selección de texto ni resaltado al tocar (pantalla táctil). */
+/* Tipografía de la marca: redondeada y amigable, como la referencia.
+   Va empaquetada con el build (no se baja de internet), porque en el taller no
+   hay conexión. Solo el subset latino: alcanza para el español y pesa poco. */
+@font-face {
+  font-family: "Nunito Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 1000;
+  src: url("@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2")
+    format("woff2-variations");
+}
+
+/* Identidad visual compartida por /display, /admin y /taller. Definir los
+   colores acá (y no sueltos en cada componente) es lo que mantiene las tres
+   vistas iguales: cambiar el amarillo de la marca es cambiar una línea.
+   Los colores de los conos NO viven acá: son de dominio y están en dominio.ts. */
+@theme {
+  --font-sans: "Nunito Variable", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  --color-tinta: #0e0e0e; /* la parte oscura y el texto sobre crema */
+  --color-tinta-suave: #6b6558; /* texto secundario sobre crema */
+  --color-crema: #f5efe1; /* fondo claro */
+  --color-crema-alta: #faf6ec; /* tarjetas sobre el fondo crema */
+  --color-linea: #e6dcc6; /* bordes suaves entre claros */
+  --color-marca: #f2c230; /* amarillo dorado de la marca */
+  --color-marca-suave: #f6da92; /* botón redondo, detalles */
+  --color-listo: #15803d; /* verde de "terminado" */
+}
+
+/* Base para modo kiosko del showroom: alto contraste, sin selección de texto
+   ni resaltado al tocar (pantalla táctil). */
 html,
 body,
 #root {
@@ -10,8 +39,72 @@ body,
 }
 
 body {
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  background-color: var(--color-crema);
+  color: var(--color-tinta);
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* La curva amplia que separa la parte oscura del fondo crema, en las tres
+   vistas (la dibuja CabeceraCurva). Es un radio elíptico: se abre a lo ancho y
+   crece con la pantalla, para que en el showroom se vea igual de generosa que
+   en la referencia. Va acá y no en el componente porque necesita media queries. */
+.curva {
+  border-bottom-left-radius: 50% 56px;
+  border-bottom-right-radius: 50% 56px;
+}
+
+@media (min-width: 640px) {
+  .curva {
+    border-bottom-left-radius: 50% 90px;
+    border-bottom-right-radius: 50% 90px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .curva {
+    border-bottom-left-radius: 50% 130px;
+    border-bottom-right-radius: 50% 130px;
+  }
+}
+
+/* Latido suave para la invitación de la pantalla de bienvenida: llama la
+   atención sin parpadear ni marear. Se desactiva si el sistema pide menos
+   movimiento. */
+@keyframes latir {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.animate-latir {
+  animation: latir 2s ease-in-out infinite;
+}
+
+/* La flecha del hero: baja y sube apenas, invitando a tocar/bajar. */
+@keyframes flotar {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(25%);
+  }
+}
+
+.animate-flotar {
+  animation: flotar 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-latir,
+  .animate-flotar {
+    animation: none;
+  }
 }

@@ -8,6 +8,14 @@ export const COLOR_AREA: Record<TipoServicio, string> = {
   vitrificado: "#eab308", // amarillo
 };
 
+// Las tres áreas, en el orden en que se muestran siempre (referencia de conos,
+// alta de un auto, botones para agregar un servicio).
+export const AREAS: TipoServicio[] = [
+  "instalacion",
+  "polarizado",
+  "vitrificado",
+];
+
 export const NOMBRE_AREA: Record<TipoServicio, string> = {
   instalacion: "Instalación",
   polarizado: "Polarizado",
@@ -20,11 +28,12 @@ export const NOMBRE_ESTADO: Record<EstadoServicio, string> = {
   terminado: "Terminado",
 };
 
-// Estilos de la pastilla de estado (texto + fondo), pensados para alto contraste.
+// Estilos de la pastilla de estado (texto + fondo) sobre el fondo crema del
+// tema, pensados para alto contraste y para leerse de lejos.
 export const ESTILO_ESTADO: Record<EstadoServicio, string> = {
-  esperando: "bg-zinc-700 text-zinc-100",
-  en_proceso: "bg-amber-500 text-black",
-  terminado: "bg-green-600 text-white",
+  esperando: "bg-tinta/10 text-tinta",
+  en_proceso: "bg-marca text-tinta",
+  terminado: "bg-listo text-white",
 };
 
 // Un auto está terminado solo cuando TODOS sus servicios están terminados.

@@ -27,7 +27,7 @@ export function LogoML({ className = "h-14 w-auto" }: Props) {
         textAnchor="middle"
         dominantBaseline="central"
         fill="var(--color-tinta)"
-        fontSize="40"
+        fontSize="46"
         fontWeight="900"
         letterSpacing="-1"
       >

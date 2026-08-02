@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { login } from "../api";
 import { guardarPin } from "../sesion";
+import { BOTON_MARCA, BOTON_SUAVE } from "../tema";
+import { LogoML } from "./LogoML";
 
 interface Props {
   onIngresar: () => void;
@@ -47,25 +49,26 @@ export function PinLogin({ onIngresar }: Props) {
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-8 bg-zinc-950 p-6 text-white">
-      <h1 className="text-3xl font-black tracking-tight sm:text-4xl">
-        Taller ML Center
-      </h1>
-      <p className="text-xl text-zinc-300 sm:text-2xl">Ingresá el PIN</p>
+    <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-crema p-6 sm:gap-8">
+      <LogoML className="h-16 w-auto sm:h-20" />
+      <p className="text-xl text-tinta-suave sm:text-2xl">Ingresá el PIN</p>
 
       {/* Puntitos que muestran cuántos dígitos van, sin revelar el PIN. */}
       <div className="flex h-8 items-center gap-3">
         {pin.length === 0 ? (
-          <span className="text-lg text-zinc-500">— — — —</span>
+          <span className="text-lg text-tinta/30">— — — —</span>
         ) : (
           Array.from(pin).map((_, i) => (
-            <span key={i} className="h-4 w-4 rounded-full bg-white sm:h-5 sm:w-5" />
+            <span
+              key={i}
+              className="h-4 w-4 rounded-full bg-tinta sm:h-5 sm:w-5"
+            />
           ))
         )}
       </div>
 
       {error && (
-        <p className="text-xl font-bold text-red-400">PIN incorrecto</p>
+        <p className="text-xl font-bold text-red-700">PIN incorrecto</p>
       )}
 
       <div className="grid w-full max-w-xs grid-cols-3 gap-3 sm:gap-4">
@@ -74,7 +77,7 @@ export function PinLogin({ onIngresar }: Props) {
             key={t}
             type="button"
             onClick={() => agregar(t)}
-            className="rounded-2xl bg-zinc-800 py-5 text-3xl font-bold text-white active:scale-95 sm:py-6 sm:text-4xl"
+            className={`${BOTON_SUAVE} py-5 text-3xl sm:py-6 sm:text-4xl`}
           >
             {t}
           </button>
@@ -82,14 +85,14 @@ export function PinLogin({ onIngresar }: Props) {
         <button
           type="button"
           onClick={borrar}
-          className="rounded-2xl bg-zinc-700 py-5 text-2xl font-bold text-white active:scale-95 sm:py-6 sm:text-3xl"
+          className={`${BOTON_SUAVE} py-5 text-2xl sm:py-6 sm:text-3xl`}
         >
           ←
         </button>
         <button
           type="button"
           onClick={() => agregar("0")}
-          className="rounded-2xl bg-zinc-800 py-5 text-3xl font-bold text-white active:scale-95 sm:py-6 sm:text-4xl"
+          className={`${BOTON_SUAVE} py-5 text-3xl sm:py-6 sm:text-4xl`}
         >
           0
         </button>
@@ -97,7 +100,7 @@ export function PinLogin({ onIngresar }: Props) {
           type="button"
           onClick={ingresar}
           disabled={verificando}
-          className="rounded-2xl bg-green-600 py-5 text-2xl font-bold text-white active:scale-95 disabled:opacity-50 sm:py-6 sm:text-3xl"
+          className={`${BOTON_MARCA} py-5 text-2xl sm:py-6 sm:text-3xl`}
         >
           {verificando ? "…" : "OK"}
         </button>

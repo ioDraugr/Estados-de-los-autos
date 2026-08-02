@@ -15,9 +15,17 @@ import {
 } from "../api";
 import { borrarPin, leerPin } from "../sesion";
 import type { EstadoServicio, TipoServicio, Vehiculo } from "../types";
+import {
+  AVISO_ERROR,
+  BOTON_MARCA,
+  BOTON_OSCURO,
+  TEXTO_VACIO,
+} from "../tema";
 import { AdminTarjeta } from "../components/AdminTarjeta";
+import { CabeceraCurva } from "../components/CabeceraCurva";
 import { FormVehiculo } from "../components/FormVehiculo";
 import { PinLogin } from "../components/PinLogin";
+import { TituloSeccion } from "../components/TituloSeccion";
 
 type Modal = { tipo: "alta" } | { tipo: "edicion"; vehiculo: Vehiculo } | null;
 
@@ -93,62 +101,73 @@ export function Admin() {
   }
 
   return (
-    <div className="min-h-full bg-zinc-950 text-white">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b-4 border-zinc-800 px-4 py-4 sm:px-8 sm:py-5">
-        <h1 className="text-2xl font-black tracking-tight sm:text-4xl">
-          Taller ML Center · Admin
-        </h1>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            onClick={() => setModal({ tipo: "alta" })}
-            disabled={ocupado}
-            className="rounded-2xl bg-green-600 px-5 py-3 text-lg font-bold text-white active:scale-95 disabled:opacity-50 sm:text-xl"
-          >
-            + Nuevo auto
-          </button>
-          <button
-            type="button"
-            onClick={salir}
-            className="rounded-2xl bg-zinc-700 px-5 py-3 text-lg font-bold text-white active:scale-95 sm:text-xl"
-          >
-            Salir
-          </button>
-        </div>
-      </header>
+    <div className="min-h-full bg-crema">
+      <CabeceraCurva
+        alto="compacta"
+        acciones={
+          <>
+            <button
+              type="button"
+              onClick={() => setModal({ tipo: "alta" })}
+              disabled={ocupado}
+              className={`${BOTON_MARCA} px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
+            >
+              + Nuevo auto
+            </button>
+            <button
+              type="button"
+              onClick={salir}
+              className={`${BOTON_OSCURO} px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
+            >
+              Salir
+            </button>
+          </>
+        }
+      />
 
-      {error && (
-        <p className="bg-red-600 px-4 py-3 text-center text-lg font-bold text-white sm:px-8 sm:text-xl">
-          {error}
-        </p>
-      )}
+      <main className="px-4 py-6 sm:px-8 sm:py-8">
+        {error && (
+          <p
+            className={`${AVISO_ERROR} mb-5 rounded-2xl px-4 py-3 text-lg sm:mb-6 sm:text-xl`}
+          >
+            {error}
+          </p>
+        )}
 
-      {cargando ? (
-        <p className="p-10 text-center text-2xl text-zinc-400 sm:p-16">Cargando…</p>
-      ) : vehiculos.length === 0 ? (
-        <p className="p-10 text-center text-2xl text-zinc-400 sm:p-16">
-          No hay autos en el taller. Tocá “+ Nuevo auto” para agregar uno.
-        </p>
-      ) : (
-        <main className="grid grid-cols-1 gap-4 p-4 sm:gap-6 sm:p-8 lg:grid-cols-2 xl:grid-cols-3">
-          {vehiculos.map((v) => (
-            <AdminTarjeta
-              key={v.id}
-              vehiculo={v}
-              ocupado={ocupado}
-              onCambiarEstado={(id, estado: EstadoServicio) =>
-                accion(() => cambiarEstadoServicio(id, estado))
-              }
-              onAgregarServicio={(vehiculoId, tipo) =>
-                accion(() => agregarServicio(vehiculoId, tipo))
-              }
-              onQuitarServicio={(id) => accion(() => quitarServicio(id))}
-              onEditar={(vehiculo) => setModal({ tipo: "edicion", vehiculo })}
-              onRetirar={(vehiculo) => accion(() => retirarVehiculo(vehiculo.id))}
-            />
-          ))}
-        </main>
-      )}
+        <TituloSeccion
+          titulo="Autos en el taller"
+          ayuda="Cargá autos, cambiá sus estados y retiralos cuando salen."
+        />
+
+        {cargando ? (
+          <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>Cargando…</p>
+        ) : vehiculos.length === 0 ? (
+          <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>
+            No hay autos en el taller. Tocá “+ Nuevo auto” para agregar uno.
+          </p>
+        ) : (
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-7 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+            {vehiculos.map((v) => (
+              <AdminTarjeta
+                key={v.id}
+                vehiculo={v}
+                ocupado={ocupado}
+                onCambiarEstado={(id, estado: EstadoServicio) =>
+                  accion(() => cambiarEstadoServicio(id, estado))
+                }
+                onAgregarServicio={(vehiculoId, tipo) =>
+                  accion(() => agregarServicio(vehiculoId, tipo))
+                }
+                onQuitarServicio={(id) => accion(() => quitarServicio(id))}
+                onEditar={(vehiculo) => setModal({ tipo: "edicion", vehiculo })}
+                onRetirar={(vehiculo) =>
+                  accion(() => retirarVehiculo(vehiculo.id))
+                }
+              />
+            ))}
+          </div>
+        )}
+      </main>
 
       {modal && (
         <FormVehiculo

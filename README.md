@@ -46,9 +46,17 @@ cd client && npm run dev
 ```
 
 Abrí **http://localhost:5173** en el navegador. La raíz redirige a `/display`
-(la pantalla del showroom). La vista de los trabajadores está en
-**http://localhost:5173/admin**. En dev, el front hace proxy de `/api` y
-`/socket.io` hacia el backend, así que no hace falta configurar nada más.
+(la pantalla del showroom). Hay tres vistas:
+
+- **/display** — clientes (solo lectura, con pantalla de bienvenida).
+- **/admin** — vendedores: administran los autos (alta, editar, agregar/quitar
+  servicios, retirar, cambiar estados).
+- **/taller** — trabajadores del taller: **solo** cambian el estado de cada
+  trabajo (esperando / en proceso / terminado). Usa el mismo PIN que `/admin` y se
+  actualiza en vivo por Socket.IO, igual que `/display`.
+
+En dev, el front hace proxy de `/api` y `/socket.io` hacia el backend, así que no
+hace falta configurar nada más.
 
 ## Correr en producción (una sola máquina en el taller)
 
@@ -103,6 +111,31 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
   último, hay que retirar el auto.
 - Editar los datos de un auto o agregar/quitar servicios **no** cambia su fecha de
   ingreso ni el estado de los otros servicios.
+
+## La estética (las tres vistas, una sola identidad)
+
+`/display`, `/admin` y `/taller` comparten la misma cara: una sección oscura con
+una curva amplia hacia un fondo crema, el logo ML (rombo amarillo), el amarillo
+dorado de la marca y tarjetas claras con esquinas redondeadas. La referencia es
+`Ejemplo.png`, en la raíz del repo.
+
+Todo el tema está centralizado en cuatro lugares; **no hay colores sueltos por
+componente**:
+
+| Dónde | Qué define |
+| --- | --- |
+| `client/src/index.css` | Los colores (`@theme`: `tinta`, `crema`, `crema-alta`, `linea`, `marca`, `listo`), la tipografía y las clases `.curva` / `.curva-baja` de la cabecera. |
+| `client/src/tema.ts` | Las clases que se repiten: tarjetas, botones, pastillas y franjas de aviso. |
+| `client/src/components/CabeceraCurva.tsx` | La parte oscura con la curva, en dos altos: `hero` (bienvenida) y `compacta` (vistas con lista). |
+| `client/src/dominio.ts` | Lo que **no** es estética: colores de los conos por área y estilos de las pastillas de estado. |
+
+Para cambiar el amarillo de la marca en toda la app, se toca `--color-marca` en
+`index.css` y listo.
+
+La tipografía es **Nunito Variable**, instalada como dependencia
+(`@fontsource-variable/nunito`) y empaquetada dentro del build: el taller no tiene
+internet, así que no se puede depender de Google Fonts. Solo se empaqueta el
+subset latino (~39 KB).
 
 ## Configuración
 

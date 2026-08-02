@@ -3,18 +3,17 @@
 // pensados para usar en una tablet parado al lado del auto.
 // A diferencia de /display, acá SÍ se muestra la matrícula entera: los
 // trabajadores la necesitan para identificar el auto.
-import {
-  COLOR_AREA,
-  ESTILO_ESTADO,
-  NOMBRE_AREA,
-  NOMBRE_ESTADO,
-  autoTerminado,
-} from "../dominio";
+import { AREAS, COLOR_AREA, NOMBRE_AREA, autoTerminado } from "../dominio";
 import type { EstadoServicio, TipoServicio, Vehiculo } from "../types";
+import {
+  BOTON_PELIGRO,
+  BOTON_SUAVE,
+  PASTILLA_LISTO,
+  RESALTE_LISTO,
+  TARJETA,
+} from "../tema";
+import { BotonesEstado } from "./BotonesEstado";
 import { Cono } from "./Cono";
-
-const AREAS: TipoServicio[] = ["instalacion", "polarizado", "vitrificado"];
-const ESTADOS: EstadoServicio[] = ["esperando", "en_proceso", "terminado"];
 
 interface Props {
   vehiculo: Vehiculo;
@@ -42,22 +41,22 @@ export function AdminTarjeta({
 
   return (
     <div
-      className={`flex flex-col gap-4 rounded-2xl border-4 p-4 sm:rounded-3xl sm:p-6 ${
-        terminado ? "border-green-500 bg-green-950/30" : "border-zinc-700 bg-zinc-900"
+      className={`flex flex-col gap-4 p-4 sm:p-6 ${TARJETA} ${
+        terminado ? RESALTE_LISTO : ""
       }`}
     >
       {/* Encabezado: datos del auto + acciones sobre el auto. */}
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-2xl font-bold break-words text-white sm:text-3xl">
+          <p className="text-2xl font-black break-words text-tinta sm:text-3xl">
             {vehiculo.marca} {vehiculo.modelo}
           </p>
-          <p className="text-lg text-zinc-300 sm:text-xl">
+          <p className="text-lg text-tinta-suave sm:text-xl">
             {vehiculo.color} · {vehiculo.matricula}
           </p>
         </div>
         {terminado && (
-          <span className="shrink-0 rounded-full bg-green-600 px-3 py-1 text-base font-bold text-white sm:text-xl">
+          <span className={`${PASTILLA_LISTO} px-4 py-1 text-base sm:text-xl`}>
             Listo
           </span>
         )}
@@ -66,14 +65,17 @@ export function AdminTarjeta({
       {/* Un servicio por fila con su cono y los tres estados. */}
       <div className="flex flex-col gap-3">
         {vehiculo.servicios.map((s) => (
-          <div key={s.id} className="rounded-2xl bg-zinc-800 p-3 sm:p-4">
+          <div
+            key={s.id}
+            className="rounded-2xl border border-linea bg-crema p-3 sm:p-4"
+          >
             <div className="flex items-center gap-3">
               <Cono
                 color={COLOR_AREA[s.tipo]}
                 estado={s.estado}
                 className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
               />
-              <span className="flex-1 text-xl font-semibold text-white sm:text-2xl">
+              <span className="flex-1 text-xl font-bold text-tinta sm:text-2xl">
                 {NOMBRE_AREA[s.tipo]}
               </span>
               <button
@@ -91,31 +93,18 @@ export function AdminTarjeta({
                     ? "Si terminó, retiralo"
                     : `Quitar ${NOMBRE_AREA[s.tipo]}`
                 }
-                className="shrink-0 rounded-xl bg-zinc-700 px-3 py-2 text-base font-bold text-zinc-200 active:scale-95 disabled:opacity-40 sm:text-lg"
+                className={`${BOTON_SUAVE} shrink-0 px-3 py-2 text-base disabled:opacity-40 sm:text-lg`}
               >
                 Quitar
               </button>
             </div>
 
-            <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3">
-              {ESTADOS.map((estado) => {
-                const activo = s.estado === estado;
-                return (
-                  <button
-                    key={estado}
-                    type="button"
-                    onClick={() => !activo && onCambiarEstado(s.id, estado)}
-                    disabled={ocupado}
-                    className={`rounded-xl py-3 text-base font-bold active:scale-95 disabled:opacity-60 sm:text-lg ${
-                      activo
-                        ? ESTILO_ESTADO[estado]
-                        : "bg-zinc-900 text-zinc-400 ring-2 ring-zinc-700"
-                    }`}
-                  >
-                    {NOMBRE_ESTADO[estado]}
-                  </button>
-                );
-              })}
+            <div className="mt-3">
+              <BotonesEstado
+                estado={s.estado}
+                disabled={ocupado}
+                onCambiar={(estado) => onCambiarEstado(s.id, estado)}
+              />
             </div>
           </div>
         ))}
@@ -130,7 +119,7 @@ export function AdminTarjeta({
               type="button"
               onClick={() => onAgregarServicio(vehiculo.id, tipo)}
               disabled={ocupado}
-              className="flex items-center gap-2 rounded-xl border-2 border-dashed border-zinc-600 px-3 py-2 text-base font-semibold text-zinc-200 active:scale-95 disabled:opacity-40 sm:text-lg"
+              className="flex items-center gap-2 rounded-xl border-2 border-dashed border-tinta/25 px-3 py-2 text-base font-bold text-tinta active:scale-95 disabled:opacity-40 sm:text-lg"
             >
               <Cono
                 color={COLOR_AREA[tipo]}
@@ -149,7 +138,7 @@ export function AdminTarjeta({
           type="button"
           onClick={() => onEditar(vehiculo)}
           disabled={ocupado}
-          className="flex-1 rounded-xl bg-zinc-700 py-3 text-lg font-bold text-white active:scale-[0.98] disabled:opacity-50"
+          className={`${BOTON_SUAVE} flex-1 py-3 text-lg`}
         >
           Editar
         </button>
@@ -165,7 +154,7 @@ export function AdminTarjeta({
             }
           }}
           disabled={ocupado}
-          className="flex-1 rounded-xl bg-red-700 py-3 text-lg font-bold text-white active:scale-[0.98] disabled:opacity-50"
+          className={`${BOTON_PELIGRO} flex-1 py-3 text-lg`}
         >
           Retirar
         </button>

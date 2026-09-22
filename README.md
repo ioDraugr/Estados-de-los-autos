@@ -92,6 +92,16 @@ Para **empezar de cero** (borra todos los datos y vuelve a sembrar):
 rm server/data/taller.db*
 ```
 
+Las columnas nuevas (por ejemplo `vehiculos.telefono`) se agregan **solas** al
+arrancar sobre una base que ya existía: no hay que borrar nada ni correr scripts.
+
+Para probar sin tocar la base real, se puede apuntar a otro archivo con `DB_PATH`
+(si la carpeta no existe, se crea):
+
+```bash
+cd server && DB_PATH=/tmp/prueba.db PORT=3099 npm run dev
+```
+
 ## La vista /admin (trabajadores)
 
 En `/admin` los trabajadores dan de alta autos, cambian el estado de cada servicio,
@@ -111,6 +121,16 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
   último, hay que retirar el auto.
 - Editar los datos de un auto o agregar/quitar servicios **no** cambia su fecha de
   ingreso ni el estado de los otros servicios.
+- **Celular del cliente (opcional).** Al dar de alta o editar un auto se puede
+  cargar un celular uruguayo ("Celular para avisos por WhatsApp"). Se acepta como
+  se escriba (`099 123 456`, `99123456`, `+598 99 123 456`…) y se guarda siempre
+  como `+59899123456`; si no es un celular uruguayo, el server lo rechaza con un
+  mensaje. Dejarlo vacío al editar lo borra. Se muestra chico en la tarjeta de
+  `/admin`. Se va a usar para mandar avisos automáticos por WhatsApp (en
+  preparación).
+- **El celular es privado.** La API solo lo manda si el pedido trae un PIN válido
+  en `x-pin` (`/admin` y `/taller`). **Nunca** llega a `/display` ni a quien pida
+  la lista sin PIN, y `/taller` no lo muestra.
 
 ## La estética (las tres vistas, una sola identidad)
 
@@ -144,6 +164,7 @@ subset latino (~39 KB).
 | `PORT` | `3000` | Puerto del servidor. |
 | `HORAS_VISIBLE_TERMINADO` | `4` | Cuántas horas sigue en pantalla un auto con **todos** sus servicios terminados antes de ocultarse solo. |
 | `ADMIN_PIN` | `1234` | PIN inicial de `/admin`. Solo se usa la primera vez, para sembrarlo en la base; después el PIN vive en `config`. |
+| `DB_PATH` | `server/data/taller.db` | Archivo de la base SQLite. Útil para probar contra una base descartable; si la carpeta no existe, se crea. |
 
 ## API
 
@@ -152,11 +173,11 @@ Los endpoints que **escriben** exigen el header `x-pin` con el PIN (si no, `401`
 | Endpoint | Qué hace |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }`, para saber si el server está vivo. |
-| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de `HORAS_VISIBLE_TERMINADO` ni los retirados. |
-| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). |
+| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de `HORAS_VISIBLE_TERMINADO` ni los retirados. No pide PIN; **solo con `x-pin` válido** incluye `telefono` (si no, la clave no aparece). |
+| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono`. |
 | `POST /api/login` | Valida el PIN (body `{ pin }`). `{ ok: true }` o `401`. |
-| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). |
-| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula (no toca fecha ni servicios). |
+| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). |
+| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. |
 | `POST /api/vehiculos/:id/retirar` | Retira el auto (soft delete). |
 | `POST /api/vehiculos/:id/servicios` | Agrega un servicio (body `{ tipo }`). |
 | `PATCH /api/servicios/:id` | Cambia el estado de un servicio (body `{ estado }`). |

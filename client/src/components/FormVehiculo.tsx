@@ -1,17 +1,26 @@
 // Formulario de auto, en modal. Sirve para el alta (elige los servicios
 // iniciales) y para editar los datos de un auto ya cargado (sin tocar sus
 // servicios: eso se hace desde la tarjeta). Sin <form> submit: onClick/onChange.
+// El celular es opcional: si se carga, el server lo valida (un error vuelve como
+// mensaje en /admin, igual que los demás datos).
 import { useState } from "react";
 import type { DatosVehiculo } from "../api";
-import { AREAS, COLOR_AREA, NOMBRE_AREA } from "../dominio";
-import type { TipoServicio } from "../types";
-import { BOTON_MARCA, BOTON_SUAVE } from "../tema";
+import { AREAS, COLOR_AREA, NOMBRE_AREA, celularLocal } from "../dominio";
+import type { TipoServicio, Vehiculo } from "../types";
+import { AVISO_ERROR, BOTON_MARCA, BOTON_SUAVE } from "../tema";
 import { Cono } from "./Cono";
 
 interface Props {
   modo: "alta" | "edicion";
-  inicial?: DatosVehiculo;
+  // Al editar llega el auto tal como lo manda la API (telefono puede ser null).
+  inicial?: Pick<
+    Vehiculo,
+    "marca" | "modelo" | "color" | "matricula" | "telefono"
+  >;
   guardando: boolean;
+  // Mensaje del server si no se pudo guardar (ej. celular mal escrito). Se
+  // muestra dentro del modal: el aviso de la página queda tapado por el fondo.
+  error?: string | null;
   onGuardar: (datos: DatosVehiculo, servicios: TipoServicio[]) => void;
   onCancelar: () => void;
 }
@@ -20,6 +29,7 @@ export function FormVehiculo({
   modo,
   inicial,
   guardando,
+  error,
   onGuardar,
   onCancelar,
 }: Props) {
@@ -27,9 +37,13 @@ export function FormVehiculo({
   const [modelo, setModelo] = useState(inicial?.modelo ?? "");
   const [color, setColor] = useState(inicial?.color ?? "");
   const [matricula, setMatricula] = useState(inicial?.matricula ?? "");
+  const [telefono, setTelefono] = useState(
+    inicial?.telefono ? celularLocal(inicial.telefono) : "",
+  );
   const [servicios, setServicios] = useState<TipoServicio[]>([]);
 
   const esAlta = modo === "alta";
+  // El celular no cuenta: es opcional.
   const datosCompletos =
     marca.trim() && modelo.trim() && color.trim() && matricula.trim();
   // En alta hace falta al menos un servicio; en edición no se tocan.
@@ -43,7 +57,7 @@ export function FormVehiculo({
 
   function guardar() {
     if (!listo || guardando) return;
-    onGuardar({ marca, modelo, color, matricula }, servicios);
+    onGuardar({ marca, modelo, color, matricula, telefono }, servicios);
   }
 
   return (
@@ -64,6 +78,13 @@ export function FormVehiculo({
           <Campo etiqueta="Modelo" valor={modelo} onCambio={setModelo} />
           <Campo etiqueta="Color" valor={color} onCambio={setColor} />
           <Campo etiqueta="Matrícula" valor={matricula} onCambio={setMatricula} />
+          <Campo
+            etiqueta="Celular para avisos por WhatsApp (opcional)"
+            valor={telefono}
+            onCambio={setTelefono}
+            tipo="tel"
+            placeholder="099 123 456"
+          />
         </div>
 
         {esAlta && (
@@ -103,6 +124,14 @@ export function FormVehiculo({
           </div>
         )}
 
+        {error && (
+          <p
+            className={`${AVISO_ERROR} mt-6 rounded-2xl px-4 py-3 text-lg sm:text-xl`}
+          >
+            {error}
+          </p>
+        )}
+
         <div className="mt-7 flex gap-3 sm:gap-4">
           <button
             type="button"
@@ -129,17 +158,29 @@ interface CampoProps {
   etiqueta: string;
   valor: string;
   onCambio: (v: string) => void;
+  // "tel" abre el teclado numérico en la tablet.
+  tipo?: "text" | "tel";
+  placeholder?: string;
 }
 
-function Campo({ etiqueta, valor, onCambio }: CampoProps) {
+function Campo({
+  etiqueta,
+  valor,
+  onCambio,
+  tipo = "text",
+  placeholder,
+}: CampoProps) {
   return (
     <label className="flex flex-col gap-1">
       <span className="text-lg text-tinta-suave sm:text-xl">{etiqueta}</span>
       <input
-        type="text"
+        type={tipo}
+        inputMode={tipo === "tel" ? "tel" : undefined}
+        autoComplete={tipo === "tel" ? "off" : undefined}
         value={valor}
+        placeholder={placeholder}
         onChange={(e) => onCambio(e.target.value)}
-        className="rounded-xl border-2 border-linea bg-crema-alta px-4 py-3 text-xl text-tinta outline-none focus:border-marca sm:text-2xl"
+        className="rounded-xl border-2 border-linea bg-crema-alta px-4 py-3 text-xl text-tinta outline-none placeholder:text-tinta/40 focus:border-marca sm:text-2xl"
       />
     </label>
   );

@@ -3,15 +3,18 @@
 import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-// El archivo de la base queda en server/data/taller.db
-// La carpeta no está en git (la base es local), así que la creamos si falta.
-const carpetaDatos = join(__dirname, "..", "data");
-mkdirSync(carpetaDatos, { recursive: true });
-const rutaDb = join(carpetaDatos, "taller.db");
+// El archivo de la base queda en server/data/taller.db, salvo que se indique
+// otro con la env var DB_PATH (sirve para probar contra una base descartable
+// sin tocar la real). La carpeta no está en git (la base es local), así que la
+// creamos si falta.
+const rutaDb = process.env.DB_PATH
+  ? resolve(process.env.DB_PATH)
+  : join(__dirname, "..", "data", "taller.db");
+mkdirSync(dirname(rutaDb), { recursive: true });
 
 export const db = new Database(rutaDb);
 db.pragma("journal_mode = WAL");
@@ -45,9 +48,11 @@ db.exec(`
 
 // --- Migraciones sobre bases que ya existían ---
 // CREATE TABLE IF NOT EXISTS no agrega columnas nuevas a una tabla vieja, así que
-// las sumamos a mano si faltan (soft delete de autos y de servicios).
+// las sumamos a mano si faltan (soft delete de autos y de servicios, y el
+// celular opcional del cliente para los avisos por WhatsApp).
 agregarColumnaSiFalta("vehiculos", "retirado_en", "TEXT");
 agregarColumnaSiFalta("servicios", "eliminado_en", "TEXT");
+agregarColumnaSiFalta("vehiculos", "telefono", "TEXT");
 
 // PIN inicial de /admin. Se puede fijar el primero con la env var ADMIN_PIN;
 // después vive en la base (config) y no se vuelve a tocar.

@@ -75,9 +75,14 @@ app.post("/api/login", (req, res) => {
 
 // Autos a mostrar. Sin parámetros: los del showroom (/display). Con ?todos=1:
 // todos los no retirados, incluidos los terminados hace rato (para /admin).
+// Es pública (sin PIN), pero el celular del cliente solo viaja si el pedido
+// trae un `x-pin` válido: /display NUNCA lo recibe.
 app.get("/api/vehiculos", (req, res) => {
   manejar(res, "listar vehículos", () => {
-    const lista = req.query.todos ? listarTodos() : listarVehiculosVisibles();
+    const opciones = { incluirTelefono: pinEsValido(req.header("x-pin")) };
+    const lista = req.query.todos
+      ? listarTodos(opciones)
+      : listarVehiculosVisibles(opciones);
     res.json(lista);
   });
 });
@@ -85,22 +90,28 @@ app.get("/api/vehiculos", (req, res) => {
 // Alta de un auto con sus servicios iniciales.
 app.post("/api/vehiculos", exigirPin, (req, res) => {
   manejar(res, "crear vehículo", () => {
-    const { marca, modelo, color, matricula, servicios } = req.body ?? {};
-    const id = crearVehiculo({ marca, modelo, color, matricula }, servicios);
+    const { marca, modelo, color, matricula, telefono, servicios } =
+      req.body ?? {};
+    const id = crearVehiculo(
+      { marca, modelo, color, matricula, telefono },
+      servicios,
+    );
     emitirCambio();
     res.status(201).json({ id });
   });
 });
 
-// Editar los datos de un auto (no toca fecha_ingreso ni servicios).
+// Editar los datos de un auto (no toca fecha_ingreso ni servicios). El
+// teléfono vacío lo borra; si no viene, queda el que estaba.
 app.patch("/api/vehiculos/:id", exigirPin, (req, res) => {
   manejar(res, "editar vehículo", () => {
-    const { marca, modelo, color, matricula } = req.body ?? {};
+    const { marca, modelo, color, matricula, telefono } = req.body ?? {};
     const ok = editarVehiculo(Number(req.params.id), {
       marca,
       modelo,
       color,
       matricula,
+      telefono,
     });
     if (!ok) {
       res.status(404).json({ error: "Auto no encontrado" });

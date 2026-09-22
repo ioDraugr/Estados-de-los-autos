@@ -2,6 +2,7 @@
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 import { TIPOS_SERVICIO } from "./servicios.js";
+import { normalizarTelefono } from "./telefono.js";
 import type { Servicio, TipoServicio, Vehiculo } from "./tipos.js";
 
 // Un auto con TODOS sus servicios terminados se sigue mostrando en el showroom
@@ -17,6 +18,23 @@ interface DatosVehiculo {
   modelo: string;
   color: string;
   matricula: string;
+  // Celular opcional tal como lo escribió el trabajador; se normaliza al guardar.
+  telefono?: unknown;
+}
+
+// Datos ya validados, listos para la base (telefono normalizado o null).
+interface DatosLimpios {
+  marca: string;
+  modelo: string;
+  color: string;
+  matricula: string;
+  telefono: string | null;
+}
+
+interface OpcionesListado {
+  // El celular del cliente es un dato privado: solo sale si quien pide trae un
+  // PIN válido (/admin, /taller). Sin esto la clave ni siquiera aparece.
+  incluirTelefono?: boolean;
 }
 
 // Trae los autos NO retirados que cumplan `condicionExtra` (si se pasa), con sus
@@ -28,7 +46,7 @@ function cargarVehiculos(condicionExtra = ""): {
 } {
   const vehiculos = db
     .prepare(
-      `SELECT id, marca, modelo, color, matricula, fecha_ingreso
+      `SELECT id, marca, modelo, color, matricula, fecha_ingreso, telefono
        FROM vehiculos
        WHERE retirado_en IS NULL ${condicionExtra}
        ORDER BY fecha_ingreso ASC, id ASC`,
@@ -55,10 +73,17 @@ function cargarVehiculos(condicionExtra = ""): {
   return { vehiculos, porVehiculo };
 }
 
-// Arma el Vehiculo que espera el front: sin actualizado_en, que no le sirve.
-function anidar(v: FilaVehiculo, servicios: FilaServicio[]): Vehiculo {
+// Arma el Vehiculo que espera el front: sin actualizado_en, que no le sirve, y
+// sin el teléfono salvo que se pida explícitamente (ver OpcionesListado).
+function anidar(
+  v: FilaVehiculo,
+  servicios: FilaServicio[],
+  { incluirTelefono = false }: OpcionesListado,
+): Vehiculo {
+  const { telefono, ...datos } = v;
   return {
-    ...v,
+    ...datos,
+    ...(incluirTelefono ? { telefono: telefono ?? null } : {}),
     servicios: servicios.map(
       ({ actualizado_en: _omitido, ...servicio }) => servicio,
     ),
@@ -69,22 +94,24 @@ function anidar(v: FilaVehiculo, servicios: FilaServicio[]): Vehiculo {
  * Vehículos que tiene que mostrar /display: los que están en el taller, más
  * los terminados hace poco. Esconde los retirados y los terminados hace rato.
  */
-export function listarVehiculosVisibles(): Vehiculo[] {
+export function listarVehiculosVisibles(
+  opciones: OpcionesListado = {},
+): Vehiculo[] {
   const { vehiculos, porVehiculo } = cargarVehiculos();
   const limite = Date.now() - HORAS_VISIBLE_TERMINADO * 60 * 60 * 1000;
 
   return vehiculos
     .filter((v) => !estaVencido(porVehiculo.get(v.id) ?? [], limite))
-    .map((v) => anidar(v, porVehiculo.get(v.id) ?? []));
+    .map((v) => anidar(v, porVehiculo.get(v.id) ?? [], opciones));
 }
 
 /**
  * Todos los autos NO retirados (incluidos los terminados hace rato, que /display
  * esconde). Para la lista de /admin (?todos=1).
  */
-export function listarTodos(): Vehiculo[] {
+export function listarTodos(opciones: OpcionesListado = {}): Vehiculo[] {
   const { vehiculos, porVehiculo } = cargarVehiculos();
-  return vehiculos.map((v) => anidar(v, porVehiculo.get(v.id) ?? []));
+  return vehiculos.map((v) => anidar(v, porVehiculo.get(v.id) ?? [], opciones));
 }
 
 /**
@@ -97,8 +124,8 @@ export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): 
   const tipos = validarServicios(servicios);
 
   const insertarVehiculo = db.prepare(`
-    INSERT INTO vehiculos (marca, modelo, color, matricula, fecha_ingreso)
-    VALUES (@marca, @modelo, @color, @matricula, datetime('now'))
+    INSERT INTO vehiculos (marca, modelo, color, matricula, telefono, fecha_ingreso)
+    VALUES (@marca, @modelo, @color, @matricula, @telefono, datetime('now'))
   `);
   const insertarServicio = db.prepare(`
     INSERT INTO servicios (vehiculo_id, tipo, estado)
@@ -117,15 +144,19 @@ export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): 
 }
 
 /**
- * Edita solo los datos del auto (marca/modelo/color/matrícula). NO toca la
- * fecha de ingreso ni los servicios: el auto sigue siendo el mismo.
+ * Edita solo los datos del auto (marca/modelo/color/matrícula/teléfono). NO
+ * toca la fecha de ingreso ni los servicios: el auto sigue siendo el mismo.
+ * El formulario siempre manda el teléfono: vacío lo borra. Si el campo no viene
+ * en el pedido, el teléfono guardado queda como estaba.
  */
 export function editarVehiculo(id: number, datos: DatosVehiculo): boolean {
   const limpio = validarDatos(datos);
+  const tocaTelefono = datos?.telefono !== undefined;
   const { changes } = db
     .prepare(
       `UPDATE vehiculos
        SET marca = @marca, modelo = @modelo, color = @color, matricula = @matricula
+           ${tocaTelefono ? ", telefono = @telefono" : ""}
        WHERE id = @id AND retirado_en IS NULL`,
     )
     .run({ ...limpio, id });
@@ -145,7 +176,7 @@ export function retirarVehiculo(id: number): boolean {
 
 // --- Validaciones ---
 
-function validarDatos(datos: DatosVehiculo): DatosVehiculo {
+function validarDatos(datos: DatosVehiculo): DatosLimpios {
   const limpio = {
     marca: (datos?.marca ?? "").trim(),
     modelo: (datos?.modelo ?? "").trim(),
@@ -155,7 +186,8 @@ function validarDatos(datos: DatosVehiculo): DatosVehiculo {
   if (!limpio.marca || !limpio.modelo || !limpio.color || !limpio.matricula) {
     throw new ErrorValidacion("Faltan datos del auto (marca, modelo, color, matrícula).");
   }
-  return limpio;
+  // El teléfono es opcional: vacío => null; mal escrito => 400 con el motivo.
+  return { ...limpio, telefono: normalizarTelefono(datos?.telefono) };
 }
 
 function validarServicios(servicios: TipoServicio[]): TipoServicio[] {

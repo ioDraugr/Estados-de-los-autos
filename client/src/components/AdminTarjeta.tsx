@@ -2,8 +2,15 @@
 // quitar servicios, editar los datos del auto y retirarlo. Botones grandes,
 // pensados para usar en una tablet parado al lado del auto.
 // A diferencia de /display, acá SÍ se muestra la matrícula entera: los
-// trabajadores la necesitan para identificar el auto.
-import { AREAS, COLOR_AREA, NOMBRE_AREA, autoTerminado } from "../dominio";
+// trabajadores la necesitan para identificar el auto. Lo mismo el celular del
+// cliente (si se cargó): solo existe acá, nunca en /taller ni en /display.
+import {
+  AREAS,
+  COLOR_AREA,
+  NOMBRE_AREA,
+  autoTerminado,
+  celularLocal,
+} from "../dominio";
 import type { EstadoServicio, TipoServicio, Vehiculo } from "../types";
 import {
   BOTON_PELIGRO,
@@ -54,6 +61,11 @@ export function AdminTarjeta({
           <p className="text-lg text-tinta-suave sm:text-xl">
             {vehiculo.color} · {vehiculo.matricula}
           </p>
+          {vehiculo.telefono && (
+            <p className="text-base text-tinta-suave sm:text-lg">
+              WhatsApp: {celularLocal(vehiculo.telefono)}
+            </p>
+          )}
         </div>
         {terminado && (
           <span className={`${PASTILLA_LISTO} px-4 py-1 text-base sm:text-xl`}>

@@ -91,6 +91,13 @@ export function Admin() {
     );
   }
 
+  // Al abrir el modal se limpia el error de la acción anterior, para que no
+  // aparezca adentro del formulario como si fuera de este.
+  function abrirModal(nuevo: Modal) {
+    setError(null);
+    setModal(nuevo);
+  }
+
   async function guardarModal(datos: DatosVehiculo, servicios: TipoServicio[]) {
     const ok = await accion(() =>
       modal?.tipo === "edicion"
@@ -108,7 +115,7 @@ export function Admin() {
           <>
             <button
               type="button"
-              onClick={() => setModal({ tipo: "alta" })}
+              onClick={() => abrirModal({ tipo: "alta" })}
               disabled={ocupado}
               className={`${BOTON_MARCA} px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
             >
@@ -159,7 +166,9 @@ export function Admin() {
                   accion(() => agregarServicio(vehiculoId, tipo))
                 }
                 onQuitarServicio={(id) => accion(() => quitarServicio(id))}
-                onEditar={(vehiculo) => setModal({ tipo: "edicion", vehiculo })}
+                onEditar={(vehiculo) =>
+                  abrirModal({ tipo: "edicion", vehiculo })
+                }
                 onRetirar={(vehiculo) =>
                   accion(() => retirarVehiculo(vehiculo.id))
                 }
@@ -174,6 +183,7 @@ export function Admin() {
           modo={modal.tipo}
           inicial={modal.tipo === "edicion" ? modal.vehiculo : undefined}
           guardando={ocupado}
+          error={error}
           onGuardar={guardarModal}
           onCancelar={() => setModal(null)}
         />

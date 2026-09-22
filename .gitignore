@@ -16,3 +16,6 @@ server/data/*.db-wal
 
 # Archivos temporales de Claude Code
 .claude/*.tmp.*
+
+# Índice local de CodeGraph
+.codegraph/

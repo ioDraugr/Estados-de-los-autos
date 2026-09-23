@@ -77,6 +77,20 @@ El servidor queda en **http://localhost:3000** sirviendo todo. Desde los otros
 dispositivos del taller (pantalla, tablet, PC) se accede por la IP local del
 servidor, por ejemplo `http://192.168.1.50:3000`.
 
+## Tests
+
+El backend tiene tests automáticos (con el runner que ya trae Node, sin
+dependencias extra; necesita Node 22 o superior, probado con Node 26):
+
+```bash
+cd server && npm test
+```
+
+Corren contra una **base descartable** en una carpeta temporal (se borra al
+terminar): **nunca tocan `server/data/taller.db`** ni se conectan a WhatsApp (los
+envíos son de mentira). Se pueden correr con el server de desarrollo andando.
+Están en `server/test/`, fuera de `src/`, así que no terminan en el build.
+
 ## La base de datos
 
 Es un solo archivo: `server/data/taller.db`. **No hay ningún paso manual de
@@ -170,10 +184,13 @@ todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
 - **Aguantan reinicios.** Los pendientes viven en la base (tabla `avisos`): si el
   server se apaga, al volver a arrancar manda los que ya vencieron.
 - **Reintentos.** Si un envío falla, se reintenta a los 1, 2, 4 y 8 minutos. Al
-  quinto intento fallido queda como `fallido` y no se reintenta más. Las fallas se
+  quinto intento fallido queda como `fallido` y no se reintenta solo. Las fallas se
   ven en la consola del server.
 - **Número sin WhatsApp.** Con el envío real, si el celular cargado no tiene
   WhatsApp, el aviso queda `fallido` de una, sin reintentos.
+- **Un `fallido` no queda trabado.** Los de "arrancamos" y "listo" se vuelven a
+  programar (5 minutos, intentos de cero) en el próximo cambio de servicios en que
+  sigan correspondiendo; el de "entró" ya no.
 - El server revisa la cola cada 30 segundos (`AVISOS_INTERVALO_SEG`), así que un
   aviso puede salir hasta medio minuto después de su hora.
 

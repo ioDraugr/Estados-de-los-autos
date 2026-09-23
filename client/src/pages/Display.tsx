@@ -106,7 +106,7 @@ export function Display() {
   }
 
   return (
-    <div className="min-h-full bg-crema">
+    <div className="min-h-full fondo-claro">
       {/* Misma cabecera oscura y curva que la bienvenida, pero baja: el logo y la
           referencia de conos siguen a la vista mientras se mira la lista. */}
       <CabeceraCurva
@@ -127,7 +127,7 @@ export function Display() {
       <main className="px-4 py-6 sm:px-8 sm:py-8">
         {sinConexion && huboDatos.current && (
           <p
-            className={`${AVISO} mb-5 rounded-2xl px-4 py-3 text-lg sm:mb-6 sm:text-2xl`}
+            className={`${AVISO} mb-5 px-4 py-3 text-lg sm:mb-6 sm:text-2xl`}
           >
             Sin conexión con el servidor — reintentando…
           </p>

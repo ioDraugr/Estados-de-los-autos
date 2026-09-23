@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
-/* Tipografía de la marca: redondeada y amigable, como la referencia.
-   Va empaquetada con el build (no se baja de internet), porque en el taller no
-   hay conexión. Solo el subset latino: alcanza para el español y pesa poco. */
+/* Tipografía de la marca: Geist, una sola familia para todo (títulos, textos y
+   el "ML" del logo). Va empaquetada con el build (no se baja de internet),
+   porque en el taller no hay conexión. Solo el subset latino: alcanza para el
+   español y pesa poco. */
 @font-face {
-  font-family: "Nunito Variable";
+  font-family: "Geist Variable";
   font-style: normal;
   font-display: swap;
-  font-weight: 200 1000;
-  src: url("@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2")
+  font-weight: 100 900;
+  src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2")
     format("woff2-variations");
 }
 
@@ -17,16 +18,22 @@
    vistas iguales: cambiar el amarillo de la marca es cambiar una línea.
    Los colores de los conos NO viven acá: son de dominio y están en dominio.ts. */
 @theme {
-  --font-sans: "Nunito Variable", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Geist Variable", system-ui, sans-serif;
 
-  --color-tinta: #0e0e0e; /* la parte oscura y el texto sobre crema */
-  --color-tinta-suave: #6b6558; /* texto secundario sobre crema */
-  --color-crema: #f5efe1; /* fondo claro */
-  --color-crema-alta: #faf6ec; /* tarjetas sobre el fondo crema */
-  --color-linea: #e6dcc6; /* bordes suaves entre claros */
-  --color-marca: #f2c230; /* amarillo dorado de la marca */
-  --color-marca-suave: #f6da92; /* botón redondo, detalles */
-  --color-listo: #15803d; /* verde de "terminado" */
+  /* Paleta "Vidrio cálido". */
+  --color-tinta: #16130f; /* carbón: la parte oscura y el texto sobre claro */
+  --color-tinta-suave: #6f6454; /* taupe: texto secundario sobre claro */
+  --color-crema: #f3ecdf; /* marfil: fondo claro */
+  --color-crema-alta: #faf6ee; /* papel: lo más claro (tarjetas, texto sobre oscuro) */
+  --color-linea: #d8c9ae; /* lino: bordes suaves entre claros */
+  --color-marca: #ebb82f; /* oro ML: amarillo dorado de la marca */
+  --color-marca-suave: #f7d678; /* oro claro: botón redondo, detalles */
+  --color-listo: #2e5e3a; /* bosque: verde de "terminado" */
+  --color-tabaco: #2b231b; /* marrón oscuro: capas sobre el carbón */
+  --color-arena: #e6dac3; /* estado "esperando" y rellenos suaves */
+  --color-peligro: #8e2b1f; /* errores y acciones destructivas */
+  --color-listo-vivo: #3f7a4e; /* verde más encendido (progreso, detalles) */
+  --color-listo-claro: #a9d3b1; /* verde claro, para usar sobre oscuro */
 }
 
 /* Base para modo kiosko del showroom: alto contraste, sin selección de texto
@@ -42,6 +49,7 @@ body {
   font-family: var(--font-sans);
   background-color: var(--color-crema);
   color: var(--color-tinta);
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
@@ -107,8 +115,128 @@ body {
   animation: flotar 1.8s ease-in-out infinite;
 }
 
+/* Si el sistema pide menos movimiento, se apagan todas las animaciones y
+   transiciones de la app (incluida la flecha de la bienvenida). Se dejan con
+   duración casi cero en vez de "none" para que cada elemento quede igual en su
+   estado final. */
 @media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
   .animate-flotar {
     animation: none;
   }
+}
+
+/* ---------------------------------------------------------------------------
+   Materiales de vidrio. Capas translúcidas que desenfocan lo que tienen
+   detrás (los fondos ambientales de abajo). Son utilidades de Tailwind, así se
+   combinan con el resto de las clases (rounded-*, p-*, etc.).
+   Si el navegador no soporta backdrop-filter, cada una usa su mismo color casi
+   opaco para que el texto se siga leyendo bien.
+   --------------------------------------------------------------------------- */
+
+/* Vidrio claro: tarjetas, cabecera cápsula y paneles sobre el fondo claro. */
+@utility vidrio-claro {
+  background-color: rgba(250, 246, 238, 0.58);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 50px -24px rgba(43, 35, 27, 0.35);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgba(250, 246, 238, 0.94);
+  }
+}
+
+/* Vidrio oscuro: tarjetas y paneles sobre el fondo oscuro (showroom). */
+@utility vidrio-oscuro {
+  background-color: rgba(43, 35, 27, 0.42);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid rgba(243, 236, 223, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 24px 60px -24px rgba(0, 0, 0, 0.7);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgba(43, 35, 27, 0.94);
+  }
+}
+
+/* Hoja clara: modales y fichas que se apoyan encima de todo (más opaca y con
+   más sombra que la tarjeta, para separarse del fondo). */
+@utility vidrio-hoja-clara {
+  background-color: rgba(247, 242, 232, 0.8);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 50px 120px -30px rgba(43, 35, 27, 0.55);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgba(247, 242, 232, 0.94);
+  }
+}
+
+/* Hoja oscura: lo mismo que la hoja clara, sobre el fondo oscuro. */
+@utility vidrio-hoja-oscura {
+  background-color: rgba(43, 35, 27, 0.62);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(243, 236, 223, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 50px 120px -30px rgba(0, 0, 0, 0.8);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgba(43, 35, 27, 0.94);
+  }
+}
+
+/* Títulos grandes sobre fondo oscuro: el texto se pinta con un degradé de
+   marfil a lino tostado, como luz que cae de arriba. */
+@utility texto-degrade {
+  background-image: linear-gradient(180deg, #faf6ee 25%, #cdbd9f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Fondos ambientales: "manchas de luz" detrás del vidrio, para que tenga algo
+   que desenfocar. Se hacen con radial-gradient y no con elementos con
+   filter: blur, que en la pantalla del showroom y en la tablet cuestan mucho
+   más. Quedan fijos al hacer scroll (background-attachment: fixed).
+   --------------------------------------------------------------------------- */
+
+/* Fondo claro: marfil con luz dorada, lino y un toque de bosque. */
+@utility fondo-claro {
+  background-color: #f3ecdf;
+  background-image:
+    radial-gradient(ellipse 55% 45% at 88% 4%, rgba(235, 184, 47, 0.38), transparent 70%),
+    radial-gradient(ellipse 50% 45% at 6% 48%, rgba(216, 201, 174, 0.9), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 84% 78%, rgba(235, 184, 47, 0.22), transparent 70%),
+    radial-gradient(ellipse 45% 35% at 26% 96%, rgba(141, 190, 150, 0.25), transparent 70%);
+  background-attachment: fixed;
+}
+
+/* Fondo oscuro: carbón con tabaco, luz dorada y bosque. */
+@utility fondo-oscuro {
+  background-color: #16130f;
+  background-image:
+    radial-gradient(ellipse 55% 50% at 8% 6%, #4a3824, transparent 70%),
+    radial-gradient(ellipse 50% 45% at 90% 8%, rgba(235, 184, 47, 0.3), transparent 70%),
+    radial-gradient(ellipse 50% 45% at 14% 94%, rgba(46, 94, 58, 0.35), transparent 70%);
+  background-attachment: fixed;
 }

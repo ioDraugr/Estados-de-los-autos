@@ -94,7 +94,7 @@ export function Taller() {
   }
 
   return (
-    <div className="min-h-full bg-crema">
+    <div className="min-h-full fondo-claro">
       <CabeceraCurva
         alto="compacta"
         conos
@@ -112,7 +112,7 @@ export function Taller() {
       <main className="px-4 py-6 sm:px-8 sm:py-8">
         {sinConexion && (
           <p
-            className={`${AVISO} mb-5 rounded-2xl px-4 py-3 text-lg sm:mb-6 sm:text-2xl`}
+            className={`${AVISO} mb-5 px-4 py-3 text-lg sm:mb-6 sm:text-2xl`}
           >
             Sin conexión con el servidor — reintentando…
           </p>

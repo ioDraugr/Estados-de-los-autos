@@ -31,9 +31,9 @@ export const NOMBRE_ESTADO: Record<EstadoServicio, string> = {
 // Estilos de la pastilla de estado (texto + fondo) sobre el fondo crema del
 // tema, pensados para alto contraste y para leerse de lejos.
 export const ESTILO_ESTADO: Record<EstadoServicio, string> = {
-  esperando: "bg-tinta/10 text-tinta",
+  esperando: "bg-arena text-tinta",
   en_proceso: "bg-marca text-tinta",
-  terminado: "bg-listo text-white",
+  terminado: "bg-listo text-crema-alta",
 };
 
 // Un auto está terminado solo cuando TODOS sus servicios están terminados.

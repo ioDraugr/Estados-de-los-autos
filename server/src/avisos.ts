@@ -14,7 +14,8 @@ export const DEMORA_MIN = leerNumero("AVISOS_DEMORA_MIN", 5);
 // Cada cuántos segundos el despachador busca avisos vencidos.
 export const INTERVALO_SEG = leerNumero("AVISOS_INTERVALO_SEG", 30, 1);
 
-// Tras este número de intentos fallidos, el aviso queda "fallido" y no se reintenta.
+// Tras este número de intentos fallidos, el aviso queda "fallido" y no se reintenta
+// solo (evaluarAvisos lo reprograma si un cambio de servicios lo hace corresponder).
 const MAX_INTENTOS = 5;
 
 // Lo que se le manda al cliente. Sin matrícula (privacidad): marca y modelo alcanzan.
@@ -44,11 +45,19 @@ export function programarIngreso(vehiculoId: number): void {
 /**
  * Revisa los avisos "ya arrancamos" y "está listo" de un auto después de que
  * cambiaron sus servicios (estado, agregar o quitar):
- * - condición cierta y el aviso no existe (o quedó cancelado / sin teléfono)
- *   => pendiente con la demora contada desde ahora;
- * - condición cierta y el aviso ya está pendiente, enviado o fallido => no se
- *   toca (no se atrasa ni se vuelve a mandar);
- * - condición falsa y el aviso está pendiente => cancelado.
+ * - condición cierta y el aviso no existe (o quedó cancelado, sin teléfono o
+ *   fallido) => pendiente con la demora contada desde ahora y los intentos en
+ *   cero;
+ * - condición cierta y el aviso ya está pendiente o enviado => no se toca (no
+ *   se atrasa ni se vuelve a mandar);
+ * - condición falsa y el aviso está pendiente => cancelado (los demás quedan
+ *   como están).
+ * Un fallido se reprograma en cualquier cambio de servicios que deje la
+ * condición cierta, aunque ya lo estuviera (por ejemplo, un segundo servicio que
+ * pasa a "en proceso"). Está bien así: el cliente todavía no recibió ese aviso,
+ * la ronda extra de intentos solo la dispara alguien tocando un servicio, y
+ * distinguir "volvió a cumplirse" de "sigue cumpliéndose" pediría guardar la
+ * condición anterior. El de ingreso no pasa por acá: nunca se reprograma.
  */
 export function evaluarAvisos(vehiculoId: number): void {
   // Un auto retirado (o que no existe) ya no recibe avisos.
@@ -66,7 +75,7 @@ export function evaluarAvisos(vehiculoId: number): void {
          ON CONFLICT (vehiculo_id, tipo) DO UPDATE
            SET estado = 'pendiente', enviar_en = excluded.enviar_en,
                intentos = 0, ultimo_error = NULL
-           WHERE avisos.estado IN ('cancelado', 'sin_telefono')`,
+           WHERE avisos.estado IN ('cancelado', 'sin_telefono', 'fallido')`,
       ).run({ vehiculoId, tipo, demora: DESPLAZAMIENTO_DEMORA });
     } else {
       db.prepare(

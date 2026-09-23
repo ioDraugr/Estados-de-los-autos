@@ -187,12 +187,15 @@ consola del server, por ejemplo:
 ```
 
 Para mandarlos **por WhatsApp de verdad** se arranca el server con
-`AVISOS_ENVIO=baileys`. Mientras probás, usalo **siempre junto con
-`AVISOS_SOLO_A`** (tu número), así no le llega nada a un cliente real:
+`AVISOS_ENVIO=baileys`:
 
 ```bash
-cd server && AVISOS_ENVIO=baileys AVISOS_SOLO_A="099 123 456" npm run dev
+cd server && AVISOS_ENVIO=baileys npm run dev
 ```
+
+> ⚠️ **Desde ese momento le llegan los mensajes a TODOS los autos que tengan
+> celular cargado**, sin excepción. Para probar, usá autos con un celular tuyo (o
+> de alguien que sepa que es una prueba).
 
 > ⚠️ **Baileys es una librería NO oficial.** Se hace pasar por WhatsApp Web. Va
 > contra las condiciones de WhatsApp y **WhatsApp puede bloquear el número** que
@@ -200,18 +203,9 @@ cd server && AVISOS_ENVIO=baileys AVISOS_SOLO_A="099 123 456" npm run dev
 > para probar. Para escribirles a clientes reales lo recomendado es la **API
 > oficial de WhatsApp Business** (Cloud API).
 
-**Modo prueba (`AVISOS_SOLO_A`).** Una lista de celulares separados por coma
-(`"099 123 456, 098 765 432"`, en cualquier formato que acepte el alta). Si está
-puesta, los avisos **solo** salen a esos números; al resto se les cancela
-(`cancelado`, con el motivo "modo prueba: el número no está en AVISOS_SOLO_A" en
-`ultimo_error`) y no se les manda nada. Vale para cualquier envío, también `log`. Al
-arrancar, el server dice si el modo prueba está activo y con qué números; los que no
-son un celular válido los avisa y los ignora (si ninguno sirve, no se le escribe a
-nadie).
-
 #### Vincular el celular (una sola vez)
 
-1. Arrancá el server con `AVISOS_ENVIO=baileys` (y `AVISOS_SOLO_A`, ver arriba).
+1. Arrancá el server con `AVISOS_ENVIO=baileys`.
 2. En la **consola del server** aparece un código QR con el texto
    *"Abrí WhatsApp en tu celular → Dispositivos vinculados → Vincular un dispositivo
    y escaneá este código"*.
@@ -256,10 +250,10 @@ que hay dos servers usando la misma carpeta de sesión: cerrá uno y reiniciá e
 - **El celular vinculado tiene que tener internet** de vez en cuando. Si pasa unos
   **14 días sin conectarse**, WhatsApp desvincula los dispositivos y hay que volver a
   escanear el QR.
-- **Mensajes a tu propio número:** si en `AVISOS_SOLO_A` ponés el mismo número que
-  vinculaste, los avisos te llegan al chat **"Mensaje a vos mismo"** (tu propio chat)
+- **Mensajes a tu propio número:** si cargás un auto con el mismo número que
+  vinculaste, el aviso te llega al chat **"Mensaje a vos mismo"** (tu propio chat)
   **sin sonar ni notificar**. Para ver cómo le llega de verdad a un cliente
-  (notificación incluida), probá con un **segundo celular** en `AVISOS_SOLO_A`.
+  (notificación incluida), probá con un auto que tenga **otro celular**.
 
 ## La estética (las tres vistas, una sola identidad)
 
@@ -297,7 +291,6 @@ subset latino (~39 KB).
 | `AVISOS_DEMORA_MIN` | `5` | Minutos de seguridad entre el cambio y el aviso por WhatsApp. Acepta decimales (`0.1` = 6 s, para probar). |
 | `AVISOS_INTERVALO_SEG` | `30` | Cada cuántos segundos el server revisa si hay avisos para mandar. |
 | `AVISOS_ENVIO` | `log` | Cómo salen los avisos: `log` (los imprime en la consola del server, no le escribe a nadie) o `baileys` (WhatsApp real, ver [Avisos por WhatsApp](#avisos-por-whatsapp); necesita internet). Cualquier otro valor es un error: el server arranca igual pero no manda avisos (quedan pendientes) hasta que se corrija. |
-| `AVISOS_SOLO_A` | *(vacía)* | Modo prueba: celulares separados por coma (`"099 123 456, 098 765 432"`). Si está puesta, los avisos solo salen a esos números y al resto se les cancela. Vacía = se le escribe a todos los clientes con celular. |
 | `WHATSAPP_SESION_DIR` | `server/data/whatsapp-sesion` | Carpeta donde queda la sesión de WhatsApp (con `AVISOS_ENVIO=baileys`). Son **credenciales**: nunca se comparte ni se sube a git. Borrarla = desvincular. |
 
 ## API

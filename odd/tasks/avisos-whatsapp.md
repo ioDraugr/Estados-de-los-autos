@@ -20,8 +20,9 @@ se entera sin tener que preguntar.
 - Cada mensaje, una sola vez por auto. Sin horario: se mandan siempre.
 - Fuera de alcance por ahora: "vamos con 1 hora de atraso".
 - Proveedor: Baileys (no oficial) con el número personal del usuario, solo para pruebas.
-  Envío intercambiable (`log` / `baileys` / más adelante oficial) y lista blanca
-  `AVISOS_SOLO_A` para no escribirle a clientes reales mientras se prueba.
+  Envío intercambiable (`log` / `baileys` / más adelante oficial).
+- Cambio de alcance (usuario, 2026-09-22): se **eliminó** la lista blanca `AVISOS_SOLO_A`;
+  los avisos salen a cualquier celular cargado.
 
 ## Restricciones
 - El teléfono NUNCA sale en `/display` ni en respuestas públicas de la API
@@ -134,8 +135,17 @@ se entera sin tener que preguntar.
   avisos como enviados sin mandarlos).
 - No verificado: conexión real, QR y entrega (sin conexión a WhatsApp desde el agente;
   prueba en vivo del usuario).
+- Commit: `1cf3bbf` feat(avisos): Fase C (9 archivos, +1925/−21, casi todo package-lock).
+- RDD assess (base `95b98ac`): medium, `review_due=true` / `slice_budget_reached`; revisión
+  diferida por decisión del usuario ("aún no").
 - Riesgo conocido: Baileys 6.7.x trae `libsignal` desde GitHub (git dep): `npm install`
   necesita acceso a GitHub.
+
+### Ajuste — quitar `AVISOS_SOLO_A` (pedido del usuario)
+- Ruta: delegated direct (1 writer). avisos.ts (−55) y README (+10/−17); `marcar()` vuelve a
+  su forma de Fase B.
+- Chequeos observados: grep sin rastros; `tsc --noEmit` OK; instancia aparte con `log`: dos
+  autos con celulares distintos → ambos avisos salen.
 
 ## Próximo paso
 Prueba en vivo del usuario (QR). Después: T4 (Fase D) con OK, y revisión cuando el usuario la pida.

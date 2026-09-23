@@ -55,5 +55,11 @@ Corregir los hallazgos de la revisión RDD `review-bc4c312a15f0e5b1` (aprobada, 
 - Los tests no encontraron bugs nuevos.
 - Chequeos: `npm test` 19/19 (re-ejecutado por el orquestador), `tsc --noEmit` OK, build sin tests.
 
+### Revisión
+- RDD `review-ca46807a6656dd1a` (base `fa25ec7`, hasta `4e4085b`): **aprobada** y reconocida.
+  4 sugerencias no bloqueantes, pendientes para más adelante: ErrorDefinitivo re-armado sin tope,
+  falta test fallido + auto retirado, test del toggle depende del estado del módulo, sin
+  `engines` para Node >= 22.
+
 ## Próximo paso
-Rama lista para push / PR / merge (decisión del usuario).
+Push hecho; merge desde GitHub (usuario).

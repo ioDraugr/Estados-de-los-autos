@@ -7,6 +7,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import "./db.js"; // inicializa la base y crea las tablas
 import { exigirPin, pinEsValido } from "./auth.js";
+import { iniciarAvisos } from "./avisos.js";
+import { elegirEnviador } from "./enviadores.js";
 import { ErrorValidacion } from "./errores.js";
 import { sembrarSiVacia } from "./seed.js";
 import {
@@ -191,4 +193,6 @@ io.on("connection", (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Servidor del taller escuchando en http://localhost:${PORT}`);
+  // Avisos por WhatsApp: arranca el despachador de la cola (ver avisos.ts).
+  iniciarAvisos(elegirEnviador());
 });

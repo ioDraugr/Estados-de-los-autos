@@ -95,6 +95,12 @@ rm server/data/taller.db*
 Las columnas nuevas (por ejemplo `vehiculos.telefono`) se agregan **solas** al
 arrancar sobre una base que ya existía: no hay que borrar nada ni correr scripts.
 
+La tabla `avisos` es la cola de los [avisos por WhatsApp](#avisos-por-whatsapp):
+una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo`), con su estado
+(`pendiente`, `enviado`, `cancelado`, `sin_telefono`, `fallido`), cuándo toca
+mandarlo (`enviar_en`, en UTC), los intentos y el último error. También se crea
+sola al arrancar.
+
 Para probar sin tocar la base real, se puede apuntar a otro archivo con `DB_PATH`
 (si la carpeta no existe, se crea):
 
@@ -126,11 +132,52 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
   se escriba (`099 123 456`, `99123456`, `+598 99 123 456`…) y se guarda siempre
   como `+59899123456`; si no es un celular uruguayo, el server lo rechaza con un
   mensaje. Dejarlo vacío al editar lo borra. Se muestra chico en la tarjeta de
-  `/admin`. Se va a usar para mandar avisos automáticos por WhatsApp (en
-  preparación).
+  `/admin`. Se usa para los [avisos automáticos por WhatsApp](#avisos-por-whatsapp).
 - **El celular es privado.** La API solo lo manda si el pedido trae un PIN válido
   en `x-pin` (`/admin` y `/taller`). **Nunca** llega a `/display` ni a quien pida
   la lista sin PIN, y `/taller` no lo muestra.
+
+## Avisos por WhatsApp
+
+Si el auto tiene celular cargado, el server le manda al cliente hasta tres
+mensajes automáticos:
+
+| Aviso | Cuándo sale | Mensaje (ejemplo) |
+| --- | --- | --- |
+| Entró | 5 min después del alta, si el auto no se retiró antes. | "¡Hola! Tu Toyota Corolla ya ingresó al taller de ML Center. Te vamos a ir avisando por acá cómo va." |
+| Arrancamos | 5 min después de que **algún** servicio pasa a `en_proceso`, si en ese momento sigue habiendo alguno en proceso. | "¡Buenas! Ya arrancamos a trabajar en tu Toyota Corolla. Te avisamos cuando esté listo." |
+| Listo | 5 min después de que **todos** los servicios quedan `terminado`, si en ese momento siguen todos terminados. | "¡Tu Toyota Corolla está listo! Ya podés pasar a buscarlo por ML Center." |
+
+Los mensajes solo llevan marca y modelo (nunca la matrícula). Los textos están
+todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
+
+- **Los 5 minutos son de seguridad.** Al llegar la hora, el server vuelve a mirar
+  cómo está el auto antes de mandar. Si alguien tocó "en proceso" sin querer y lo
+  volvió a "esperando", o marcó todo terminado y se arrepintió, el aviso se cancela
+  solo y el cliente no recibe nada. Si después vuelve a corresponder, se programa de
+  nuevo con 5 minutos contados desde ese momento.
+- **Cada aviso sale una sola vez por auto.** Si un auto ya recibió el "listo" y se
+  reabre un servicio, cuando se vuelva a terminar no se manda otro.
+- **Retirar el auto cancela** los avisos que tenía pendientes.
+- **Sin celular, no sale.** El aviso queda como `sin_telefono`. Si después se le carga
+  el celular, los avisos de "arrancamos" y "listo" se vuelven a programar en el
+  próximo cambio de servicios; el de "entró" ya no.
+- **Aguantan reinicios.** Los pendientes viven en la base (tabla `avisos`): si el
+  server se apaga, al volver a arrancar manda los que ya vencieron.
+- **Reintentos.** Si un envío falla, se reintenta a los 1, 2, 4 y 8 minutos. Al
+  quinto intento fallido queda como `fallido` y no se reintenta más. Las fallas se
+  ven en la consola del server.
+- El server revisa la cola cada 30 segundos (`AVISOS_INTERVALO_SEG`), así que un
+  aviso puede salir hasta medio minuto después de su hora.
+
+**Por ahora los avisos no salen por WhatsApp de verdad:** el envío es `log`, que
+imprime el mensaje en la consola del server, por ejemplo:
+
+```
+[aviso] → +59899123456: ¡Tu Toyota Corolla está listo! Ya podés pasar a buscarlo por ML Center.
+```
+
+El envío real por WhatsApp llega en la próxima fase.
 
 ## La estética (las tres vistas, una sola identidad)
 
@@ -165,6 +212,9 @@ subset latino (~39 KB).
 | `HORAS_VISIBLE_TERMINADO` | `4` | Cuántas horas sigue en pantalla un auto con **todos** sus servicios terminados antes de ocultarse solo. |
 | `ADMIN_PIN` | `1234` | PIN inicial de `/admin`. Solo se usa la primera vez, para sembrarlo en la base; después el PIN vive en `config`. |
 | `DB_PATH` | `server/data/taller.db` | Archivo de la base SQLite. Útil para probar contra una base descartable; si la carpeta no existe, se crea. |
+| `AVISOS_DEMORA_MIN` | `5` | Minutos de seguridad entre el cambio y el aviso por WhatsApp. Acepta decimales (`0.1` = 6 s, para probar). |
+| `AVISOS_INTERVALO_SEG` | `30` | Cada cuántos segundos el server revisa si hay avisos para mandar. |
+| `AVISOS_ENVIO` | `log` | Cómo salen los avisos. Por ahora solo existe `log` (los imprime en la consola del server); cualquier otro valor avisa y usa `log`. |
 
 ## API
 

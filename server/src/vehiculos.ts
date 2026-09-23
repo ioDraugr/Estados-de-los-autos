@@ -1,4 +1,5 @@
 // Consultas y comandos de vehículos para la API.
+import { cancelarAvisos, programarIngreso } from "./avisos.js";
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 import { TIPOS_SERVICIO } from "./servicios.js";
@@ -117,7 +118,7 @@ export function listarTodos(opciones: OpcionesListado = {}): Vehiculo[] {
 /**
  * Alta de un auto con sus servicios iniciales (todos en "esperando").
  * La fecha de ingreso queda con día + hora para que /display tenga un orden
- * estable entre autos del mismo día.
+ * estable entre autos del mismo día. Deja programado el aviso "tu auto entró".
  */
 export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): number {
   const limpio = validarDatos(datos);
@@ -137,6 +138,7 @@ export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): 
     const { lastInsertRowid } = insertarVehiculo.run(limpio);
     const id = Number(lastInsertRowid);
     for (const tipo of tipos) insertarServicio.run(id, tipo);
+    programarIngreso(id);
     return id;
   });
 
@@ -164,14 +166,19 @@ export function editarVehiculo(id: number, datos: DatosVehiculo): boolean {
 }
 
 // Retirar = soft delete: el auto no se borra, se marca con fecha y desaparece
-// de /display y de /admin al instante.
+// de /display y de /admin al instante. Los avisos pendientes se cancelan.
 export function retirarVehiculo(id: number): boolean {
-  const { changes } = db
-    .prepare(
-      "UPDATE vehiculos SET retirado_en = datetime('now') WHERE id = ? AND retirado_en IS NULL",
-    )
-    .run(id);
-  return changes > 0;
+  const retirar = db.transaction((): boolean => {
+    const { changes } = db
+      .prepare(
+        "UPDATE vehiculos SET retirado_en = datetime('now') WHERE id = ? AND retirado_en IS NULL",
+      )
+      .run(id);
+    if (changes === 0) return false;
+    cancelarAvisos(id);
+    return true;
+  });
+  return retirar();
 }
 
 // --- Validaciones ---

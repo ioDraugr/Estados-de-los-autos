@@ -41,7 +41,8 @@ se entera sin tener que preguntar.
 ## Tareas
 - [x] T1 — Fase A: teléfono opcional en el alta/edición (server + client + README).
   Ruta: delegated direct (writer trigger: 2+ archivos no triviales server y client).
-- [ ] T2 — Fase B: cola de avisos en SQLite + worker, envío en modo `log`. (espera OK)
+- [x] T2 — Fase B: cola de avisos en SQLite + worker, envío en modo `log`. OK del usuario.
+  Ruta: delegated direct (writer trigger: db, servicios, vehiculos, index + módulo nuevo).
 - [ ] T3 — Fase C: envío real con Baileys (QR, reintentos, `AVISOS_SOLO_A`). (espera OK)
 - [ ] T4 — Fase D (opcional): estado del aviso en `/admin`. (espera OK)
 
@@ -53,6 +54,19 @@ se entera sin tener que preguntar.
 - `/admin` muestra el campo en el formulario (precargado al editar).
 - Bases existentes migran solas (columna nueva).
 
+## Criterios de aceptación T2 (OK del usuario 2026-09-22)
+- Tabla `avisos` (vehiculo_id, tipo ingreso|en_proceso|listo, estado
+  pendiente|enviado|cancelado|sin_telefono|fallido, enviar_en, intentos, ultimo_error,
+  enviado_en), UNIQUE(vehiculo_id, tipo) → cada aviso una sola vez por auto.
+- Alta → `ingreso` pendiente a +demora. Retirar → cancela pendientes.
+- Tras cada cambio de servicios (estado / agregar / quitar): condición verdadera y aviso
+  inexistente o cancelado/sin_telefono → pendiente con demora nueva; condición falsa y
+  pendiente → cancelado. `en_proceso` = algún servicio en proceso; `listo` = todos terminados.
+- Despachador cada `AVISOS_INTERVALO_SEG` (30): revisa la condición de nuevo, sin teléfono →
+  sin_telefono, falla → reintento con espera creciente y `fallido` tras 5 intentos.
+- Envío intercambiable; en esta fase solo `log` (consola). Demora `AVISOS_DEMORA_MIN` (5).
+- Pendientes sobreviven a un reinicio del server.
+
 ## Progreso / evidencia
 ### T1 — Fase A (hecha)
 - Ruta: delegated direct (1 writer). Trigger: 11 archivos server+client.
@@ -63,7 +77,27 @@ se entera sin tener que preguntar.
 - Decisiones: PATCH sin campo `telefono` conserva el guardado (vacío lo borra); el error de
   guardado ahora se ve dentro del modal (antes quedaba detrás del overlay).
 - No verificado: UI en navegador.
-- Commit: ver `git log` (mensaje "feat(avisos): Fase A ..."); RDD assess registrado abajo.
+- Commit: `75a2ded` feat(avisos): Fase A (14 archivos, +304/−44).
+- RDD assess (base `95b98ac`, committed-only): riesgo medium, 348 líneas,
+  `review_due=false` / `under_budget` → queda pendiente en el slice.
+- Entrega: acumulado 348 líneas. Se preguntó la estrategia de cadena; el usuario aún no eligió
+  (recomendada `stacked-to-main`). Solo afecta la creación de PRs, que es decisión del usuario.
+
+### T2 — Fase B (hecha)
+- Ruta: delegated direct (1 writer). Trigger: db, servicios, vehiculos, index + 2 módulos nuevos.
+- Archivos: `server/src/avisos.ts` (cola + despachador), `server/src/enviadores.ts` (interfaz
+  `Enviador`, `log`, `elegirEnviador`), hooks en servicios/vehiculos dentro de transacciones,
+  tabla `avisos` + índice, README (sección "Avisos por WhatsApp" + env vars).
+- Chequeos observados: server `tsc --noEmit` OK. E2E en instancia aparte (demora 6 s,
+  revisión 2 s): ingreso enviado; retiro antes de la demora → cancelado; en_proceso→esperando
+  → cancelado y re-en_proceso con demora nueva → enviado; en_proceso y luego todo terminado →
+  solo "listo"; sin teléfono → sin_telefono; reinicio con pendiente → se manda al volver;
+  "listo" no se repite; falla → reintentos 1/2/4/8 min y `fallido` al 5º; una falla no frena
+  el resto; agregar/quitar servicios reevalúan "listo".
+- Decisiones: `evaluarAvisos` cancela si el auto está retirado; si el envío sale después de una
+  cancelación concurrente queda `enviado` (el mensaje salió).
+- Nota: el server de dev del usuario (:3000) recargó y ya creó la tabla `avisos` en la base real;
+  autos anteriores a la Fase B no reciben "ingreso".
 
 ## Próximo paso
-T2 (Fase B), con OK del usuario.
+T3 (Fase C, Baileys), con OK del usuario.

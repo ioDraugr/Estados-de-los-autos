@@ -44,6 +44,26 @@ db.exec(`
     clave TEXT PRIMARY KEY,
     valor TEXT NOT NULL
   );
+
+  -- Cola de avisos automáticos por WhatsApp (ver avisos.ts). Cada aviso sale a lo
+  -- sumo una vez por auto (UNIQUE). Las fechas van en UTC con el mismo formato
+  -- que datetime('now'), así se comparan como texto.
+  CREATE TABLE IF NOT EXISTS avisos (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehiculo_id  INTEGER NOT NULL REFERENCES vehiculos(id) ON DELETE CASCADE,
+    tipo         TEXT NOT NULL CHECK (tipo IN ('ingreso','en_proceso','listo')),
+    estado       TEXT NOT NULL DEFAULT 'pendiente'
+                 CHECK (estado IN ('pendiente','enviado','cancelado','sin_telefono','fallido')),
+    enviar_en    TEXT NOT NULL,
+    intentos     INTEGER NOT NULL DEFAULT 0,
+    ultimo_error TEXT,
+    creado_en    TEXT NOT NULL DEFAULT (datetime('now')),
+    enviado_en   TEXT,
+    UNIQUE (vehiculo_id, tipo)
+  );
+
+  -- El despachador busca siempre "pendientes que ya vencieron".
+  CREATE INDEX IF NOT EXISTS avisos_por_vencer ON avisos (estado, enviar_en);
 `);
 
 // --- Migraciones sobre bases que ya existían ---

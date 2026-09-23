@@ -41,15 +41,15 @@ peligro #8E2B1F. Conos: sobre claro #D7402F / #3D6CC0 / #E2A822; sobre oscuro #E
 - TDD: off (sin configuración de proyecto/sesión; el cliente no tiene runner de tests).
 - Chequeos por fase: `cd client && npm run build` (tsc + vite) y `npm run lint` (oxlint), más
   prueba visual en el navegador (celular, tablet, pantalla del showroom).
-- RDD: on (global). Entrega: `ask-on-risk`. Pronóstico > 400 líneas en total (4 fases): antes del
-  commit que cruce el presupuesto se pregunta la estrategia de cadena.
+- RDD: on (global). Entrega: `single-pr` — el usuario pidió commits + push de esta rama y hace el
+  merge él desde GitHub (2026-09-22). Pronóstico > 400 líneas en total (4 fases).
 
 ## Tareas
 - [x] F0 — Base visual: Geist empaquetada (sale Nunito), paleta en `@theme`, clases de vidrio
   (claro/oscuro/hoja + fallback), fondos ambientales, animaciones base y reduced-motion, piezas de
   `tema.ts` al estilo cápsula, `LogoML` con "ML" en Geist.
   Ruta: delegated direct (writer trigger: index.css, tema.ts, LogoML.tsx, package.json).
-- [ ] F1 — Showroom (/display): cabecera cápsula + horizonte dorado, bienvenida con `EmblemaML` 3D,
+- [x] F1 — Showroom (/display): cabecera cápsula + horizonte dorado, bienvenida con `EmblemaML` 3D,
   grilla de tarjetas de vidrio, ficha como hoja de vidrio con progreso por servicio, conos
   redibujados, estados vacío/cargando/sin conexión.
 - [ ] F2 — Personal (/taller y /admin): PIN con teclado circular (+ error), `BotonesEstado`
@@ -77,8 +77,32 @@ peligro #8E2B1F. Conos: sobre claro #D7402F / #3D6CC0 / #E2A822; sobre oscuro #E
 - Visual: capturas con Chromium headless + `vite` solo (sin server, para no tocar WhatsApp):
   /admin (PIN) con Geist, fondo ambiental y botones cápsula OK; /display (bienvenida) con Geist,
   todavía con la cabecera vieja (F1).
+- Commit: `7b22152`. RDD assess (base `4e4085b`, committed-only): riesgo medium
+  (package-lock), 339 líneas con lock (276+55 sin lock), `review_due=false` / `under_budget`
+  → queda pendiente en el slice; el borde revisado sigue en `4e4085b`.
 - Pendiente para F3: iOS ignora `background-attachment: fixed` (las manchas scrollean); revisar
   contraste de pantallas aún no rediseñadas; `npm audit` reporta hallazgos previos (no tocados).
 
+### F1 (hecha)
+- Ruta: delegated direct (writer trigger: CabeceraCurva, Bienvenida, Display, TarjetaVehiculo,
+  DetalleVehiculo, Cono, index.css + 2 componentes nuevos).
+- Nuevos: `EmblemaML.tsx` (rombo 3D: caras + 6 capas de canto, giro, vaivén, órbitas con puntos en
+  colores de área, ondas, destellos, sombra; escenario 360 px escalado por breakpoint/alto con
+  `--emblema-escala`) y `ConoCirculo.tsx` (cono en círculo con aro/tilde, compartido tarjeta/ficha).
+- `COLOR_AREA` a tonos para claro + `COLOR_AREA_OSCURO`; `TituloSeccion` con prop visual `tono`.
+  Se quitaron `.curva`, `.curva-baja` y `animate-flotar` (sin usos).
+- Textos, props, handlers, lógica y `ultimosDigitos` sin cambios; no se trajeron agregados de info.
+- Tamaño: ~1.380 líneas (emblema 3D + keyframes comentados ~600); supera la guía de 400 porque el
+  emblema no se parte sin romperse.
+- Chequeos (re-ejecutados por el orquestador): `npm run build` OK; `npm run lint` OK.
+- Visual (writer, Chromium headless con API simulada por CDP, sin tocar el server): celular 390,
+  tablet 820, notebook 1440, TV 1920; sin scroll horizontal; /taller y /admin siguen bien con la
+  cúpula nueva; con reduced-motion el emblema queda quieto y de frente. El orquestador revisó las
+  capturas de bienvenida, lista, ficha, celular y /taller en TV.
+- Abierto para F2/F3: costura tenue y brillos cuadrados del emblema en render por software
+  (mirar con GPU real); ficha max-w-2xl chica en TV; `BotonesEstado` desborda en celular (F2);
+  hueco extra bajo la cúpula en /taller y /admin (F2); franjas de conos se funden con tarjetas
+  claras (F2).
+
 ## Próximo paso
-F1 — showroom (plan corto al usuario y esperar OK).
+F2 — personal (/taller y /admin): plan corto al usuario y esperar OK.

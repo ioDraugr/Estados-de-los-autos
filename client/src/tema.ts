@@ -36,6 +36,16 @@ export const BOTON_OSCURO =
 export const PASTILLA_LISTO =
   "shrink-0 rounded-full bg-listo font-semibold text-crema-alta shadow-[0_10px_24px_-10px_rgba(46,94,58,0.8)]";
 
+// Pastilla "Listo" sobre fondo oscuro (showroom): verde más encendido para que
+// no se pierda contra el carbón. Lleva un puntito claro adelante.
+export const PASTILLA_LISTO_OSCURO =
+  "inline-flex shrink-0 items-center gap-2 rounded-full bg-listo-vivo font-semibold text-crema-alta shadow-[0_10px_24px_-10px_rgba(63,122,78,0.8)]";
+
+// Cápsula de la matrícula parcial en el showroom ("•••• 4821"): cifras
+// tabulares para que no bailen de un auto a otro.
+export const CAPSULA_MATRICULA =
+  "inline-flex shrink-0 items-center gap-1.5 rounded-full bg-crema/[0.09] font-semibold tracking-[0.02em] tabular-nums";
+
 // Aviso de "sin conexión": cápsula de vidrio dorado.
 export const AVISO =
   "rounded-full border border-white/60 bg-marca/55 text-center font-semibold text-tinta backdrop-blur-md";

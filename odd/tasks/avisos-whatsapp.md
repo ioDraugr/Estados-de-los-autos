@@ -46,7 +46,7 @@ se entera sin tener que preguntar.
   Ruta: delegated direct (writer trigger: db, servicios, vehiculos, index + módulo nuevo).
 - [x] T3 — Fase C: envío real con Baileys (QR, reintentos, `AVISOS_SOLO_A`). OK del usuario.
   Ruta: delegated direct (writer trigger: enviadores, avisos, módulo nuevo, package.json, README).
-- [ ] T4 — Fase D (opcional): estado del aviso en `/admin`. (espera OK)
+- [ ] T4 — Fase D (opcional): estado del aviso en `/admin`. **Descartada por ahora** (usuario, 2026-09-22).
 
 ## Criterios de aceptación T1
 - Alta y edición aceptan `telefono` vacío (queda NULL) o celular uruguayo válido
@@ -147,5 +147,9 @@ se entera sin tener que preguntar.
 - Chequeos observados: grep sin rastros; `tsc --noEmit` OK; instancia aparte con `log`: dos
   autos con celulares distintos → ambos avisos salen.
 
+### Prueba en vivo (usuario, 2026-09-22)
+- El usuario vinculó su número por QR y confirmó que los mensajes llegan: T3 verificada en vivo.
+
 ## Próximo paso
-Prueba en vivo del usuario (QR). Después: T4 (Fase D) con OK, y revisión cuando el usuario la pida.
+Feature cerrada en la rama `feat/avisos-whatsapp` (sin push). Pendiente del usuario: push / PR /
+merge a `main`, y la revisión de código diferida.

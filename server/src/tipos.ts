@@ -19,5 +19,8 @@ export interface Vehiculo {
   color: string;
   matricula: string;
   fecha_ingreso: string; // "YYYY-MM-DD HH:MM:SS"
+  // Celular del cliente ("+5989XXXXXXX") o null si no se cargó. Opcional porque
+  // la API solo lo manda con un PIN válido: NUNCA llega a /display (privacidad).
+  telefono?: string | null;
   servicios: Servicio[];
 }

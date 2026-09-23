@@ -49,3 +49,11 @@ export function ultimosDigitos(matricula: string, cantidad = 4): string {
   const limpia = matricula.replace(/\s|-/g, "");
   return limpia.slice(-cantidad);
 }
+
+// El server guarda el celular como "+5989XXXXXXX" (formato de WhatsApp). Para
+// leerlo en la tablet lo mostramos como se escribe acá: "099 123 456". Si no
+// tiene esa forma (no debería pasar), se muestra tal cual.
+export function celularLocal(telefono: string): string {
+  const partes = telefono.match(/^\+598(9\d)(\d{3})(\d{3})$/);
+  return partes ? `0${partes[1]} ${partes[2]} ${partes[3]}` : telefono;
+}

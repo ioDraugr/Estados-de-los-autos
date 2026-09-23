@@ -1,4 +1,5 @@
 // Comandos sobre los servicios de un auto (cambiar estado, agregar, quitar).
+import { evaluarAvisos } from "./avisos.js";
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 import type { EstadoServicio, TipoServicio } from "./tipos.js";
@@ -18,19 +19,30 @@ export const ESTADOS_SERVICIO: EstadoServicio[] = [
 /**
  * Cambia el estado de un servicio y marca cuándo se hizo el cambio
  * (actualizado_en), que /display usa para ocultar los terminados hace rato.
+ * Después revisa los avisos por WhatsApp del auto ("ya arrancamos" / "listo").
  */
 export function cambiarEstado(id: number, estado: EstadoServicio): boolean {
   if (!ESTADOS_SERVICIO.includes(estado)) {
     throw new ErrorValidacion("Estado inválido.");
   }
-  const { changes } = db
-    .prepare(
+  // Todo o nada: el cambio de estado y los avisos que dispara van juntos.
+  const cambiar = db.transaction((): boolean => {
+    const servicio = db
+      .prepare(
+        "SELECT vehiculo_id FROM servicios WHERE id = ? AND eliminado_en IS NULL",
+      )
+      .get(id) as { vehiculo_id: number } | undefined;
+    if (!servicio) return false; // no existe o ya estaba quitado
+
+    db.prepare(
       `UPDATE servicios
        SET estado = ?, actualizado_en = datetime('now')
-       WHERE id = ? AND eliminado_en IS NULL`,
-    )
-    .run(estado, id);
-  return changes > 0;
+       WHERE id = ?`,
+    ).run(estado, id);
+    evaluarAvisos(servicio.vehiculo_id);
+    return true;
+  });
+  return cambiar();
 }
 
 /**
@@ -60,9 +72,14 @@ export function agregarServicio(vehiculoId: number, tipo: TipoServicio): void {
     throw new ErrorValidacion("El auto ya tiene ese servicio.");
   }
 
-  db.prepare(
-    "INSERT INTO servicios (vehiculo_id, tipo, estado) VALUES (?, ?, 'esperando')",
-  ).run(vehiculoId, tipo);
+  // Un servicio nuevo en "esperando" puede sacarle el "listo" a un auto que
+  // estaba terminado: por eso se revisan los avisos.
+  db.transaction(() => {
+    db.prepare(
+      "INSERT INTO servicios (vehiculo_id, tipo, estado) VALUES (?, ?, 'esperando')",
+    ).run(vehiculoId, tipo);
+    evaluarAvisos(vehiculoId);
+  })();
 }
 
 /**
@@ -90,8 +107,13 @@ export function quitarServicio(id: number): boolean {
     );
   }
 
-  db.prepare(
-    "UPDATE servicios SET eliminado_en = datetime('now') WHERE id = ?",
-  ).run(id);
+  // Quitar el único servicio que faltaba (o el que estaba en proceso) cambia
+  // qué avisos corresponden: por eso se revisan.
+  db.transaction(() => {
+    db.prepare(
+      "UPDATE servicios SET eliminado_en = datetime('now') WHERE id = ?",
+    ).run(id);
+    evaluarAvisos(servicio.vehiculo_id);
+  })();
   return true;
 }

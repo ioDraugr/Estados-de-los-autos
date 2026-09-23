@@ -1,5 +1,6 @@
 // Servidor del taller: Express (API REST + sirve el build del front) + Socket.IO.
-// Corre local en la red del taller, sin internet.
+// Corre local en la red del taller, sin internet (solo los avisos por WhatsApp
+// reales, con AVISOS_ENVIO=baileys, necesitan internet en esta máquina).
 import express, { type Response } from "express";
 import { createServer } from "node:http";
 import { Server as SocketServer } from "socket.io";
@@ -7,6 +8,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import "./db.js"; // inicializa la base y crea las tablas
 import { exigirPin, pinEsValido } from "./auth.js";
+import { iniciarAvisos } from "./avisos.js";
+import { elegirEnviador } from "./enviadores.js";
 import { ErrorValidacion } from "./errores.js";
 import { sembrarSiVacia } from "./seed.js";
 import {
@@ -75,9 +78,14 @@ app.post("/api/login", (req, res) => {
 
 // Autos a mostrar. Sin parámetros: los del showroom (/display). Con ?todos=1:
 // todos los no retirados, incluidos los terminados hace rato (para /admin).
+// Es pública (sin PIN), pero el celular del cliente solo viaja si el pedido
+// trae un `x-pin` válido: /display NUNCA lo recibe.
 app.get("/api/vehiculos", (req, res) => {
   manejar(res, "listar vehículos", () => {
-    const lista = req.query.todos ? listarTodos() : listarVehiculosVisibles();
+    const opciones = { incluirTelefono: pinEsValido(req.header("x-pin")) };
+    const lista = req.query.todos
+      ? listarTodos(opciones)
+      : listarVehiculosVisibles(opciones);
     res.json(lista);
   });
 });
@@ -85,22 +93,28 @@ app.get("/api/vehiculos", (req, res) => {
 // Alta de un auto con sus servicios iniciales.
 app.post("/api/vehiculos", exigirPin, (req, res) => {
   manejar(res, "crear vehículo", () => {
-    const { marca, modelo, color, matricula, servicios } = req.body ?? {};
-    const id = crearVehiculo({ marca, modelo, color, matricula }, servicios);
+    const { marca, modelo, color, matricula, telefono, servicios } =
+      req.body ?? {};
+    const id = crearVehiculo(
+      { marca, modelo, color, matricula, telefono },
+      servicios,
+    );
     emitirCambio();
     res.status(201).json({ id });
   });
 });
 
-// Editar los datos de un auto (no toca fecha_ingreso ni servicios).
+// Editar los datos de un auto (no toca fecha_ingreso ni servicios). El
+// teléfono vacío lo borra; si no viene, queda el que estaba.
 app.patch("/api/vehiculos/:id", exigirPin, (req, res) => {
   manejar(res, "editar vehículo", () => {
-    const { marca, modelo, color, matricula } = req.body ?? {};
+    const { marca, modelo, color, matricula, telefono } = req.body ?? {};
     const ok = editarVehiculo(Number(req.params.id), {
       marca,
       modelo,
       color,
       matricula,
+      telefono,
     });
     if (!ok) {
       res.status(404).json({ error: "Auto no encontrado" });
@@ -180,4 +194,13 @@ io.on("connection", (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Servidor del taller escuchando en http://localhost:${PORT}`);
+  // Avisos por WhatsApp: elige el envío (AVISOS_ENVIO) y arranca el despachador
+  // de la cola (ver avisos.ts). Si el envío pedido no se pudo cargar, NO se cae
+  // en "log" (marcaría como enviados avisos que nunca salieron): la cola queda
+  // quieta y los pendientes esperan al próximo arranque.
+  elegirEnviador()
+    .then(iniciarAvisos)
+    .catch((error) =>
+      console.error("No se pudo iniciar el envío de avisos; quedan pendientes:", error),
+    );
 });

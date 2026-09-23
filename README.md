@@ -32,6 +32,11 @@ cd ../server && npm install
 > El backend usa `better-sqlite3`, que compila un binario nativo al instalar.
 > Con npm 11+ puede pedir aprobar los scripts de instalación:
 > `npm approve-scripts better-sqlite3 esbuild`.
+>
+> `npm install` en `server/` también instala lo de los [avisos por WhatsApp](#avisos-por-whatsapp)
+> (`baileys`, `pino`, `qrcode-terminal`). npm puede avisar que `baileys` y
+> `protobufjs` tienen scripts de instalación sin aprobar: no hace falta aprobarlos
+> (uno solo chequea la versión de Node y el otro imprime avisos).
 
 ## Correr en desarrollo
 
@@ -92,6 +97,22 @@ Para **empezar de cero** (borra todos los datos y vuelve a sembrar):
 rm server/data/taller.db*
 ```
 
+Las columnas nuevas (por ejemplo `vehiculos.telefono`) se agregan **solas** al
+arrancar sobre una base que ya existía: no hay que borrar nada ni correr scripts.
+
+La tabla `avisos` es la cola de los [avisos por WhatsApp](#avisos-por-whatsapp):
+una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo`), con su estado
+(`pendiente`, `enviado`, `cancelado`, `sin_telefono`, `fallido`), cuándo toca
+mandarlo (`enviar_en`, en UTC), los intentos y el último error. También se crea
+sola al arrancar.
+
+Para probar sin tocar la base real, se puede apuntar a otro archivo con `DB_PATH`
+(si la carpeta no existe, se crea):
+
+```bash
+cd server && DB_PATH=/tmp/prueba.db PORT=3099 npm run dev
+```
+
 ## La vista /admin (trabajadores)
 
 En `/admin` los trabajadores dan de alta autos, cambian el estado de cada servicio,
@@ -111,6 +132,128 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
   último, hay que retirar el auto.
 - Editar los datos de un auto o agregar/quitar servicios **no** cambia su fecha de
   ingreso ni el estado de los otros servicios.
+- **Celular del cliente (opcional).** Al dar de alta o editar un auto se puede
+  cargar un celular uruguayo ("Celular para avisos por WhatsApp"). Se acepta como
+  se escriba (`099 123 456`, `99123456`, `+598 99 123 456`…) y se guarda siempre
+  como `+59899123456`; si no es un celular uruguayo, el server lo rechaza con un
+  mensaje. Dejarlo vacío al editar lo borra. Se muestra chico en la tarjeta de
+  `/admin`. Se usa para los [avisos automáticos por WhatsApp](#avisos-por-whatsapp).
+- **El celular es privado.** La API solo lo manda si el pedido trae un PIN válido
+  en `x-pin` (`/admin` y `/taller`). **Nunca** llega a `/display` ni a quien pida
+  la lista sin PIN, y `/taller` no lo muestra.
+
+## Avisos por WhatsApp
+
+Si el auto tiene celular cargado, el server le manda al cliente hasta tres
+mensajes automáticos:
+
+| Aviso | Cuándo sale | Mensaje (ejemplo) |
+| --- | --- | --- |
+| Entró | 5 min después del alta, si el auto no se retiró antes. | "¡Hola! Tu Toyota Corolla ya ingresó al taller de ML Center. Te vamos a ir avisando por acá cómo va." |
+| Arrancamos | 5 min después de que **algún** servicio pasa a `en_proceso`, si en ese momento sigue habiendo alguno en proceso. | "¡Buenas! Ya arrancamos a trabajar en tu Toyota Corolla. Te avisamos cuando esté listo." |
+| Listo | 5 min después de que **todos** los servicios quedan `terminado`, si en ese momento siguen todos terminados. | "¡Tu Toyota Corolla está listo! Ya podés pasar a buscarlo por ML Center." |
+
+Los mensajes solo llevan marca y modelo (nunca la matrícula). Los textos están
+todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
+
+- **Los 5 minutos son de seguridad.** Al llegar la hora, el server vuelve a mirar
+  cómo está el auto antes de mandar. Si alguien tocó "en proceso" sin querer y lo
+  volvió a "esperando", o marcó todo terminado y se arrepintió, el aviso se cancela
+  solo y el cliente no recibe nada. Si después vuelve a corresponder, se programa de
+  nuevo con 5 minutos contados desde ese momento.
+- **Cada aviso sale una sola vez por auto.** Si un auto ya recibió el "listo" y se
+  reabre un servicio, cuando se vuelva a terminar no se manda otro.
+- **Retirar el auto cancela** los avisos que tenía pendientes.
+- **Sin celular, no sale.** El aviso queda como `sin_telefono`. Si después se le carga
+  el celular, los avisos de "arrancamos" y "listo" se vuelven a programar en el
+  próximo cambio de servicios; el de "entró" ya no.
+- **Aguantan reinicios.** Los pendientes viven en la base (tabla `avisos`): si el
+  server se apaga, al volver a arrancar manda los que ya vencieron.
+- **Reintentos.** Si un envío falla, se reintenta a los 1, 2, 4 y 8 minutos. Al
+  quinto intento fallido queda como `fallido` y no se reintenta más. Las fallas se
+  ven en la consola del server.
+- **Número sin WhatsApp.** Con el envío real, si el celular cargado no tiene
+  WhatsApp, el aviso queda `fallido` de una, sin reintentos.
+- El server revisa la cola cada 30 segundos (`AVISOS_INTERVALO_SEG`), así que un
+  aviso puede salir hasta medio minuto después de su hora.
+
+### Cómo salen: `log` o WhatsApp real
+
+Por defecto el envío es `log`: **no le escribe a nadie**, imprime el mensaje en la
+consola del server, por ejemplo:
+
+```
+[aviso] → +59899123456: ¡Tu Toyota Corolla está listo! Ya podés pasar a buscarlo por ML Center.
+```
+
+Para mandarlos **por WhatsApp de verdad** se arranca el server con
+`AVISOS_ENVIO=baileys`:
+
+```bash
+cd server && AVISOS_ENVIO=baileys npm run dev
+```
+
+> ⚠️ **Desde ese momento le llegan los mensajes a TODOS los autos que tengan
+> celular cargado**, sin excepción. Para probar, usá autos con un celular tuyo (o
+> de alguien que sepa que es una prueba).
+
+> ⚠️ **Baileys es una librería NO oficial.** Se hace pasar por WhatsApp Web. Va
+> contra las condiciones de WhatsApp y **WhatsApp puede bloquear el número** que
+> uses (más si manda muchos mensajes o a gente que no lo tiene agendado). Sirve
+> para probar. Para escribirles a clientes reales lo recomendado es la **API
+> oficial de WhatsApp Business** (Cloud API).
+
+#### Vincular el celular (una sola vez)
+
+1. Arrancá el server con `AVISOS_ENVIO=baileys`.
+2. En la **consola del server** aparece un código QR con el texto
+   *"Abrí WhatsApp en tu celular → Dispositivos vinculados → Vincular un dispositivo
+   y escaneá este código"*.
+3. En el celular: WhatsApp → **Dispositivos vinculados** → **Vincular un
+   dispositivo** → escaneá el QR. El código se renueva cada unos segundos: si no
+   llegás, escaneá el último que aparezca. Si nadie lo escanea, al rato aparece otro.
+4. Cuando la consola dice `[whatsapp] WhatsApp conectado`, listo: los avisos salen
+   por WhatsApp.
+
+La próxima vez que arranque el server se conecta solo, sin QR. Si se corta (wifi,
+internet), reconecta solo: primero a los 5 s y cada vez más espaciado, hasta 5 min.
+**Mientras WhatsApp no está conectado, los avisos esperan en la cola sin gastar
+intentos** y salen cuando vuelve.
+
+Entre un mensaje y otro el server deja al menos 3 segundos: mandar muchos de golpe
+es de lo que más dispara los bloqueos.
+
+#### La sesión es secreta
+
+El vínculo queda guardado en la carpeta `server/data/whatsapp-sesion/` (se cambia
+con `WHATSAPP_SESION_DIR`). **Esos archivos son las credenciales del número:** con
+ellos cualquiera puede mandar mensajes como si fuera ese WhatsApp. Por eso:
+
+- está en `.gitignore`: **nunca** la subas a git ni la compartas ni la copies a otra
+  máquina;
+- **borrar la carpeta = desvincular** (después conviene borrar también el
+  dispositivo en el celular, en "Dispositivos vinculados").
+
+**Si se cierra la sesión** (alguien desvinculó el dispositivo desde el celular, o
+WhatsApp la dio de baja), el server lo dice en la consola, **borra solo la sesión
+vieja y muestra un QR nuevo**: se vuelve a vincular escaneándolo, igual que la
+primera vez.
+
+Si en la consola aparece que *otra conexión con la misma sesión tomó el control*, es
+que hay dos servers usando la misma carpeta de sesión: cerrá uno y reiniciá el otro.
+
+#### Qué hace falta para que funcione
+
+- **La máquina del server necesita internet** para los avisos reales. El resto de
+  la app (display, admin, taller) sigue andando sin internet; si se corta, los
+  avisos quedan esperando y salen cuando vuelve.
+- **El celular vinculado tiene que tener internet** de vez en cuando. Si pasa unos
+  **14 días sin conectarse**, WhatsApp desvincula los dispositivos y hay que volver a
+  escanear el QR.
+- **Mensajes a tu propio número:** si cargás un auto con el mismo número que
+  vinculaste, el aviso te llega al chat **"Mensaje a vos mismo"** (tu propio chat)
+  **sin sonar ni notificar**. Para ver cómo le llega de verdad a un cliente
+  (notificación incluida), probá con un auto que tenga **otro celular**.
 
 ## La estética (las tres vistas, una sola identidad)
 
@@ -144,6 +287,11 @@ subset latino (~39 KB).
 | `PORT` | `3000` | Puerto del servidor. |
 | `HORAS_VISIBLE_TERMINADO` | `4` | Cuántas horas sigue en pantalla un auto con **todos** sus servicios terminados antes de ocultarse solo. |
 | `ADMIN_PIN` | `1234` | PIN inicial de `/admin`. Solo se usa la primera vez, para sembrarlo en la base; después el PIN vive en `config`. |
+| `DB_PATH` | `server/data/taller.db` | Archivo de la base SQLite. Útil para probar contra una base descartable; si la carpeta no existe, se crea. |
+| `AVISOS_DEMORA_MIN` | `5` | Minutos de seguridad entre el cambio y el aviso por WhatsApp. Acepta decimales (`0.1` = 6 s, para probar). |
+| `AVISOS_INTERVALO_SEG` | `30` | Cada cuántos segundos el server revisa si hay avisos para mandar. |
+| `AVISOS_ENVIO` | `log` | Cómo salen los avisos: `log` (los imprime en la consola del server, no le escribe a nadie) o `baileys` (WhatsApp real, ver [Avisos por WhatsApp](#avisos-por-whatsapp); necesita internet). Cualquier otro valor es un error: el server arranca igual pero no manda avisos (quedan pendientes) hasta que se corrija. |
+| `WHATSAPP_SESION_DIR` | `server/data/whatsapp-sesion` | Carpeta donde queda la sesión de WhatsApp (con `AVISOS_ENVIO=baileys`). Son **credenciales**: nunca se comparte ni se sube a git. Borrarla = desvincular. |
 
 ## API
 
@@ -152,11 +300,11 @@ Los endpoints que **escriben** exigen el header `x-pin` con el PIN (si no, `401`
 | Endpoint | Qué hace |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }`, para saber si el server está vivo. |
-| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de `HORAS_VISIBLE_TERMINADO` ni los retirados. |
-| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). |
+| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de `HORAS_VISIBLE_TERMINADO` ni los retirados. No pide PIN; **solo con `x-pin` válido** incluye `telefono` (si no, la clave no aparece). |
+| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono`. |
 | `POST /api/login` | Valida el PIN (body `{ pin }`). `{ ok: true }` o `401`. |
-| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). |
-| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula (no toca fecha ni servicios). |
+| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). |
+| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. |
 | `POST /api/vehiculos/:id/retirar` | Retira el auto (soft delete). |
 | `POST /api/vehiculos/:id/servicios` | Agrega un servicio (body `{ tipo }`). |
 | `PATCH /api/servicios/:id` | Cambia el estado de un servicio (body `{ estado }`). |

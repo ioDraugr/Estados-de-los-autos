@@ -16,9 +16,13 @@ export async function obtenerVehiculos(): Promise<Vehiculo[]> {
   return res.json();
 }
 
-// Lista para /admin: incluye también los terminados que /display esconde.
+// Lista para /admin y /taller: incluye también los terminados que /display
+// esconde. Manda el PIN para que el server incluya el celular del cliente (sin
+// PIN la lista sale igual, pero sin teléfonos).
 export async function obtenerVehiculosAdmin(): Promise<Vehiculo[]> {
-  const res = await fetch("/api/vehiculos?todos=1");
+  const res = await fetch("/api/vehiculos?todos=1", {
+    headers: { "x-pin": leerPin() ?? "" },
+  });
   if (!res.ok) {
     throw new Error(`La API respondió ${res.status}`);
   }
@@ -40,6 +44,9 @@ export interface DatosVehiculo {
   modelo: string;
   color: string;
   matricula: string;
+  // Celular tal como lo escribió el trabajador ("" = sin celular). El server
+  // lo valida y lo guarda normalizado; vacío en una edición lo borra.
+  telefono: string;
 }
 
 export async function crearVehiculo(

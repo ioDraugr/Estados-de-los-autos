@@ -272,14 +272,18 @@ function marcar(id: number, estado: "cancelado" | "sin_telefono"): void {
   db.prepare("UPDATE avisos SET estado = ? WHERE id = ?").run(estado, id);
 }
 
+// Cómo estaba el envío en la última consulta. Arranca en true: si ya está listo
+// desde la primera pasada no hay nada que avisar; si arranca sin estar listo,
+// eso ya cuenta como cambio y se avisa.
+let ultimoListo = true;
+
 // ¿El envío puede mandar ahora? Los que no dicen nada (listo ausente) siempre
-// pueden. Avisa en la consola solo cuando cambia, no en cada pasada.
-let enviadorEnEspera = false;
+// pueden. Avisa en la consola solo cuando cambia respecto de la vez anterior
+// (de listo a en espera o al revés), no en cada pasada.
 function enviadorListo(enviador: Enviador): boolean {
   const listo = enviador.listo ? enviador.listo() : true;
-  if (enviadorEnEspera === listo) {
-    // Cambió: estaba en espera y ahora está listo, o al revés.
-    enviadorEnEspera = !listo;
+  if (listo !== ultimoListo) {
+    ultimoListo = listo;
     console.log(
       listo
         ? `[aviso] El envío "${enviador.nombre}" está listo: se retoman los avisos.`

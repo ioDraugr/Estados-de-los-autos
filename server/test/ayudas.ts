@@ -20,13 +20,20 @@ process.env.AVISOS_DEMORA_MIN = "0";
 export const { db } = await import("../src/db.js");
 export const { despacharPendientes } = await import("../src/avisos.js");
 export const { ErrorDefinitivo } = await import("../src/enviadores.js");
-export const { cambiarEstado } = await import("../src/servicios.js");
-export const { crearVehiculo } = await import("../src/vehiculos.js");
+export const { agregarServicio, cambiarEstado, quitarServicio } = await import(
+  "../src/servicios.js"
+);
+export const { crearVehiculo, editarVehiculo, retirarVehiculo } = await import(
+  "../src/vehiculos.js"
+);
 
-// Los avisos cuentan todo por consola; en los tests es ruido.
-for (const metodo of ["log", "warn", "error"] as const) {
-  mock.method(console, metodo, () => {});
-}
+// Los avisos cuentan todo por consola; en los tests es ruido. Quedan a mano los
+// mocks por si un test quiere mirar qué se imprimió (consola.log.mock.calls).
+export const consola = {
+  log: mock.method(console, "log", () => {}),
+  warn: mock.method(console, "warn", () => {}),
+  error: mock.method(console, "error", () => {}),
+};
 
 after(() => {
   db.close();
@@ -39,6 +46,14 @@ export function limpiarBase(): void {
   db.exec("DELETE FROM avisos; DELETE FROM servicios; DELETE FROM vehiculos;");
 }
 
+// Datos de auto de ejemplo (sin teléfono), para el alta y para editar.
+export const DATOS_AUTO = {
+  marca: "Toyota",
+  modelo: "Corolla",
+  color: "Gris",
+  matricula: "SBA1234",
+};
+
 /**
  * Da de alta un auto por el camino real (crearVehiculo: también programa el
  * aviso "entró"), con celular salvo que se pase null. Devuelve su id y cómo
@@ -48,10 +63,7 @@ export function crearAuto(
   servicios: TipoServicio[],
   telefono: string | null = "099 123 456",
 ): { id: number; servicio: (tipo: TipoServicio) => number } {
-  const id = crearVehiculo(
-    { marca: "Toyota", modelo: "Corolla", color: "Gris", matricula: "SBA1234", telefono },
-    servicios,
-  );
+  const id = crearVehiculo({ ...DATOS_AUTO, telefono }, servicios);
   const servicio = (tipo: TipoServicio): number => {
     const fila = db
       .prepare(
@@ -82,6 +94,11 @@ export function leerAviso(vehiculoId: number, tipo: TipoAviso): FilaAviso | unde
     .get(vehiculoId, tipo) as FilaAviso | undefined;
 }
 
+// Todas las filas de la cola, en orden (para comparar "antes" y "después").
+export function leerAvisos(): FilaAviso[] {
+  return db.prepare("SELECT * FROM avisos ORDER BY id").all() as FilaAviso[];
+}
+
 // Adelanta el reloj de los pendientes: los que esperan un reintento quedan
 // vencidos, para que la próxima pasada del despachador los tome ya.
 export function vencerPendientes(): void {
@@ -93,16 +110,17 @@ export function vencerPendientes(): void {
 /**
  * Envío de mentira: anota lo que "manda" en `enviados`. Si se pasa `falla`, en
  * cada envío tira el error que devuelva (si devuelve undefined, el envío sale).
+ * Sin `falla`, cada llamada a `enviar` queda en `enviados`.
  */
 export function enviadorFalso(
-  falla?: () => Error | undefined,
+  falla?: (telefono: string) => Error | undefined,
 ): Enviador & { enviados: { telefono: string; texto: string }[] } {
   const enviados: { telefono: string; texto: string }[] = [];
   return {
     nombre: "falso",
     enviados,
     async enviar(telefono, texto) {
-      const error = falla?.();
+      const error = falla?.(telefono);
       if (error) throw error;
       enviados.push({ telefono, texto });
     },

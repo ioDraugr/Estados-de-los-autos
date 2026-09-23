@@ -27,7 +27,7 @@ Corregir los hallazgos de la revisión RDD `review-bc4c312a15f0e5b1` (aprobada, 
 ## Tareas
 - [x] T1 — Runner de tests + test que reproduce el bloqueo de `fallido` (RED) + arreglo (GREEN).
   Ruta: delegated direct (writer trigger: package.json, tsconfig, avisos.ts, tests nuevos).
-- [ ] T2 — Tests de `normalizarTelefono` y del resto de la máquina de avisos + toggle más claro.
+- [x] T2 — Tests de `normalizarTelefono` y del resto de la máquina de avisos + toggle más claro.
   Ruta: delegated direct (mismo writer, contexto continuado).
 
 ## Criterios de aceptación
@@ -47,5 +47,13 @@ Corregir los hallazgos de la revisión RDD `review-bc4c312a15f0e5b1` (aprobada, 
   se revive). `ingreso` sin cambios.
 - GREEN: 3/3 pasan (re-ejecutado por el orquestador). `tsc --noEmit` OK; build sin tests en dist.
 
+### T2 (hecha)
+- Tests: `telefono.test.ts` (formatos válidos, vacíos, 8 inválidos) y 3 suites nuevas en
+  `avisos.test.ts` (programar/cancelar, despachador, envío no listo). Total 19 tests, 5 suites.
+- Toggle: `enviadorEnEspera` → `ultimoListo` (misma conducta); test que fija "loguea solo al
+  cambiar" (se comprobó que falla si se loguea en cada pasada).
+- Los tests no encontraron bugs nuevos.
+- Chequeos: `npm test` 19/19 (re-ejecutado por el orquestador), `tsc --noEmit` OK, build sin tests.
+
 ## Próximo paso
-T2.
+Rama lista para push / PR / merge (decisión del usuario).

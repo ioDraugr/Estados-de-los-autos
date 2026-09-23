@@ -1,5 +1,6 @@
 // Servidor del taller: Express (API REST + sirve el build del front) + Socket.IO.
-// Corre local en la red del taller, sin internet.
+// Corre local en la red del taller, sin internet (solo los avisos por WhatsApp
+// reales, con AVISOS_ENVIO=baileys, necesitan internet en esta máquina).
 import express, { type Response } from "express";
 import { createServer } from "node:http";
 import { Server as SocketServer } from "socket.io";
@@ -193,6 +194,13 @@ io.on("connection", (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Servidor del taller escuchando en http://localhost:${PORT}`);
-  // Avisos por WhatsApp: arranca el despachador de la cola (ver avisos.ts).
-  iniciarAvisos(elegirEnviador());
+  // Avisos por WhatsApp: elige el envío (AVISOS_ENVIO) y arranca el despachador
+  // de la cola (ver avisos.ts). Si el envío pedido no se pudo cargar, NO se cae
+  // en "log" (marcaría como enviados avisos que nunca salieron): la cola queda
+  // quieta y los pendientes esperan al próximo arranque.
+  elegirEnviador()
+    .then(iniciarAvisos)
+    .catch((error) =>
+      console.error("No se pudo iniciar el envío de avisos; quedan pendientes:", error),
+    );
 });

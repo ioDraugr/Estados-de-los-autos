@@ -32,6 +32,11 @@ cd ../server && npm install
 > El backend usa `better-sqlite3`, que compila un binario nativo al instalar.
 > Con npm 11+ puede pedir aprobar los scripts de instalación:
 > `npm approve-scripts better-sqlite3 esbuild`.
+>
+> `npm install` en `server/` también instala lo de los [avisos por WhatsApp](#avisos-por-whatsapp)
+> (`baileys`, `pino`, `qrcode-terminal`). npm puede avisar que `baileys` y
+> `protobufjs` tienen scripts de instalación sin aprobar: no hace falta aprobarlos
+> (uno solo chequea la versión de Node y el otro imprime avisos).
 
 ## Correr en desarrollo
 
@@ -167,17 +172,94 @@ todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
 - **Reintentos.** Si un envío falla, se reintenta a los 1, 2, 4 y 8 minutos. Al
   quinto intento fallido queda como `fallido` y no se reintenta más. Las fallas se
   ven en la consola del server.
+- **Número sin WhatsApp.** Con el envío real, si el celular cargado no tiene
+  WhatsApp, el aviso queda `fallido` de una, sin reintentos.
 - El server revisa la cola cada 30 segundos (`AVISOS_INTERVALO_SEG`), así que un
   aviso puede salir hasta medio minuto después de su hora.
 
-**Por ahora los avisos no salen por WhatsApp de verdad:** el envío es `log`, que
-imprime el mensaje en la consola del server, por ejemplo:
+### Cómo salen: `log` o WhatsApp real
+
+Por defecto el envío es `log`: **no le escribe a nadie**, imprime el mensaje en la
+consola del server, por ejemplo:
 
 ```
 [aviso] → +59899123456: ¡Tu Toyota Corolla está listo! Ya podés pasar a buscarlo por ML Center.
 ```
 
-El envío real por WhatsApp llega en la próxima fase.
+Para mandarlos **por WhatsApp de verdad** se arranca el server con
+`AVISOS_ENVIO=baileys`. Mientras probás, usalo **siempre junto con
+`AVISOS_SOLO_A`** (tu número), así no le llega nada a un cliente real:
+
+```bash
+cd server && AVISOS_ENVIO=baileys AVISOS_SOLO_A="099 123 456" npm run dev
+```
+
+> ⚠️ **Baileys es una librería NO oficial.** Se hace pasar por WhatsApp Web. Va
+> contra las condiciones de WhatsApp y **WhatsApp puede bloquear el número** que
+> uses (más si manda muchos mensajes o a gente que no lo tiene agendado). Sirve
+> para probar. Para escribirles a clientes reales lo recomendado es la **API
+> oficial de WhatsApp Business** (Cloud API).
+
+**Modo prueba (`AVISOS_SOLO_A`).** Una lista de celulares separados por coma
+(`"099 123 456, 098 765 432"`, en cualquier formato que acepte el alta). Si está
+puesta, los avisos **solo** salen a esos números; al resto se les cancela
+(`cancelado`, con el motivo "modo prueba: el número no está en AVISOS_SOLO_A" en
+`ultimo_error`) y no se les manda nada. Vale para cualquier envío, también `log`. Al
+arrancar, el server dice si el modo prueba está activo y con qué números; los que no
+son un celular válido los avisa y los ignora (si ninguno sirve, no se le escribe a
+nadie).
+
+#### Vincular el celular (una sola vez)
+
+1. Arrancá el server con `AVISOS_ENVIO=baileys` (y `AVISOS_SOLO_A`, ver arriba).
+2. En la **consola del server** aparece un código QR con el texto
+   *"Abrí WhatsApp en tu celular → Dispositivos vinculados → Vincular un dispositivo
+   y escaneá este código"*.
+3. En el celular: WhatsApp → **Dispositivos vinculados** → **Vincular un
+   dispositivo** → escaneá el QR. El código se renueva cada unos segundos: si no
+   llegás, escaneá el último que aparezca. Si nadie lo escanea, al rato aparece otro.
+4. Cuando la consola dice `[whatsapp] WhatsApp conectado`, listo: los avisos salen
+   por WhatsApp.
+
+La próxima vez que arranque el server se conecta solo, sin QR. Si se corta (wifi,
+internet), reconecta solo: primero a los 5 s y cada vez más espaciado, hasta 5 min.
+**Mientras WhatsApp no está conectado, los avisos esperan en la cola sin gastar
+intentos** y salen cuando vuelve.
+
+Entre un mensaje y otro el server deja al menos 3 segundos: mandar muchos de golpe
+es de lo que más dispara los bloqueos.
+
+#### La sesión es secreta
+
+El vínculo queda guardado en la carpeta `server/data/whatsapp-sesion/` (se cambia
+con `WHATSAPP_SESION_DIR`). **Esos archivos son las credenciales del número:** con
+ellos cualquiera puede mandar mensajes como si fuera ese WhatsApp. Por eso:
+
+- está en `.gitignore`: **nunca** la subas a git ni la compartas ni la copies a otra
+  máquina;
+- **borrar la carpeta = desvincular** (después conviene borrar también el
+  dispositivo en el celular, en "Dispositivos vinculados").
+
+**Si se cierra la sesión** (alguien desvinculó el dispositivo desde el celular, o
+WhatsApp la dio de baja), el server lo dice en la consola, **borra solo la sesión
+vieja y muestra un QR nuevo**: se vuelve a vincular escaneándolo, igual que la
+primera vez.
+
+Si en la consola aparece que *otra conexión con la misma sesión tomó el control*, es
+que hay dos servers usando la misma carpeta de sesión: cerrá uno y reiniciá el otro.
+
+#### Qué hace falta para que funcione
+
+- **La máquina del server necesita internet** para los avisos reales. El resto de
+  la app (display, admin, taller) sigue andando sin internet; si se corta, los
+  avisos quedan esperando y salen cuando vuelve.
+- **El celular vinculado tiene que tener internet** de vez en cuando. Si pasa unos
+  **14 días sin conectarse**, WhatsApp desvincula los dispositivos y hay que volver a
+  escanear el QR.
+- **Mensajes a tu propio número:** si en `AVISOS_SOLO_A` ponés el mismo número que
+  vinculaste, los avisos te llegan al chat **"Mensaje a vos mismo"** (tu propio chat)
+  **sin sonar ni notificar**. Para ver cómo le llega de verdad a un cliente
+  (notificación incluida), probá con un **segundo celular** en `AVISOS_SOLO_A`.
 
 ## La estética (las tres vistas, una sola identidad)
 
@@ -214,7 +296,9 @@ subset latino (~39 KB).
 | `DB_PATH` | `server/data/taller.db` | Archivo de la base SQLite. Útil para probar contra una base descartable; si la carpeta no existe, se crea. |
 | `AVISOS_DEMORA_MIN` | `5` | Minutos de seguridad entre el cambio y el aviso por WhatsApp. Acepta decimales (`0.1` = 6 s, para probar). |
 | `AVISOS_INTERVALO_SEG` | `30` | Cada cuántos segundos el server revisa si hay avisos para mandar. |
-| `AVISOS_ENVIO` | `log` | Cómo salen los avisos. Por ahora solo existe `log` (los imprime en la consola del server); cualquier otro valor avisa y usa `log`. |
+| `AVISOS_ENVIO` | `log` | Cómo salen los avisos: `log` (los imprime en la consola del server, no le escribe a nadie) o `baileys` (WhatsApp real, ver [Avisos por WhatsApp](#avisos-por-whatsapp); necesita internet). Cualquier otro valor es un error: el server arranca igual pero no manda avisos (quedan pendientes) hasta que se corrija. |
+| `AVISOS_SOLO_A` | *(vacía)* | Modo prueba: celulares separados por coma (`"099 123 456, 098 765 432"`). Si está puesta, los avisos solo salen a esos números y al resto se les cancela. Vacía = se le escribe a todos los clientes con celular. |
+| `WHATSAPP_SESION_DIR` | `server/data/whatsapp-sesion` | Carpeta donde queda la sesión de WhatsApp (con `AVISOS_ENVIO=baileys`). Son **credenciales**: nunca se comparte ni se sube a git. Borrarla = desvincular. |
 
 ## API
 

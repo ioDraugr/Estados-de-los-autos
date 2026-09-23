@@ -3,9 +3,11 @@
 // despachador los manda cuando vencen. La demora de seguridad existe para que un
 // toque sin querer en /admin no le escriba al cliente: al momento de enviar se
 // vuelve a revisar que la condición siga siendo cierta.
-// Solo importa la base: vehiculos.ts y servicios.ts lo llaman a él.
+// Solo importa la base, los envíos y el teléfono: vehiculos.ts y servicios.ts
+// lo llaman a él.
 import { db } from "./db.js";
-import type { Enviador } from "./enviadores.js";
+import { ErrorDefinitivo, type Enviador } from "./enviadores.js";
+import { normalizarTelefono } from "./telefono.js";
 
 export type TipoAviso = "ingreso" | "en_proceso" | "listo";
 
@@ -16,6 +18,13 @@ export const INTERVALO_SEG = leerNumero("AVISOS_INTERVALO_SEG", 30, 1);
 
 // Tras este número de intentos fallidos, el aviso queda "fallido" y no se reintenta.
 const MAX_INTENTOS = 5;
+
+// Modo prueba: con AVISOS_SOLO_A (celulares separados por coma) solo se les
+// escribe a esos números; al resto el aviso se le cancela sin mandar nada. Sirve
+// para probar el WhatsApp real sin escribirle a clientes de verdad.
+// null = sin modo prueba (se manda a todos).
+const SOLO_A = leerListaBlanca();
+const MOTIVO_FUERA_DE_LISTA = "modo prueba: el número no está en AVISOS_SOLO_A";
 
 // Lo que se le manda al cliente. Sin matrícula (privacidad): marca y modelo alcanzan.
 const MENSAJES: Record<TipoAviso, (auto: { marca: string; modelo: string }) => string> = {
@@ -103,6 +112,10 @@ interface AvisoAEnviar {
  * con una espera cada vez más larga. Un aviso que falla no frena a los demás.
  */
 export async function despacharPendientes(enviador: Enviador): Promise<void> {
+  // Si el envío no está listo (WhatsApp desconectado, QR sin escanear), no se
+  // toca la cola: los avisos esperan sin gastar intentos.
+  if (!enviadorListo(enviador)) return;
+
   const vencidos = db
     .prepare(
       `SELECT id FROM avisos
@@ -112,6 +125,8 @@ export async function despacharPendientes(enviador: Enviador): Promise<void> {
     .all() as { id: number }[];
 
   for (const { id } of vencidos) {
+    // Si se cortó en medio de la pasada, el resto espera a la próxima.
+    if (!enviadorListo(enviador)) return;
     try {
       await despacharUno(id, enviador);
     } catch (error) {
@@ -140,6 +155,15 @@ export function iniciarAvisos(enviador: Enviador): void {
   console.log(
     `Avisos por WhatsApp: envío "${enviador.nombre}", demora ${DEMORA_MIN} min, revisión cada ${INTERVALO_SEG} s.`,
   );
+  if (SOLO_A) {
+    console.log(
+      SOLO_A.size > 0
+        ? `Avisos en MODO PRUEBA (AVISOS_SOLO_A): solo se le escribe a ${[...SOLO_A].join(", ")}; al resto se le cancela el aviso.`
+        : "Avisos en MODO PRUEBA (AVISOS_SOLO_A), pero sin ningún número válido: no se le escribe a nadie.",
+    );
+  } else if (enviador.nombre !== "log") {
+    console.log("Sin AVISOS_SOLO_A: se le escribe a todos los clientes con celular.");
+  }
   pasada();
   setInterval(pasada, INTERVALO_SEG * 1000);
 }
@@ -166,6 +190,13 @@ async function despacharUno(id: number, enviador: Enviador): Promise<void> {
   if (!aviso.telefono) {
     marcar(id, "sin_telefono");
     console.log(`[aviso] "${aviso.tipo}" del auto ${aviso.vehiculo_id} no sale: no tiene celular.`);
+    return;
+  }
+  if (SOLO_A && !SOLO_A.has(aviso.telefono)) {
+    marcar(id, "cancelado", MOTIVO_FUERA_DE_LISTA);
+    console.log(
+      `[aviso] "${aviso.tipo}" del auto ${aviso.vehiculo_id} cancelado: ${MOTIVO_FUERA_DE_LISTA} (${aviso.telefono}).`,
+    );
     return;
   }
 
@@ -197,11 +228,13 @@ function motivoParaNoMandar(aviso: AvisoAEnviar): string | null {
 }
 
 // Cuenta el intento fallido. Espera 1, 2, 4 y 8 min entre intentos; al quinto
-// fallo queda "fallido" y no se reintenta más.
+// fallo queda "fallido" y no se reintenta más. Un ErrorDefinitivo (por ejemplo,
+// el número no tiene WhatsApp) lo deja "fallido" de una.
 function registrarFalla(aviso: AvisoAEnviar, error: unknown): void {
   const intentos = aviso.intentos + 1;
   const mensaje = error instanceof Error ? error.message : String(error);
-  const agotado = intentos >= MAX_INTENTOS;
+  const definitivo = error instanceof ErrorDefinitivo;
+  const agotado = definitivo || intentos >= MAX_INTENTOS;
   const espera = `+${60 * 2 ** (intentos - 1)} seconds`;
 
   // Solo si sigue pendiente: si lo cancelaron mientras se mandaba, queda cancelado.
@@ -214,7 +247,9 @@ function registrarFalla(aviso: AvisoAEnviar, error: unknown): void {
   ).run({ id: aviso.id, intentos, mensaje, agotado: agotado ? 1 : 0, espera });
 
   console.error(
-    agotado
+    definitivo
+      ? `[aviso] No se puede mandar "${aviso.tipo}" del auto ${aviso.vehiculo_id}: ${mensaje}. Queda como fallido (no se reintenta).`
+      : agotado
       ? `[aviso] No se pudo mandar "${aviso.tipo}" del auto ${aviso.vehiculo_id} (intento ${intentos} de ${MAX_INTENTOS}): ${mensaje}. Queda como fallido.`
       : `[aviso] No se pudo mandar "${aviso.tipo}" del auto ${aviso.vehiculo_id} (intento ${intentos} de ${MAX_INTENTOS}): ${mensaje}. Se reintenta en ${2 ** (intentos - 1)} min.`,
   );
@@ -249,8 +284,52 @@ function autoActivo(vehiculoId: number): boolean {
   );
 }
 
-function marcar(id: number, estado: "cancelado" | "sin_telefono"): void {
-  db.prepare("UPDATE avisos SET estado = ? WHERE id = ?").run(estado, id);
+function marcar(
+  id: number,
+  estado: "cancelado" | "sin_telefono",
+  motivo: string | null = null,
+): void {
+  // Sin motivo, el último error (si lo hubo) queda como estaba.
+  db.prepare(
+    "UPDATE avisos SET estado = ?, ultimo_error = COALESCE(?, ultimo_error) WHERE id = ?",
+  ).run(estado, motivo, id);
+}
+
+// ¿El envío puede mandar ahora? Los que no dicen nada (listo ausente) siempre
+// pueden. Avisa en la consola solo cuando cambia, no en cada pasada.
+let enviadorEnEspera = false;
+function enviadorListo(enviador: Enviador): boolean {
+  const listo = enviador.listo ? enviador.listo() : true;
+  if (enviadorEnEspera === listo) {
+    // Cambió: estaba en espera y ahora está listo, o al revés.
+    enviadorEnEspera = !listo;
+    console.log(
+      listo
+        ? `[aviso] El envío "${enviador.nombre}" está listo: se retoman los avisos.`
+        : `[aviso] El envío "${enviador.nombre}" no está listo (¿WhatsApp sin conectar o sin vincular?): los avisos esperan, sin gastar intentos.`,
+    );
+  }
+  return listo;
+}
+
+// Lee AVISOS_SOLO_A: celulares separados por coma, cada uno normalizado como el
+// del cliente ("+5989XXXXXXX"). Los que no son un celular válido se avisan y se
+// ignoran. Variable vacía o ausente => null (sin modo prueba). Si está puesta
+// pero ningún número sirve, el modo prueba sigue activo con la lista vacía: ante
+// la duda, no se le escribe a nadie.
+function leerListaBlanca(): Set<string> | null {
+  const crudo = process.env.AVISOS_SOLO_A;
+  if (crudo === undefined || crudo.trim() === "") return null;
+  const numeros = new Set<string>();
+  for (const parte of crudo.split(",")) {
+    try {
+      const telefono = normalizarTelefono(parte);
+      if (telefono) numeros.add(telefono);
+    } catch {
+      console.warn(`AVISOS_SOLO_A: "${parte.trim()}" no es un celular uruguayo válido; se ignora.`);
+    }
+  }
+  return numeros;
 }
 
 // Número de una env var; si falta, no es un número o es menor que `minimo`,

@@ -10,6 +10,11 @@ server/data/*.db
 server/data/*.db-shm
 server/data/*.db-wal
 
+# Sesión de WhatsApp (avisos con AVISOS_ENVIO=baileys): son las CREDENCIALES del
+# celular vinculado. Con esos archivos cualquiera manda mensajes como ese número.
+# Nunca se suben ni se comparten.
+server/data/whatsapp-sesion/
+
 # Logs y sistema
 *.log
 .DS_Store

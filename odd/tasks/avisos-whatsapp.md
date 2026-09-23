@@ -43,7 +43,8 @@ se entera sin tener que preguntar.
   Ruta: delegated direct (writer trigger: 2+ archivos no triviales server y client).
 - [x] T2 — Fase B: cola de avisos en SQLite + worker, envío en modo `log`. OK del usuario.
   Ruta: delegated direct (writer trigger: db, servicios, vehiculos, index + módulo nuevo).
-- [ ] T3 — Fase C: envío real con Baileys (QR, reintentos, `AVISOS_SOLO_A`). (espera OK)
+- [x] T3 — Fase C: envío real con Baileys (QR, reintentos, `AVISOS_SOLO_A`). OK del usuario.
+  Ruta: delegated direct (writer trigger: enviadores, avisos, módulo nuevo, package.json, README).
 - [ ] T4 — Fase D (opcional): estado del aviso en `/admin`. (espera OK)
 
 ## Criterios de aceptación T1
@@ -66,6 +67,18 @@ se entera sin tener que preguntar.
   sin_telefono, falla → reintento con espera creciente y `fallido` tras 5 intentos.
 - Envío intercambiable; en esta fase solo `log` (consola). Demora `AVISOS_DEMORA_MIN` (5).
 - Pendientes sobreviven a un reinicio del server.
+
+## Criterios de aceptación T3 (OK del usuario 2026-09-22)
+- `AVISOS_ENVIO=baileys` conecta con la sesión guardada en una carpeta local ignorada por git;
+  si no hay sesión muestra el QR en la consola con instrucciones en español; reconecta solo;
+  si WhatsApp cierra la sesión, explica cómo volver a vincular.
+- Mientras WhatsApp no está conectado, el despachador no gasta intentos.
+- Número sin WhatsApp → `fallido` sin reintentos.
+- `AVISOS_SOLO_A` (lista de celulares): si está puesta, solo se manda a esos; el resto queda
+  `cancelado` con el motivo. Aplica a cualquier envío.
+- Pausa de unos segundos entre mensajes (menos riesgo de bloqueo).
+- README: cómo vincular, requisito de internet, riesgo de la librería no oficial.
+- Sin conexión real a WhatsApp desde el agente: la prueba en vivo (QR) la hace el usuario.
 
 ## Progreso / evidencia
 ### T1 — Fase A (hecha)
@@ -96,8 +109,33 @@ se entera sin tener que preguntar.
   el resto; agregar/quitar servicios reevalúan "listo".
 - Decisiones: `evaluarAvisos` cancela si el auto está retirado; si el envío sale después de una
   cancelación concurrente queda `enviado` (el mensaje salió).
+- Commit: `88f13ff` feat(avisos): Fase B (8 archivos, +462/−25).
+- RDD assess (base `95b98ac`, committed-only): riesgo medium, 825 líneas, `review_due=true`
+  / `slice_budget_reached`. Preflight STATUS → `review.start` fresh_target_ready con
+  `--consent=relay`, lineage `review-aa8742bcd7183b68`. Usuario: **declinado por ahora** ("aún no revises", 2026-09-22) → sigue política normal;
+  el tramo queda sin revisar desde `95b98ac`.
 - Nota: el server de dev del usuario (:3000) recargó y ya creó la tabla `avisos` en la base real;
   autos anteriores a la Fase B no reciben "ingreso".
 
+### T3 — Fase C (hecha, falta prueba en vivo del usuario)
+- Ruta: delegated direct (1 writer) + 1 corrección inline (enviadores.ts, mecánica).
+- Dependencias: `baileys@6.7.24` fijo (último estable; `latest` es 7.0.0-rc14; evita 6.17.16
+  deprecado), `pino@^9.14.0`, `qrcode-terminal@^0.12.0`, `@types/qrcode-terminal`.
+- Archivos: `server/src/whatsapp.ts` (sesión, QR, reconexión con espera creciente, loggedOut →
+  borra sesión y muestra QR nuevo, connectionReplaced → se detiene, onWhatsApp, 3 s entre
+  mensajes), `enviadores.ts` (`listo()`, `ErrorDefinitivo`, `elegirEnviador` async),
+  `avisos.ts` (no gasta intentos si no está listo, `ErrorDefinitivo` → fallido,
+  `AVISOS_SOLO_A`), `index.ts`, `.gitignore` (sesión), README.
+- Chequeos observados: `tsc --noEmit` y `npm run build` OK; `git check-ignore` confirma la
+  sesión ignorada; instancia aparte con `AVISOS_SOLO_A` → permitido enviado, otro cancelado
+  con motivo; script con enviadores falsos: no listo → intacto, ErrorDefinitivo → fallido,
+  Error común → reintento; `AVISOS_ENVIO=baileis` → error claro y el despachador no arranca.
+- Corrección propia: un valor desconocido de `AVISOS_ENVIO` ya no cae en `log` (marcaría
+  avisos como enviados sin mandarlos).
+- No verificado: conexión real, QR y entrega (sin conexión a WhatsApp desde el agente;
+  prueba en vivo del usuario).
+- Riesgo conocido: Baileys 6.7.x trae `libsignal` desde GitHub (git dep): `npm install`
+  necesita acceso a GitHub.
+
 ## Próximo paso
-T3 (Fase C, Baileys), con OK del usuario.
+Prueba en vivo del usuario (QR). Después: T4 (Fase D) con OK, y revisión cuando el usuario la pida.

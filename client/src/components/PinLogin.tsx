@@ -49,7 +49,7 @@ export function PinLogin({ onIngresar }: Props) {
   }
 
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-6 bg-crema p-6 sm:gap-8">
+    <div className="flex min-h-full flex-col items-center justify-center gap-6 fondo-claro p-6 sm:gap-8">
       <LogoML className="h-16 w-auto sm:h-20" />
       <p className="text-xl text-tinta-suave sm:text-2xl">Ingresá el PIN</p>
 

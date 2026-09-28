@@ -108,7 +108,7 @@ export function Admin() {
   }
 
   return (
-    <div className="min-h-full bg-crema">
+    <div className="min-h-full fondo-claro">
       <CabeceraCurva
         alto="compacta"
         acciones={

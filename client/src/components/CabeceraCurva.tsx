@@ -12,8 +12,13 @@
 //
 // Los dos arcos (radios, filo y resplandor) están en index.css
 // (.cabecera-cupula y .cabecera-horizonte), porque necesitan media queries.
+//
+// Las vistas del personal (/taller y /admin) usan tono="claro": sin parte
+// oscura ni curva, solo la barra cápsula de vidrio CLARO flotando sobre el
+// fondo claro de la página (texto en tinta y conos en sus tonos para claro).
+// /display usa el tono "oscuro" (por defecto), que es lo de arriba.
 import type { ReactNode } from "react";
-import { AREAS, COLOR_AREA_OSCURO, NOMBRE_AREA } from "../dominio";
+import { AREAS, COLOR_AREA, COLOR_AREA_OSCURO, NOMBRE_AREA } from "../dominio";
 import { Cono } from "./Cono";
 import { LogoML } from "./LogoML";
 
@@ -25,17 +30,31 @@ interface Props {
   acciones?: ReactNode;
   // Contenido centrado del hero (emblema, título, subtítulo, flecha).
   children?: ReactNode;
+  // "oscuro" (por defecto) = cúpula/horizonte oscuro del showroom.
+  // "claro" = solo la barra de vidrio claro (vistas del personal, compacta).
+  tono?: "oscuro" | "claro";
 }
 
-export function CabeceraCurva({ alto, conos, acciones, children }: Props) {
+export function CabeceraCurva({
+  alto,
+  conos,
+  acciones,
+  children,
+  tono = "oscuro",
+}: Props) {
   const hero = alto === "hero";
+  const claro = tono === "claro";
 
   // Barra cápsula de vidrio oscuro. En el celular no entra todo en una fila:
   // el logo y los botones quedan arriba y la referencia de conos baja a una
   // segunda fila (por eso deja de ser una cápsula perfecta y pasa a esquinas
   // redondeadas). De tablet para arriba, todo en una sola fila.
   const barra = (
-    <div className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[28px] py-2 pr-2 pl-4 vidrio-oscuro sm:gap-x-6 sm:rounded-full sm:pl-5">
+    <div
+      className={`relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[28px] py-2 pr-2 pl-4 sm:gap-x-6 sm:rounded-full sm:pl-5 ${
+        claro ? "text-tinta vidrio-claro" : "vidrio-oscuro"
+      }`}
+    >
       <LogoML className="h-9 w-auto shrink-0 sm:h-10 xl:h-12" />
 
       {conos && (
@@ -43,7 +62,7 @@ export function CabeceraCurva({ alto, conos, acciones, children }: Props) {
           {AREAS.map((tipo) => (
             <div key={tipo} className="flex items-center gap-2 sm:gap-2.5">
               <Cono
-                color={COLOR_AREA_OSCURO[tipo]}
+                color={claro ? COLOR_AREA[tipo] : COLOR_AREA_OSCURO[tipo]}
                 estado="esperando"
                 className="h-5 w-auto shrink-0 sm:h-6 xl:h-7"
               />
@@ -80,6 +99,12 @@ export function CabeceraCurva({ alto, conos, acciones, children }: Props) {
         </div>
       </div>
     );
+  }
+
+  // Claro: la barra sola, flotando con un margen chico alrededor. Sin relleno
+  // abajo: el aire hasta el título lo pone la página.
+  if (claro) {
+    return <div className="px-3 pt-3 sm:px-6 sm:pt-6 xl:px-10">{barra}</div>;
   }
 
   // Compacta: la cúpula oscura va detrás de la barra y termina un poco antes

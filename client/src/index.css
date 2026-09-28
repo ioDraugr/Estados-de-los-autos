@@ -402,6 +402,20 @@ body {
     titilar 1.8s ease-in-out infinite;
 }
 
+/* Punto del PIN que se acaba de marcar: aparece creciendo, con un rebote. */
+@keyframes marcar {
+  from {
+    transform: scale(0.2);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.animate-marcar {
+  animation: marcar 0.25s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
 /* ---------------------------------------------------------------------------
    Emblema ML de la bienvenida (EmblemaML.tsx). Todo se dibuja en un escenario
    de 360×360 px y se escala entero con --emblema-escala, así el 3D no se

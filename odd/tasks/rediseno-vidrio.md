@@ -2,7 +2,8 @@
 
 Locator: `odd/tasks/rediseno-vidrio.md` · Engram: `odd/rediseno-vidrio/tasks`
 Rama: `feat/rediseno-vidrio` (sale de `fix/avisos-revision` @ `4e4085b`, que ya trae el celular del
-cliente; los avisos todavía no están en `main` local).
+cliente). Los avisos ya están en `origin/main` (PR #2, `1f7bd9e`), así que el PR de esta rama contra
+`main` solo trae el rediseño.
 Diseño aprobado: página 2 ("Propuesta 2 · Vidrio cálido") del lienzo
 https://claude.ai/artifact/HFAbxTcoEbQ5GuoRGuBNsM
 
@@ -52,7 +53,7 @@ peligro #8E2B1F. Conos: sobre claro #D7402F / #3D6CC0 / #E2A822; sobre oscuro #E
 - [x] F1 — Showroom (/display): cabecera cápsula + horizonte dorado, bienvenida con `EmblemaML` 3D,
   grilla de tarjetas de vidrio, ficha como hoja de vidrio con progreso por servicio, conos
   redibujados, estados vacío/cargando/sin conexión.
-- [ ] F2 — Personal (/taller y /admin): PIN con teclado circular (+ error), `BotonesEstado`
+- [x] F2 — Personal (/taller y /admin): PIN con teclado circular (+ error), `BotonesEstado`
   segmentado, tarjetas de vidrio claro, `FormVehiculo` agrupado con interruptores (mismos campos),
   estados "Guardando…"/error.
 - [ ] F3 — Pulido: responsive (celular, tablet, showroom), rendimiento del desenfoque, fallback,
@@ -99,10 +100,36 @@ peligro #8E2B1F. Conos: sobre claro #D7402F / #3D6CC0 / #E2A822; sobre oscuro #E
   tablet 820, notebook 1440, TV 1920; sin scroll horizontal; /taller y /admin siguen bien con la
   cúpula nueva; con reduced-motion el emblema queda quieto y de frente. El orquestador revisó las
   capturas de bienvenida, lista, ficha, celular y /taller en TV.
+- Commit: `939013a` (pusheado a `origin/feat/rediseno-vidrio`). RDD assess (base `4e4085b`,
+  committed-only): medium, 1.669 líneas, `review_due=true` / `slice_budget_reached` → preflight
+  STATUS → `review.start --consent=relay` → `consent_required` (linaje `review-bcc51f96451e910e`).
+  El usuario lo declinó (2026-09-28): `review start --consent declined` → `declined_this_candidate`.
+  Sigue bajo política ordinaria; próximo borde de assess: `939013a`.
 - Abierto para F2/F3: costura tenue y brillos cuadrados del emblema en render por software
   (mirar con GPU real); ficha max-w-2xl chica en TV; `BotonesEstado` desborda en celular (F2);
   hueco extra bajo la cúpula en /taller y /admin (F2); franjas de conos se funden con tarjetas
   claras (F2).
 
+### F2 (hecha)
+- Ruta: delegated direct (writer trigger: CabeceraCurva, TituloSeccion, ConoCirculo, BotonesEstado,
+  TallerTarjeta, AdminTarjeta, PinLogin, FormVehiculo, Taller, Admin, tema, dominio, index.css).
+- `CabeceraCurva` y `ConoCirculo` con `tono="claro"`; /display sin cambios (capturas antes/después
+  idénticas en lista 390/820/1440 y bienvenida 1440; 0,1 % en bienvenida celular por la animación).
+- `BotonesEstado` segmentado (estilos de estado ahora dentro del componente; `ESTILO_ESTADO` se
+  quitó de dominio.ts porque no tenía otros usos); desborde en celular arreglado.
+- Nuevo `PastillaListo.tsx` (cápsula "Listo" con tilde, compartida por las dos tarjetas).
+- PIN oscuro con teclas circulares de vidrio, aros de dígitos (mín. 4) y "PIN incorrecto" en cápsula.
+- `FormVehiculo`: hoja de vidrio clara, campos agrupados con etiqueta arriba (etiquetas exactas),
+  servicios con interruptores `role="switch"`; mismas reglas de disabled y lógica.
+- Libertades visuales menores: sin "·" entre color y matrícula (la matrícula va en cápsula), punto
+  titilante en "Sin conexión", 4 aros en vez de "— — — —", el círculo del cono claro no repite el
+  estado.
+- Chequeos (re-ejecutados por el orquestador): `npm run build` OK; `npm run lint` OK.
+- Visual (writer, Chromium headless con API simulada, sin server): /taller y /admin en 390/820/
+  1280/1440, alta/edición, PIN vacío/con error/con dígitos; sin scroll horizontal. El orquestador
+  revisó /taller 1440 y celular, /admin 1440, alta en tablet y PIN con error.
+- Abierto para F3: barra de /taller y /admin no es sticky (decisión del usuario); leyenda de conos
+  en segunda fila en celular.
+
 ## Próximo paso
-F2 — personal (/taller y /admin): plan corto al usuario y esperar OK.
+F3 — pulido: plan corto al usuario y esperar OK.

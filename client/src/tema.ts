@@ -8,7 +8,8 @@
 
 // Tarjeta de vidrio claro sobre el fondo ambiental (fondo-claro): esquinas bien
 // redondeadas, borde de luz arriba y sombra cálida (todo lo pone vidrio-claro).
-export const TARJETA = "rounded-[28px] vidrio-claro";
+// La usan las tarjetas de /taller y /admin.
+export const TARJETA = "rounded-[32px] vidrio-claro";
 
 // Se suma a TARJETA cuando el auto tiene todos sus servicios terminados: tinte
 // verde en el borde y en el vidrio. Va con "!" para ganarle al fondo y al borde
@@ -45,6 +46,11 @@ export const PASTILLA_LISTO_OSCURO =
 // tabulares para que no bailen de un auto a otro.
 export const CAPSULA_MATRICULA =
   "inline-flex shrink-0 items-center gap-1.5 rounded-full bg-crema/[0.09] font-semibold tracking-[0.02em] tabular-nums";
+
+// Matrícula ENTERA en las tarjetas claras de /taller y /admin (los trabajadores
+// la necesitan para identificar el auto): cápsula tintada con cifras tabulares.
+export const CAPSULA_MATRICULA_CLARA =
+  "inline-flex h-[30px] shrink-0 items-center rounded-[10px] bg-tinta/[0.07] px-3 font-semibold tracking-[0.04em] text-tinta tabular-nums";
 
 // Aviso de "sin conexión": cápsula de vidrio dorado.
 export const AVISO =

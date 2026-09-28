@@ -15,12 +15,7 @@ import {
 } from "../api";
 import { borrarPin, leerPin } from "../sesion";
 import type { EstadoServicio, TipoServicio, Vehiculo } from "../types";
-import {
-  AVISO_ERROR,
-  BOTON_MARCA,
-  BOTON_OSCURO,
-  TEXTO_VACIO,
-} from "../tema";
+import { AVISO_ERROR, BOTON_MARCA, BOTON_SUAVE, TEXTO_VACIO } from "../tema";
 import { AdminTarjeta } from "../components/AdminTarjeta";
 import { CabeceraCurva } from "../components/CabeceraCurva";
 import { FormVehiculo } from "../components/FormVehiculo";
@@ -109,22 +104,24 @@ export function Admin() {
 
   return (
     <div className="min-h-full fondo-claro">
+      {/* Barra cápsula de vidrio claro, flotando sobre el fondo de la página. */}
       <CabeceraCurva
         alto="compacta"
+        tono="claro"
         acciones={
           <>
             <button
               type="button"
               onClick={() => abrirModal({ tipo: "alta" })}
               disabled={ocupado}
-              className={`${BOTON_MARCA} px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
+              className={`${BOTON_MARCA} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
             >
               + Nuevo auto
             </button>
             <button
               type="button"
               onClick={salir}
-              className={`${BOTON_OSCURO} px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
+              className={`${BOTON_SUAVE} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
             >
               Salir
             </button>
@@ -132,10 +129,10 @@ export function Admin() {
         }
       />
 
-      <main className="px-4 py-6 sm:px-8 sm:py-8">
+      <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
         {error && (
           <p
-            className={`${AVISO_ERROR} mb-5 rounded-2xl px-4 py-3 text-lg sm:mb-6 sm:text-xl`}
+            className={`${AVISO_ERROR} mb-6 px-4 py-3 text-lg sm:mb-8 sm:text-xl`}
           >
             {error}
           </p>
@@ -153,7 +150,7 @@ export function Admin() {
             No hay autos en el taller. Tocá “+ Nuevo auto” para agregar uno.
           </p>
         ) : (
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-7 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-9 sm:gap-7 lg:grid-cols-2 xl:grid-cols-3">
             {vehiculos.map((v) => (
               <AdminTarjeta
                 key={v.id}

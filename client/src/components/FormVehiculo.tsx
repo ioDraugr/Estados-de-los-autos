@@ -3,12 +3,19 @@
 // servicios: eso se hace desde la tarjeta). Sin <form> submit: onClick/onChange.
 // El celular es opcional: si se carga, el server lo valida (un error vuelve como
 // mensaje en /admin, igual que los demás datos).
+// Se ve como una hoja de vidrio claro sobre la lista desenfocada: los campos en
+// un grupo redondeado con separadores finos (etiqueta arriba, campo abajo, para
+// que la etiqueta larga del celular entre en el celular y en la tablet) y los
+// servicios con un interruptor cada uno.
 import { useState } from "react";
 import type { DatosVehiculo } from "../api";
 import { AREAS, COLOR_AREA, NOMBRE_AREA, celularLocal } from "../dominio";
 import type { TipoServicio, Vehiculo } from "../types";
 import { AVISO_ERROR, BOTON_MARCA, BOTON_SUAVE } from "../tema";
-import { Cono } from "./Cono";
+import { ConoCirculo } from "./ConoCirculo";
+
+// Grupo redondeado blanco translúcido, estilo lista agrupada.
+const GRUPO = "overflow-hidden rounded-[20px] bg-white/[0.72]";
 
 interface Props {
   modo: "alta" | "edicion";
@@ -61,19 +68,20 @@ export function FormVehiculo({
   }
 
   return (
+    // El fondo tiñe y desenfoca la lista; tocarlo cancela.
     <div
-      className="fixed inset-0 z-10 flex items-center justify-center bg-tinta/80 p-3 sm:p-4"
+      className="fixed inset-0 z-10 flex items-center justify-center bg-tabaco/[0.22] p-3 backdrop-blur-[22px] backdrop-saturate-[1.4] sm:p-4"
       onClick={onCancelar}
     >
       <div
-        className="flex max-h-[90dvh] w-full max-w-xl flex-col overflow-y-auto rounded-3xl bg-crema p-5 shadow-2xl sm:p-8"
+        className="animate-hoja flex max-h-[90dvh] w-full max-w-xl flex-col overflow-y-auto rounded-[32px] p-5 vidrio-hoja-clara sm:rounded-[40px] sm:p-9"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-2xl font-black text-tinta sm:text-3xl">
+        <h2 className="text-[34px] leading-[1.05] font-[650] tracking-[-0.05em] text-tinta sm:text-[44px]">
           {esAlta ? "Nuevo auto" : "Editar auto"}
         </h2>
 
-        <div className="mt-5 flex flex-col gap-4">
+        <div className={`mt-5 shrink-0 sm:mt-6 ${GRUPO}`}>
           <Campo etiqueta="Marca" valor={marca} onCambio={setMarca} />
           <Campo etiqueta="Modelo" valor={modelo} onCambio={setModelo} />
           <Campo etiqueta="Color" valor={color} onCambio={setColor} />
@@ -88,34 +96,44 @@ export function FormVehiculo({
         </div>
 
         {esAlta && (
-          <div className="mt-6">
-            <p className="text-lg font-bold text-tinta-suave sm:text-xl">
+          <div className="mt-6 shrink-0">
+            <p className="mb-2 ml-4 text-base font-medium text-tinta-suave sm:ml-[18px]">
               Servicios
             </p>
-            <div className="mt-3 flex flex-col gap-3">
+            <div className={GRUPO}>
               {AREAS.map((tipo) => {
                 const activo = servicios.includes(tipo);
                 return (
                   <button
                     key={tipo}
                     type="button"
+                    role="switch"
+                    aria-checked={activo}
                     onClick={() => alternarServicio(tipo)}
-                    className={`flex items-center gap-4 rounded-2xl border-2 bg-crema-alta p-3 text-left active:scale-[0.99] sm:p-4 ${
-                      activo ? "border-listo" : "border-linea"
-                    }`}
+                    className="flex min-h-[62px] w-full items-center gap-3.5 border-t border-tinta/[0.08] px-4 py-2.5 text-left transition-colors first:border-t-0 active:bg-tinta/[0.04] sm:px-[18px]"
                   >
-                    <Cono
+                    <ConoCirculo
                       color={COLOR_AREA[tipo]}
                       estado="esperando"
-                      className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
+                      tamano="tarjeta"
+                      tono="claro"
                     />
-                    <span className="flex-1 text-xl font-bold text-tinta sm:text-2xl">
+                    <span className="min-w-0 flex-1 text-lg font-medium text-tinta sm:text-xl">
                       {NOMBRE_AREA[tipo]}
                     </span>
+                    {/* Interruptor: pista verde con la perilla a la derecha
+                        cuando el servicio está elegido. */}
                     <span
-                      className={`text-2xl font-bold ${activo ? "text-listo" : "text-tinta/40"}`}
+                      aria-hidden="true"
+                      className={`relative h-[34px] w-[58px] shrink-0 rounded-full transition-colors duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] ${
+                        activo ? "bg-listo-vivo" : "bg-tinta/[0.14]"
+                      }`}
                     >
-                      {activo ? "✓" : "+"}
+                      <span
+                        className={`absolute top-[3px] left-[3px] h-7 w-7 rounded-full bg-white shadow-[0_3px_8px_rgba(22,19,15,0.25)] transition-transform duration-300 ease-[cubic-bezier(0.3,1.3,0.5,1)] ${
+                          activo ? "translate-x-6" : ""
+                        }`}
+                      />
                     </span>
                   </button>
                 );
@@ -126,17 +144,17 @@ export function FormVehiculo({
 
         {error && (
           <p
-            className={`${AVISO_ERROR} mt-6 rounded-2xl px-4 py-3 text-lg sm:text-xl`}
+            className={`${AVISO_ERROR} mt-5 shrink-0 px-4 py-3 text-lg sm:text-xl`}
           >
             {error}
           </p>
         )}
 
-        <div className="mt-7 flex gap-3 sm:gap-4">
+        <div className="mt-7 flex shrink-0 gap-3">
           <button
             type="button"
             onClick={onCancelar}
-            className={`${BOTON_SUAVE} flex-1 py-4 text-xl sm:text-2xl`}
+            className={`${BOTON_SUAVE} h-14 flex-1 text-lg sm:h-16 sm:text-xl`}
           >
             Cancelar
           </button>
@@ -144,7 +162,7 @@ export function FormVehiculo({
             type="button"
             onClick={guardar}
             disabled={!listo || guardando}
-            className={`${BOTON_MARCA} flex-1 py-4 text-xl sm:text-2xl`}
+            className={`${BOTON_MARCA} h-14 flex-1 text-lg sm:h-16 sm:text-xl`}
           >
             {guardando ? "Guardando…" : esAlta ? "Crear" : "Guardar"}
           </button>
@@ -170,9 +188,13 @@ function Campo({
   tipo = "text",
   placeholder,
 }: CampoProps) {
+  // Una fila del grupo: etiqueta arriba y el campo abajo, grande y sin borde.
+  // Al escribir, la fila se tiñe de dorado.
   return (
-    <label className="flex flex-col gap-1">
-      <span className="text-lg text-tinta-suave sm:text-xl">{etiqueta}</span>
+    <label className="flex flex-col border-t border-tinta/[0.08] px-4 pt-2.5 transition-colors first:border-t-0 focus-within:bg-marca/[0.12] sm:px-[18px]">
+      <span className="text-[15px] font-medium text-tinta-suave sm:text-base">
+        {etiqueta}
+      </span>
       <input
         type={tipo}
         inputMode={tipo === "tel" ? "tel" : undefined}
@@ -180,7 +202,7 @@ function Campo({
         value={valor}
         placeholder={placeholder}
         onChange={(e) => onCambio(e.target.value)}
-        className="rounded-xl border-2 border-linea bg-crema-alta px-4 py-3 text-xl text-tinta outline-none placeholder:text-tinta/40 focus:border-marca sm:text-2xl"
+        className="h-12 w-full min-w-0 bg-transparent text-xl text-tinta caret-[#be8a18] outline-none placeholder:text-[#A89B84] sm:h-[52px] sm:text-[22px]"
       />
     </label>
   );

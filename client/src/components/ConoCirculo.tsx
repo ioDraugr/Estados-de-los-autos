@@ -3,6 +3,11 @@
 //   - esperando:  círculo apenas marcado.
 //   - en_proceso: aro dorado (en la tarjeta, además, un pulso que se expande).
 //   - terminado:  cono atenuado y una insignia verde con un tilde.
+//
+// Con tono="claro" (/taller, /admin y el alta de un auto) es un círculo blanco
+// translúcido con sombra suave: sobre las tarjetas claras las franjas del cono
+// se perdían contra el fondo. Ahí el círculo no cuenta el estado (lo dice el
+// selector de al lado); solo el cono se atenúa cuando está terminado.
 import type { EstadoServicio } from "../types";
 import { Cono } from "./Cono";
 
@@ -10,12 +15,31 @@ interface Props {
   color: string;
   estado: EstadoServicio;
   // "ficha" es la versión grande del detalle; "tarjeta", la de la grilla.
+  // En claro: "ficha" para /taller (más grande) y "tarjeta" para /admin y el
+  // formulario.
   tamano: "tarjeta" | "ficha";
+  tono?: "oscuro" | "claro";
 }
 
-export function ConoCirculo({ color, estado, tamano }: Props) {
+export function ConoCirculo({ color, estado, tamano, tono = "oscuro" }: Props) {
   const ficha = tamano === "ficha";
   const enProceso = estado === "en_proceso";
+
+  if (tono === "claro") {
+    return (
+      <span
+        className={`flex shrink-0 items-center justify-center rounded-full bg-white/70 shadow-[0_4px_12px_-6px_rgba(43,35,27,0.35)] ${
+          ficha ? "h-12 w-12" : "h-10 w-10 sm:h-11 sm:w-11"
+        }`}
+      >
+        <Cono
+          color={color}
+          estado={estado}
+          className={ficha ? "h-7 w-auto" : "h-[22px] w-auto sm:h-6"}
+        />
+      </span>
+    );
+  }
 
   const medida = ficha
     ? "h-14 w-14 sm:h-[60px] sm:w-[60px]"

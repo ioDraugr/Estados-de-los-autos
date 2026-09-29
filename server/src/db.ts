@@ -10,8 +10,8 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 // El archivo de la base queda en server/data/taller.db, salvo que se indique
 // otro con la env var DB_PATH (sirve para probar contra una base descartable
 // sin tocar la real). La carpeta no está en git (la base es local), así que la
-// creamos si falta.
-const rutaDb = process.env.DB_PATH
+// creamos si falta. Se exporta para ubicar los backups al lado (respaldos.ts).
+export const rutaDb = process.env.DB_PATH
   ? resolve(process.env.DB_PATH)
   : join(__dirname, "..", "data", "taller.db");
 mkdirSync(dirname(rutaDb), { recursive: true });

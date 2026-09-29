@@ -12,9 +12,11 @@ import type { Enviador } from "../src/enviadores.js";
 import type { TipoServicio } from "../src/tipos.js";
 
 // Una base nueva por archivo de test (node --test corre cada archivo en su
-// propio proceso). Sin demora: los avisos vencen apenas se programan.
+// propio proceso), con sus backups en una subcarpeta. Sin demora: los avisos
+// vencen apenas se programan.
 const carpeta = mkdtempSync(join(tmpdir(), "taller-tests-"));
 process.env.DB_PATH = join(carpeta, "taller.db");
+process.env.CARPETA_BACKUPS = join(carpeta, "backups");
 process.env.AVISOS_DEMORA_MIN = "0";
 
 export const { db } = await import("../src/db.js");
@@ -26,6 +28,14 @@ export const { agregarServicio, cambiarEstado, quitarServicio } = await import(
 export const { crearVehiculo, editarVehiculo, retirarVehiculo } = await import(
   "../src/vehiculos.js"
 );
+export const {
+  CARPETA_BACKUPS,
+  MAX_BACKUPS,
+  estadoBackups,
+  hacerBackup,
+  hayBackupDeHoy,
+  revisarDiario,
+} = await import("../src/respaldos.js");
 
 // Los avisos cuentan todo por consola; en los tests es ruido. Quedan a mano los
 // mocks por si un test quiere mirar qué se imprimió (consola.log.mock.calls).

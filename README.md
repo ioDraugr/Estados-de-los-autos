@@ -147,9 +147,10 @@ Después de cambiar el `.env`: `docker compose up -d` (recrea el contenedor con 
 configuración nueva; los datos quedan). Ojo que `ADMIN_PIN` solo sirve **la
 primera vez** (después el PIN vive en la base).
 
-En Docker, `PORT`, `DB_PATH` y `WHATSAPP_SESION_DIR` **no se configuran**: los
-fija el `docker-compose.yml`, para que la base y la sesión de WhatsApp vayan
-siempre al volumen de datos.
+En Docker, `PORT`, `DB_PATH`, `WHATSAPP_SESION_DIR` y `CARPETA_BACKUPS` **no se
+configuran**: los fija el `docker-compose.yml`, para que la base y la sesión de
+WhatsApp vayan siempre al volumen de datos y los backups a `server/data/backups`
+de la PC (ver [Respaldo de la base](#respaldo-de-la-base)).
 
 ### El día a día
 
@@ -181,25 +182,50 @@ en PowerShell o Windows Terminal (el `cmd` viejo puede mostrarlo roto).
 
 ### Respaldo de la base
 
-La base (`taller.db`) y la sesión de WhatsApp viven en el volumen `taller-ml_datos`,
-que adentro del contenedor está en `/app/server/data`. La base usa el modo WAL de
-SQLite: los últimos cambios pueden estar todavía en `taller.db-wal`, así que
-**copiar `taller.db` suelto con el server andando puede dejar datos afuera**. Hay
-dos formas seguras:
+**El server hace backups solo**: uno cada vez que arranca y uno por día (revisa
+cada hora si ya hay uno de hoy). Van a la carpeta **`server/data/backups`** del
+proyecto, en esta PC (no adentro del volumen: se ven con el explorador de
+archivos y `docker compose down -v` no los borra). Se guardan **los últimos 30
+archivos**; los más viejos se borran solos.
 
-**Solo la base, sin parar nada** (usa el backup de SQLite, que sale consistente
-aunque el server esté andando):
+Cada backup es un archivo SQLite completo, con la fecha y la hora en el nombre:
 
-```bash
-docker compose exec taller node -e "const D=require('better-sqlite3');new D('/app/server/data/taller.db',{readonly:true}).backup('/app/server/data/respaldo.db').then(()=>console.log('Respaldo listo'))"
-docker compose cp taller:/app/server/data/respaldo.db ./respaldo-taller.db
-docker compose exec taller rm /app/server/data/respaldo.db
+```
+taller-2026-09-29_08-00-00-arranque.db
+taller-2026-09-30_09-12-40-diario.db
 ```
 
-Queda `respaldo-taller.db` en la carpeta del proyecto; guardalo en otro lado
-(pendrive, otra PC).
+Se hacen con el backup de SQLite, que sale consistente aunque el server esté
+escribiendo (copiar `taller.db` a mano con el server andando **no** es seguro:
+los últimos cambios pueden estar todavía en `taller.db-wal`).
 
-**Todo (base + sesión de WhatsApp), parando un momento:**
+> ⚠️ Los backups tienen los datos de los clientes (matrículas, celulares):
+> guardalos en un lugar privado. **No** incluyen la sesión de WhatsApp.
+
+**Llevarlos a un pendrive u otra PC:** copiá a mano uno o varios archivos de
+`server/data/backups` (el último por nombre es el más nuevo). Se pueden copiar
+con el server andando.
+
+**Restaurar** uno (pisa la base actual; cambiá el nombre por el del backup):
+
+```bash
+docker compose stop
+docker compose run --rm --no-deps --user root taller sh -c "cp /app/server/data/backups/taller-2026-09-29_08-00-00-arranque.db /app/server/data/taller.db && rm -f /app/server/data/taller.db-wal /app/server/data/taller.db-shm && chown node:node /app/server/data/taller.db"
+docker compose start
+```
+
+Si el backup viene de un pendrive, copialo primero a `server/data/backups`. Sin
+Docker es lo mismo con el server parado: copiar el backup encima de
+`server/data/taller.db` y borrar `taller.db-wal` y `taller.db-shm` si están.
+
+Si la carpeta la creó Docker (por ejemplo, levantando con `docker compose up` sin
+los scripts en un clon viejo), puede quedar de `root` y los backups fallan: el log
+dice `[backup] No se pudo hacer el backup`. Se arregla con
+`sudo chown 1000:1000 server/data/backups` (el usuario del server adentro del
+contenedor es el 1000) y `docker compose restart`.
+
+**La sesión de WhatsApp** no entra en los backups. Para guardarla también (por
+ejemplo, antes de mudar el tablero a otra PC), parando un momento:
 
 ```bash
 docker compose stop
@@ -207,17 +233,9 @@ docker compose cp taller:/app/server/data ./respaldo-completo
 docker compose start
 ```
 
-> ⚠️ El respaldo completo **incluye la sesión de WhatsApp**, que son las
-> credenciales del número (ver [La sesión es secreta](#la-sesión-es-secreta)):
-> guardalo en un lugar privado.
-
-**Restaurar** un `respaldo-taller.db` (pisa la base actual):
-
-```bash
-docker compose stop
-docker compose run --rm --no-deps --user root -v ./respaldo-taller.db:/respaldo.db:ro taller sh -c "cp /respaldo.db /app/server/data/taller.db && rm -f /app/server/data/taller.db-wal /app/server/data/taller.db-shm && chown node:node /app/server/data/taller.db"
-docker compose start
-```
+> ⚠️ Ese respaldo **incluye la sesión de WhatsApp**, que son las credenciales del
+> número (ver [La sesión es secreta](#la-sesión-es-secreta)): guardalo en un lugar
+> privado.
 
 ## Instalar
 
@@ -323,8 +341,13 @@ una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo`), con su estado
 mandarlo (`enviar_en`, en UTC), los intentos y el último error. También se crea
 sola al arrancar.
 
+Al arrancar y una vez por día el server deja un **backup** en
+`server/data/backups` (quedan los últimos 30; ver
+[Respaldo de la base](#respaldo-de-la-base)).
+
 Para probar sin tocar la base real, se puede apuntar a otro archivo con `DB_PATH`
-(si la carpeta no existe, se crea):
+(si la carpeta no existe, se crea; los backups van a `backups` al lado de ese
+archivo, salvo que se indique otra carpeta con `CARPETA_BACKUPS`):
 
 ```bash
 cd server && DB_PATH=/tmp/prueba.db PORT=3099 npm run dev
@@ -523,6 +546,7 @@ subset latino (~29 KB).
 | `HORAS_VISIBLE_TERMINADO` | `4` | Cuántas horas sigue en pantalla un auto con **todos** sus servicios terminados antes de ocultarse solo. |
 | `ADMIN_PIN` | `1234` | PIN inicial de `/admin`. Solo se usa la primera vez, para sembrarlo en la base; después el PIN vive en `config`. |
 | `DB_PATH` | `server/data/taller.db` | Archivo de la base SQLite. Útil para probar contra una base descartable; si la carpeta no existe, se crea. |
+| `CARPETA_BACKUPS` | `backups` al lado de la base (`server/data/backups`) | Dónde van los [backups automáticos](#respaldo-de-la-base) (al arrancar y uno por día; quedan los últimos 30). Si la carpeta no existe, se crea. En Docker la fija el `docker-compose.yml`. |
 | `AVISOS_DEMORA_MIN` | `5` | Minutos de seguridad entre el cambio y el aviso por WhatsApp. Acepta decimales (`0.1` = 6 s, para probar). |
 | `AVISOS_INTERVALO_SEG` | `30` | Cada cuántos segundos el server revisa si hay avisos para mandar. |
 | `AVISOS_ENVIO` | `baileys` | Cómo salen los avisos: `baileys` (WhatsApp real, ver [Avisos por WhatsApp](#avisos-por-whatsapp); necesita internet) o `log` (los imprime en la consola del server, no le escribe a nadie; para probar). Cualquier otro valor es un error: el server arranca igual pero no manda avisos (quedan pendientes) hasta que se corrija. |

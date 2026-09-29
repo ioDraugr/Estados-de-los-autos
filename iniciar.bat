@@ -28,6 +28,10 @@ if not exist ".env" if exist ".env.example" (
   echo Se creó .env a partir de .env.example, ahí se cambia la configuración.
 )
 
+rem Carpeta de los backups automáticos (ver docker-compose.yml): tiene que
+rem existir antes de levantar.
+if not exist "server\data\backups" mkdir "server\data\backups"
+
 rem --- Levantar ---
 echo Levantando el tablero. La primera vez tarda unos minutos y necesita internet...
 docker compose up -d --build

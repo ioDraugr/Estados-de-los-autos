@@ -42,6 +42,11 @@ if [[ ! -f .env && -f .env.example ]]; then
   echo "Se creó .env a partir de .env.example (ahí se cambia la configuración)."
 fi
 
+# Carpeta de los backups automáticos (ver docker-compose.yml): tiene que
+# existir antes de levantar. Si la crea Docker, queda de root y el server (que
+# corre como el usuario node del contenedor) no puede escribir los backups.
+mkdir -p server/data/backups
+
 # Si algo falla de acá en adelante, mostramos los últimos logs del server.
 mostrar_logs() {
   echo

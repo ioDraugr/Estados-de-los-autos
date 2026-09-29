@@ -1,7 +1,8 @@
 // Envío real de los avisos por WhatsApp con Baileys. Baileys es una librería NO
 // oficial: se conecta como WhatsApp Web, o sea como un "dispositivo vinculado"
-// del celular del taller (se vincula una vez escaneando un QR). Solo se carga con
-// AVISOS_ENVIO=baileys (ver enviadores.ts); en modo "log" nada de esto corre.
+// del celular del taller (se vincula una vez escaneando un QR). Se carga por
+// defecto (AVISOS_ENVIO=baileys, ver enviadores.ts); con AVISOS_ENVIO=log nada
+// de esto corre.
 // Necesita internet en la máquina del server; el resto de la app no.
 import {
   DisconnectReason,

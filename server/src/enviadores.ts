@@ -28,15 +28,17 @@ export const enviadorLog: Enviador = {
 };
 
 /**
- * Elige el envío según la env var AVISOS_ENVIO (default "log"):
- * - "log": imprime los avisos en la consola (no le escribe a nadie);
- * - "baileys": WhatsApp real con Baileys (ver whatsapp.ts).
+ * Elige el envío según la env var AVISOS_ENVIO (default "baileys"):
+ * - "baileys": WhatsApp real con Baileys (ver whatsapp.ts);
+ * - "log": imprime los avisos en la consola (no le escribe a nadie).
+ * El default es WhatsApp real porque es lo que el taller usa siempre; para
+ * probar sin escribirle a nadie se arranca con AVISOS_ENVIO=log.
  * Cualquier otro valor es un error: no se cae en "log" a propósito, porque "log"
  * marca los avisos como enviados sin mandarlos (un typo en AVISOS_ENVIO haría
  * que los clientes nunca reciban nada). Sin envío válido, los avisos esperan.
  */
 export async function elegirEnviador(): Promise<Enviador> {
-  const pedido = (process.env.AVISOS_ENVIO ?? "log").trim().toLowerCase();
+  const pedido = (process.env.AVISOS_ENVIO ?? "baileys").trim().toLowerCase();
   if (pedido === "baileys") {
     // Import perezoso: en modo "log" Baileys ni se carga.
     const { crearEnviadorBaileys } = await import("./whatsapp.js");

@@ -1,6 +1,6 @@
 // Servidor del taller: Express (API REST + sirve el build del front) + Socket.IO.
 // Corre local en la red del taller, sin internet (solo los avisos por WhatsApp
-// reales, con AVISOS_ENVIO=baileys, necesitan internet en esta máquina).
+// reales, que salen por defecto, necesitan internet en esta máquina).
 import express, { type Response } from "express";
 import { createServer } from "node:http";
 import { Server as SocketServer } from "socket.io";

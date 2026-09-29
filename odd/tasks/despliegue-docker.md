@@ -50,6 +50,10 @@ dependencias" (2026-09-28). Hoy hay que tener Node 20+, `npm install` en dos car
 - [x] D2 — Scripts `iniciar.bat` / `iniciar.sh` + `.gitattributes` (LF/CRLF). Commit `4e0c08a`.
 - [x] D3 — README: "Desplegar en una PC nueva (Docker)", con inicio de sesión automático en
   Windows. Commit: el que incluye este documento.
+- [x] D4 — Avisos por WhatsApp activos por defecto (pedido del usuario 2026-09-29, sumado a este
+  PR por elección suya): default de `AVISOS_ENVIO` pasa de `log` a `baileys` en
+  `server/src/enviadores.ts`; `.env.example` con `baileys`; README y comentarios actualizados.
+  Para apagarlo: `AVISOS_ENVIO=log`. Ruta: inline (cambio mecánico de un default + docs).
 
 Ruta: delegated direct para D1–D3 (writer trigger: 6+ archivos no triviales entre Dockerfile,
 compose, scripts y README). Un writer acotado, verificación en el padre.
@@ -86,6 +90,11 @@ compose, scripts y README). Un writer acotado, verificación en el padre.
   `review_due=true` / `high_risk` → STATUS → start → `consent_required`. El usuario eligió
   **saltear esta vez** → `declined_this_candidate` (sin registro de revisión). Entrega bajo la
   política normal del repo.
+
+- D4: `tsc --noEmit` ok; `npm test` 19/19 (los tests usan `enviadorFalso`, no pasan por
+  `elegirEnviador`); server arrancado sin `AVISOS_ENVIO` → `envío "baileys"` y QR de vinculación
+  en consola (base y sesión temporales, borradas). El seed no tiene celulares: nadie recibe nada
+  por arrancar en dev.
 
 ## Próximo paso
 Push de `feat/despliegue-docker` y PR contra `main` (decisión del usuario). Probar `iniciar.bat` en

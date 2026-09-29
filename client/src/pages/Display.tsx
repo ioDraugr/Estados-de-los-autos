@@ -122,7 +122,7 @@ export function Display() {
           <button
             type="button"
             onClick={volverAInicio}
-            className={`${BOTON_OSCURO} px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
+            className={`${BOTON_OSCURO} min-h-11 px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
           >
             Inicio
           </button>

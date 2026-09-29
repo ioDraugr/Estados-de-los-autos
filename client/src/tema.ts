@@ -52,9 +52,10 @@ export const CAPSULA_MATRICULA =
 export const CAPSULA_MATRICULA_CLARA =
   "inline-flex h-[30px] shrink-0 items-center rounded-[10px] bg-tinta/[0.07] px-3 font-semibold tracking-[0.04em] text-tinta tabular-nums";
 
-// Aviso de "sin conexión": cápsula de vidrio dorado.
+// Aviso de "sin conexión": cápsula de vidrio dorado. Sin desenfoque
+// (sin-vidrio) el dorado va casi lleno, para que el texto oscuro se lea igual.
 export const AVISO =
-  "rounded-full border border-white/60 bg-marca/55 text-center font-semibold text-tinta backdrop-blur-md";
+  "rounded-full border border-white/60 bg-marca/55 text-center font-semibold text-tinta backdrop-blur-md sin-vidrio:bg-marca/90";
 
 // Aviso de error: recuadro tintado en rojo (puede ocupar varias líneas, por eso
 // no es cápsula).

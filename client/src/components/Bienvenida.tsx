@@ -31,14 +31,14 @@ export function Bienvenida({ onTocar }: Props) {
         {/* Degradé de marfil a lino y tracking muy apretado, como la maqueta.
             El pb evita que el degradé recorte la cola de los signos. */}
         <h1
-          className="animate-subir mt-1 pb-[0.06em] text-5xl leading-[1.02] font-[650] tracking-[-0.055em] text-balance texto-degrade sm:mt-2 sm:text-7xl lg:text-8xl xl:text-9xl"
+          className="animate-subir mt-1 pb-[0.06em] text-5xl leading-[1.02] font-[650] tracking-[-0.055em] text-balance texto-degrade sm:mt-2 sm:text-7xl lg:text-8xl xl:text-9xl bajo:mt-1 bajo:text-5xl"
           style={{ animationDelay: "0.25s" }}
         >
           ¿Cómo va tu auto?
         </h1>
 
         <p
-          className="animate-subir mt-2 text-xl tracking-[-0.015em] text-crema/60 sm:mt-3 sm:text-2xl lg:text-[28px] 2xl:text-3xl"
+          className="animate-subir mt-2 text-xl tracking-[-0.015em] text-crema/60 sm:mt-3 sm:text-2xl lg:text-[28px] 2xl:text-3xl bajo:mt-1 bajo:text-xl"
           style={{ animationDelay: "0.4s" }}
         >
           Tocá para ver el estado
@@ -46,8 +46,9 @@ export function Bienvenida({ onTocar }: Props) {
 
         {/* Invitación a tocar: la flecha dentro de un círculo de vidrio que
             baja y sube suave (se queda quieto si el sistema pide menos
-            movimiento). */}
-        <span className="animate-bajar mt-5 flex h-14 w-14 items-center justify-center rounded-full vidrio-oscuro sm:mt-8 sm:h-[72px] sm:w-[72px]">
+            movimiento). En pantallas bajas (celular acostado) no entra sin
+            pisar el horizonte dorado: se oculta, el texto ya invita a tocar. */}
+        <span className="animate-bajar mt-5 flex h-14 w-14 items-center justify-center rounded-full vidrio-oscuro sm:mt-8 sm:h-[72px] sm:w-[72px] bajo:hidden">
           <Flecha
             direccion="abajo"
             className="h-6 w-6 text-marca-suave sm:h-7 sm:w-7"

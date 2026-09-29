@@ -88,13 +88,16 @@ export function CabeceraCurva({
 
   if (hero) {
     return (
-      <div className="relative flex min-h-dvh flex-1 flex-col overflow-hidden bg-tinta px-3 pt-3 text-crema cabecera-cielo sm:px-8 sm:pt-6">
+      <div className="relative flex min-h-dvh flex-1 flex-col overflow-hidden bg-tinta px-3 pt-3 text-crema cabecera-cielo sm:px-8 sm:pt-6 bajo:pt-3">
         {/* El horizonte dorado: decorativo, detrás de todo el contenido. */}
         <div aria-hidden="true" className="cabecera-horizonte" />
 
         {barra}
 
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center pt-4 pb-[16dvh] text-center">
+        {/* En pantallas bajas (celular acostado) casi sin aire abajo, para
+            que el emblema y los textos entren sin scroll ni pisen el
+            horizonte. */}
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center pt-4 pb-[16dvh] text-center bajo:pt-0 bajo:pb-[7dvh]">
           {children}
         </div>
       </div>

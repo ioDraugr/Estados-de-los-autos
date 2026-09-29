@@ -14,7 +14,8 @@ import { Cono } from "./Cono";
 interface Props {
   color: string;
   estado: EstadoServicio;
-  // "ficha" es la versión grande del detalle; "tarjeta", la de la grilla.
+  // "ficha" es la versión grande del detalle (en la pantalla del showroom,
+  // variante tv, crece con la hoja); "tarjeta", la de la grilla.
   // En claro: "ficha" para /taller (más grande) y "tarjeta" para /admin y el
   // formulario.
   tamano: "tarjeta" | "ficha";
@@ -42,7 +43,7 @@ export function ConoCirculo({ color, estado, tamano, tono = "oscuro" }: Props) {
   }
 
   const medida = ficha
-    ? "h-14 w-14 sm:h-[60px] sm:w-[60px]"
+    ? "h-14 w-14 sm:h-[60px] sm:w-[60px] tv:h-20 tv:w-20"
     : "h-11 w-11 sm:h-12 sm:w-12 2xl:h-14 2xl:w-14";
   const aro = enProceso
     ? `border-[1.5px] border-marca ${ficha ? "bg-marca/10" : "bg-crema/[0.07] animate-anillo"}`
@@ -56,21 +57,25 @@ export function ConoCirculo({ color, estado, tamano, tono = "oscuro" }: Props) {
         color={color}
         estado={estado}
         className={
-          ficha ? "h-8 w-auto sm:h-[34px]" : "h-6 w-auto sm:h-7 2xl:h-8"
+          ficha
+            ? "h-8 w-auto sm:h-[34px] tv:h-[46px]"
+            : "h-6 w-auto sm:h-7 2xl:h-8"
         }
       />
       {estado === "terminado" && (
         <span
           className={`absolute flex items-center justify-center rounded-full border-2 border-[#211b15] bg-listo-vivo ${
             ficha
-              ? "-right-0.5 -bottom-0.5 h-[22px] w-[22px]"
+              ? "-right-0.5 -bottom-0.5 h-[22px] w-[22px] tv:h-7 tv:w-7"
               : "-right-[3px] -bottom-[3px] h-[18px] w-[18px] 2xl:h-5 2xl:w-5"
           }`}
         >
           <svg
             viewBox="0 0 24 24"
             aria-hidden="true"
-            className={ficha ? "h-[13px] w-[13px]" : "h-[11px] w-[11px]"}
+            className={
+              ficha ? "h-[13px] w-[13px] tv:h-4 tv:w-4" : "h-[11px] w-[11px]"
+            }
           >
             <path
               d="M5 12.5 L10 17 L19 7"

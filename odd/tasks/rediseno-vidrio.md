@@ -56,7 +56,7 @@ peligro #8E2B1F. Conos: sobre claro #D7402F / #3D6CC0 / #E2A822; sobre oscuro #E
 - [x] F2 — Personal (/taller y /admin): PIN con teclado circular (+ error), `BotonesEstado`
   segmentado, tarjetas de vidrio claro, `FormVehiculo` agrupado con interruptores (mismos campos),
   estados "Guardando…"/error.
-- [ ] F3 — Pulido: responsive (celular, tablet, showroom), rendimiento del desenfoque, fallback,
+- [x] F3 — Pulido: responsive (celular, tablet, showroom), rendimiento del desenfoque, fallback,
   README.
 
 ## Criterios de aceptación
@@ -128,8 +128,36 @@ peligro #8E2B1F. Conos: sobre claro #D7402F / #3D6CC0 / #E2A822; sobre oscuro #E
 - Visual (writer, Chromium headless con API simulada, sin server): /taller y /admin en 390/820/
   1280/1440, alta/edición, PIN vacío/con error/con dígitos; sin scroll horizontal. El orquestador
   revisó /taller 1440 y celular, /admin 1440, alta en tablet y PIN con error.
+- Commit: `05317d0` (pusheado). RDD assess (base `939013a`): medium, 548 líneas,
+  `review_due=true` / `slice_budget_reached` → STATUS → `review.start --consent=relay` →
+  `consent_required` (linaje `review-00ae9610604560a0`). El usuario lo declinó (2026-09-28) →
+  `declined_this_candidate`; próximo borde de assess: `05317d0`.
 - Abierto para F3: barra de /taller y /admin no es sticky (decisión del usuario); leyenda de conos
   en segunda fila en celular.
 
+### F3 (hecha)
+- Ruta: delegated direct (writer trigger: index.css, DetalleVehiculo, ConoCirculo, FormVehiculo,
+  PinLogin, Bienvenida, CabeceraCurva, Display, tema.ts, README).
+- Variantes nuevas en index.css: `tv` (≥1536×900), `bajo` (≤560 de alto) y `sin-vidrio` (sin
+  backdrop-filter). `fondo-claro|oscuro` ahora con `::before` fijo + `isolation: isolate` (en iOS las
+  manchas ya no scrollean); en escritorio diff de píxeles 0 contra F2.
+- Ficha del showroom proporcional en TV (max-w-4xl); todo lo de arriba de "Cerrar" scrollea y
+  "Cerrar" queda siempre visible (arreglado con celular acostado). PIN en dos columnas con celular
+  acostado; bienvenida acostada sin la flecha; "Inicio" a 44 px.
+- Sin desenfoque: hojas opacas, velos más densos (ficha tinta/80, formulario tabaco/60), aviso
+  marca/90. Capturas `sinblur-*` después de los arreglos: legibles.
+- README: tabla de index.css, tipografía Geist, componentes nuevos y nota de la pantalla del
+  showroom (Chromium con aceleración, fallback opaco, reducir movimiento). Se quitó la referencia a
+  `Ejemplo.png` como guía estética (describía el diseño viejo).
+- Chequeos: el writer se cortó antes de re-verificar sus últimos retoques; el orquestador corrió
+  `npm run build` OK y `npm run lint` OK sobre el estado final, sacó las capturas faltantes
+  (`sinblur-*` y ficha en TV 1920×1080 / 1920×950) y paró el Vite que había quedado corriendo.
+  Pasada responsive (writer): 10 vistas × 6 tamaños sin scroll horizontal, textos cortados ni
+  botones < 44 px.
+- Abierto (decisiones del usuario): botones del modal de alta/edición dentro del scroll (en
+  celular, 1280 y 1440 hay que bajar; ya pasaba antes); flecha oculta en bienvenida acostada;
+  umbral `tv` en 900 px de alto; en iOS, al estirar más allá del borde en vistas oscuras asoma el
+  crema del body; barra sticky no se hizo (sin respuesta).
+
 ## Próximo paso
-F3 — pulido: plan corto al usuario y esperar OK.
+Feature completa. PR `feat/rediseno-vidrio` → `main` y merge: decisión del usuario (GitHub).

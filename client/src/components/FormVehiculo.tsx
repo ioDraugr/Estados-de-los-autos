@@ -68,9 +68,10 @@ export function FormVehiculo({
   }
 
   return (
-    // El fondo tiñe y desenfoca la lista; tocarlo cancela.
+    // El fondo tiñe y desenfoca la lista; tocarlo cancela. Sin desenfoque
+    // (sin-vidrio) tiñe más, para que la lista de atrás no distraiga.
     <div
-      className="fixed inset-0 z-10 flex items-center justify-center bg-tabaco/[0.22] p-3 backdrop-blur-[22px] backdrop-saturate-[1.4] sm:p-4"
+      className="fixed inset-0 z-10 flex items-center justify-center bg-tabaco/[0.22] p-3 backdrop-blur-[22px] backdrop-saturate-[1.4] sm:p-4 sin-vidrio:bg-tabaco/60"
       onClick={onCancelar}
     >
       <div

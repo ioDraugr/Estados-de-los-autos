@@ -36,6 +36,18 @@
   --color-listo-claro: #a9d3b1; /* verde claro, para usar sobre oscuro */
 }
 
+/* Variantes propias (se usan como sm:, lg:, etc.):
+   - tv:         la pantalla del showroom (1920×1080 o más, aunque el navegador
+                 no esté a pantalla completa). Pide ancho Y alto, así una
+                 notebook ancha pero baja no agranda la ficha de más.
+   - bajo:       pantallas muy bajas (celular acostado): se achican márgenes y
+                 textos para que entre lo importante.
+   - sin-vidrio: navegadores sin backdrop-filter. Ahí un velo translúcido deja
+                 ver nítido lo de atrás, así que se oscurece o se vuelve opaco. */
+@custom-variant tv (@media (min-width: 1536px) and (min-height: 900px));
+@custom-variant bajo (@media (max-height: 560px));
+@custom-variant sin-vidrio (@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))));
+
 /* Base para modo kiosko del showroom: alto contraste, sin selección de texto
    ni resaltado al tocar (pantalla táctil). */
 html,
@@ -121,8 +133,10 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.9),
     0 50px 120px -30px rgba(43, 35, 27, 0.55);
 
+  /* Sin desenfoque, la hoja va opaca del todo: se apoya sobre la lista y con
+     un 6 % de transparencia los textos de atrás se leían como fantasmas. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background-color: rgba(247, 242, 232, 0.94);
+    background-color: #f7f2e8;
   }
 }
 
@@ -136,8 +150,9 @@ body {
     inset 0 1px 0 rgba(255, 255, 255, 0.12),
     0 50px 120px -30px rgba(0, 0, 0, 0.8);
 
+  /* Sin desenfoque, opaca del todo (misma razón que la hoja clara). */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background-color: rgba(43, 35, 27, 0.94);
+    background-color: #2b231b;
   }
 }
 
@@ -155,28 +170,50 @@ body {
    Fondos ambientales: "manchas de luz" detrás del vidrio, para que tenga algo
    que desenfocar. Se hacen con radial-gradient y no con elementos con
    filter: blur, que en la pantalla del showroom y en la tablet cuestan mucho
-   más. Quedan fijos al hacer scroll (background-attachment: fixed).
+   más.
+   Las manchas quedan quietas al hacer scroll. No se usa
+   background-attachment: fixed porque Safari de iPhone/iPad lo ignora (ahí
+   las manchas se iban con el scroll): van en un ::before con position: fixed
+   que tapa la ventana, detrás del contenido (z-index: -1) y sin recibir
+   toques. El isolation: isolate del elemento hace que ese -1 quede por
+   encima de su propio color de fondo y no se esconda detrás de la página.
    --------------------------------------------------------------------------- */
 
 /* Fondo claro: marfil con luz dorada, lino y un toque de bosque. */
 @utility fondo-claro {
   background-color: #f3ecdf;
-  background-image:
-    radial-gradient(ellipse 55% 45% at 88% 4%, rgba(235, 184, 47, 0.38), transparent 70%),
-    radial-gradient(ellipse 50% 45% at 6% 48%, rgba(216, 201, 174, 0.9), transparent 70%),
-    radial-gradient(ellipse 50% 40% at 84% 78%, rgba(235, 184, 47, 0.22), transparent 70%),
-    radial-gradient(ellipse 45% 35% at 26% 96%, rgba(141, 190, 150, 0.25), transparent 70%);
-  background-attachment: fixed;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 55% 45% at 88% 4%, rgba(235, 184, 47, 0.38), transparent 70%),
+      radial-gradient(ellipse 50% 45% at 6% 48%, rgba(216, 201, 174, 0.9), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 84% 78%, rgba(235, 184, 47, 0.22), transparent 70%),
+      radial-gradient(ellipse 45% 35% at 26% 96%, rgba(141, 190, 150, 0.25), transparent 70%);
+  }
 }
 
 /* Fondo oscuro: carbón con tabaco, luz dorada y bosque. */
 @utility fondo-oscuro {
   background-color: #16130f;
-  background-image:
-    radial-gradient(ellipse 55% 50% at 8% 6%, #4a3824, transparent 70%),
-    radial-gradient(ellipse 50% 45% at 90% 8%, rgba(235, 184, 47, 0.3), transparent 70%),
-    radial-gradient(ellipse 50% 45% at 14% 94%, rgba(46, 94, 58, 0.35), transparent 70%);
-  background-attachment: fixed;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 55% 50% at 8% 6%, #4a3824, transparent 70%),
+      radial-gradient(ellipse 50% 45% at 90% 8%, rgba(235, 184, 47, 0.3), transparent 70%),
+      radial-gradient(ellipse 50% 45% at 14% 94%, rgba(46, 94, 58, 0.35), transparent 70%);
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -217,6 +254,14 @@ body {
 @media (min-width: 640px) {
   .cabecera-horizonte {
     width: 170%;
+  }
+}
+
+/* En pantallas bajas (celular acostado, variante "bajo") el horizonte baja un
+   poco, para que el arco no cruce los textos de la bienvenida. */
+@media (max-height: 560px) {
+  .cabecera-horizonte {
+    top: 92%;
   }
 }
 

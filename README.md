@@ -274,28 +274,39 @@ que hay dos servers usando la misma carpeta de sesión: cerrá uno y reiniciá e
 
 ## La estética (las tres vistas, una sola identidad)
 
-`/display`, `/admin` y `/taller` comparten la misma cara: una sección oscura con
-una curva amplia hacia un fondo crema, el logo ML (rombo amarillo), el amarillo
-dorado de la marca y tarjetas claras con esquinas redondeadas. La referencia es
-`Ejemplo.png`, en la raíz del repo.
+`/display`, `/admin` y `/taller` comparten la misma cara, estilo **"Vidrio
+cálido"**: capas translúcidas que desenfocan lo que tienen detrás, luz dorada, el
+logo ML (rombo amarillo), el amarillo dorado de la marca y botones en forma de
+cápsula. El showroom (`/display`) es oscuro, con una cúpula de filo dorado arriba;
+`/admin` y `/taller` son claros, con tarjetas de vidrio sobre un fondo marfil.
 
-Todo el tema está centralizado en cuatro lugares; **no hay colores sueltos por
+Todo el tema está centralizado en pocos lugares; **no hay colores sueltos por
 componente**:
 
 | Dónde | Qué define |
 | --- | --- |
-| `client/src/index.css` | Los colores (`@theme`: `tinta`, `crema`, `crema-alta`, `linea`, `marca`, `listo`), la tipografía y las clases `.curva` / `.curva-baja` de la cabecera. |
-| `client/src/tema.ts` | Las clases que se repiten: tarjetas, botones, pastillas y franjas de aviso. |
-| `client/src/components/CabeceraCurva.tsx` | La parte oscura con la curva, en dos altos: `hero` (bienvenida) y `compacta` (vistas con lista). |
-| `client/src/dominio.ts` | Lo que **no** es estética: colores de los conos por área y estilos de las pastillas de estado. |
+| `client/src/index.css` | La paleta (`@theme`: `tinta`, `crema`, `crema-alta`, `linea`, `marca`, `listo`, `tabaco`, `arena`, `peligro`…), la tipografía Geist, los materiales de vidrio (`vidrio-claro`, `vidrio-oscuro`, `vidrio-hoja-clara`, `vidrio-hoja-oscura`), los fondos con manchas de luz (`fondo-claro`, `fondo-oscuro`), `texto-degrade` para los títulos sobre oscuro, la cúpula y el horizonte de la cabecera, las animaciones del emblema y de las vistas, y el respeto de `prefers-reduced-motion` (con "reducir movimiento" se apagan todas). |
+| `client/src/tema.ts` | Las clases que se repiten: tarjetas, botones, pastillas, cápsulas de matrícula y avisos. |
+| `client/src/components/CabeceraCurva.tsx` | La parte oscura con la curva, en dos altos: `hero` (bienvenida) y `compacta` (vistas con lista); con `tono="claro"`, solo la barra de vidrio claro de `/admin` y `/taller`. |
+| `client/src/components/EmblemaML.tsx` | El rombo ML en 3D de la bienvenida (giro, órbitas, ondas y destellos), hecho solo con CSS. |
+| `client/src/components/ConoCirculo.tsx` | El cono de un servicio dentro de un círculo, compartido por las tarjetas, la ficha y el formulario. |
+| `client/src/components/PastillaListo.tsx` | La pastilla verde "Listo" de las tarjetas de `/admin` y `/taller`. |
+| `client/src/dominio.ts` | Lo que **no** es estética: colores de los conos por área (para fondo claro y para fondo oscuro). |
 
 Para cambiar el amarillo de la marca en toda la app, se toca `--color-marca` en
 `index.css` y listo.
 
-La tipografía es **Nunito Variable**, instalada como dependencia
-(`@fontsource-variable/nunito`) y empaquetada dentro del build: el taller no tiene
+La tipografía es **Geist Variable**, instalada como dependencia
+(`@fontsource-variable/geist`) y empaquetada dentro del build: el taller no tiene
 internet, así que no se puede depender de Google Fonts. Solo se empaqueta el
-subset latino (~39 KB).
+subset latino (~29 KB).
+
+> **Para la pantalla del showroom:** el efecto vidrio usa `backdrop-filter`. Se
+> recomienda un navegador basado en Chromium (Chrome, Edge) actualizado y con la
+> **aceleración por hardware activada**, para que el desenfoque y las animaciones
+> anden fluidos. Si el navegador no soporta el desenfoque, la app cae sola a fondos
+> opacos y todo se sigue leyendo. Si el sistema tiene activado **"reducir
+> movimiento"**, las animaciones se apagan.
 
 ## Configuración
 

@@ -27,36 +27,39 @@ interface Props {
 
 export function PinLogin({ onIngresar }: Props) {
   const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  // Mensaje a mostrar debajo de los puntitos (null = sin error).
+  const [error, setError] = useState<string | null>(null);
   const [verificando, setVerificando] = useState(false);
 
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
   function agregar(digito: string) {
     if (verificando) return;
-    setError(false);
+    setError(null);
     setPin((p) => (p.length < 8 ? p + digito : p));
   }
 
   function borrar() {
-    setError(false);
+    setError(null);
     setPin((p) => p.slice(0, -1));
   }
 
   async function ingresar() {
     if (pin.length === 0 || verificando) return;
     setVerificando(true);
-    setError(false);
+    setError(null);
     try {
-      if (await login(pin)) {
+      const resultado = await login(pin);
+      if (resultado.ok) {
         guardarPin(pin);
         onIngresar();
       } else {
-        setError(true);
+        // PIN mal o bloqueado por demasiados intentos (el server dice cuánto falta).
+        setError(resultado.mensaje);
         setPin("");
       }
     } catch {
-      setError(true);
+      setError("No se pudo conectar con el servidor.");
       setPin("");
     } finally {
       setVerificando(false);
@@ -97,7 +100,7 @@ export function PinLogin({ onIngresar }: Props) {
         {/* Mismo lugar para el error: un rojo claro que se lee sobre el oscuro. */}
         {error && (
           <p className="mt-3 rounded-full bg-peligro/30 px-4 py-1.5 text-lg font-semibold text-[#F6B7A9] sm:text-xl">
-            PIN incorrecto
+            {error}
           </p>
         )}
       </div>

@@ -51,7 +51,7 @@ const SEMILLA: VehiculoSemilla[] = [
   },
   {
     // Todos los servicios terminados: sale la tarjeta verde "Listo" y, pasadas
-    // las horas de HORAS_VISIBLE_TERMINADO, desaparece sola de /display.
+    // las horas del ajuste horas_visible_terminado, desaparece sola de /display.
     marca: "Suzuki",
     modelo: "Fronx",
     color: "Azul",

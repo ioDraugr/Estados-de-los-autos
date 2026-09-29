@@ -171,8 +171,9 @@ mismo volumen.
 > base con todos los autos y la sesión de WhatsApp**. Para parar, `docker compose
 > down` a secas.
 
-**Vincular WhatsApp en Docker.** Poné `AVISOS_ENVIO=baileys` en el `.env`, corré
-`docker compose up -d` y mirá los logs con `docker compose logs -f --no-log-prefix`
+**Vincular WhatsApp en Docker.** Los avisos por WhatsApp vienen activados por
+defecto. La primera vez, después de `docker compose up -d`, mirá los logs con
+`docker compose logs -f --no-log-prefix`
 (sin el prefijo de cada línea el QR se escanea mejor). El resto es igual que en
 [Vincular el celular](#vincular-el-celular-una-sola-vez). La sesión queda en el
 volumen, así que sobrevive a reinicios y actualizaciones. En Windows, mirá el QR
@@ -396,25 +397,29 @@ todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
 - El server revisa la cola cada 30 segundos (`AVISOS_INTERVALO_SEG`), así que un
   aviso puede salir hasta medio minuto después de su hora.
 
-### Cómo salen: `log` o WhatsApp real
+### Cómo salen: WhatsApp real (por defecto) o `log`
 
-Por defecto el envío es `log`: **no le escribe a nadie**, imprime el mensaje en la
-consola del server, por ejemplo:
+**Por defecto los avisos salen por WhatsApp de verdad** (`AVISOS_ENVIO=baileys`):
+alcanza con arrancar el server como siempre, sin agregar nada al comando:
+
+```bash
+cd server && npm run dev      # o npm start, o docker compose up -d
+```
+
+> ⚠️ **Le llegan los mensajes a TODOS los autos que tengan celular cargado**, sin
+> excepción. Para probar, usá autos con un celular tuyo (o de alguien que sepa que
+> es una prueba). Si no hay internet, la app anda igual y los avisos esperan.
+
+Para probar **sin escribirle a nadie** se arranca con `AVISOS_ENVIO=log`: imprime
+el mensaje en la consola del server, por ejemplo:
+
+```bash
+cd server && AVISOS_ENVIO=log npm run dev
+```
 
 ```
 [aviso] → +59899123456: ¡Tu Toyota Corolla está listo! Ya podés pasar a buscarlo por ML Center.
 ```
-
-Para mandarlos **por WhatsApp de verdad** se arranca el server con
-`AVISOS_ENVIO=baileys`:
-
-```bash
-cd server && AVISOS_ENVIO=baileys npm run dev
-```
-
-> ⚠️ **Desde ese momento le llegan los mensajes a TODOS los autos que tengan
-> celular cargado**, sin excepción. Para probar, usá autos con un celular tuyo (o
-> de alguien que sepa que es una prueba).
 
 > ⚠️ **Baileys es una librería NO oficial.** Se hace pasar por WhatsApp Web. Va
 > contra las condiciones de WhatsApp y **WhatsApp puede bloquear el número** que
@@ -424,7 +429,7 @@ cd server && AVISOS_ENVIO=baileys npm run dev
 
 #### Vincular el celular (una sola vez)
 
-1. Arrancá el server con `AVISOS_ENVIO=baileys`.
+1. Arrancá el server (con WhatsApp, que es el default).
 2. En la **consola del server** aparece un código QR con el texto
    *"Abrí WhatsApp en tu celular → Dispositivos vinculados → Vincular un dispositivo
    y escaneá este código"*.
@@ -520,8 +525,8 @@ subset latino (~29 KB).
 | `DB_PATH` | `server/data/taller.db` | Archivo de la base SQLite. Útil para probar contra una base descartable; si la carpeta no existe, se crea. |
 | `AVISOS_DEMORA_MIN` | `5` | Minutos de seguridad entre el cambio y el aviso por WhatsApp. Acepta decimales (`0.1` = 6 s, para probar). |
 | `AVISOS_INTERVALO_SEG` | `30` | Cada cuántos segundos el server revisa si hay avisos para mandar. |
-| `AVISOS_ENVIO` | `log` | Cómo salen los avisos: `log` (los imprime en la consola del server, no le escribe a nadie) o `baileys` (WhatsApp real, ver [Avisos por WhatsApp](#avisos-por-whatsapp); necesita internet). Cualquier otro valor es un error: el server arranca igual pero no manda avisos (quedan pendientes) hasta que se corrija. |
-| `WHATSAPP_SESION_DIR` | `server/data/whatsapp-sesion` | Carpeta donde queda la sesión de WhatsApp (con `AVISOS_ENVIO=baileys`). Son **credenciales**: nunca se comparte ni se sube a git. Borrarla = desvincular. |
+| `AVISOS_ENVIO` | `baileys` | Cómo salen los avisos: `baileys` (WhatsApp real, ver [Avisos por WhatsApp](#avisos-por-whatsapp); necesita internet) o `log` (los imprime en la consola del server, no le escribe a nadie; para probar). Cualquier otro valor es un error: el server arranca igual pero no manda avisos (quedan pendientes) hasta que se corrija. |
+| `WHATSAPP_SESION_DIR` | `server/data/whatsapp-sesion` | Carpeta donde queda la sesión de WhatsApp. Son **credenciales**: nunca se comparte ni se sube a git. Borrarla = desvincular. |
 
 ## API
 

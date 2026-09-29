@@ -96,6 +96,11 @@ compose, scripts y README). Un writer acotado, verificación en el padre.
   en consola (base y sesión temporales, borradas). El seed no tiene celulares: nadie recibe nada
   por arrancar en dev.
 
+- 2026-09-29: el usuario squash-mergeó PR #5 (`fc05e8c`, D1–D3) antes del push de D4, y el
+  rediseño (#6). D4 quedó afuera; el usuario abrió PR #7 desde la misma rama, en conflicto por los
+  commits ya squasheados. Se reconcilió con un merge de `origin/main` en la rama (sin reescribir
+  historia): se tomó la versión de `main` y se reaplicó solo el diff de D4. PR #7 = solo D4.
+
 ## Próximo paso
-Push de `feat/despliegue-docker` y PR contra `main` (decisión del usuario). Probar `iniciar.bat` en
-una PC Windows.
+Mergear PR #7 (D4). Pasar la carpeta de desarrollo a `main`. Probar `iniciar.bat` en una PC
+Windows.

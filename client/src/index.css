@@ -1,14 +1,15 @@
 @import "tailwindcss";
 
-/* Tipografía de la marca: redondeada y amigable, como la referencia.
-   Va empaquetada con el build (no se baja de internet), porque en el taller no
-   hay conexión. Solo el subset latino: alcanza para el español y pesa poco. */
+/* Tipografía de la marca: Geist, una sola familia para todo (títulos, textos y
+   el "ML" del logo). Va empaquetada con el build (no se baja de internet),
+   porque en el taller no hay conexión. Solo el subset latino: alcanza para el
+   español y pesa poco. */
 @font-face {
-  font-family: "Nunito Variable";
+  font-family: "Geist Variable";
   font-style: normal;
   font-display: swap;
-  font-weight: 200 1000;
-  src: url("@fontsource-variable/nunito/files/nunito-latin-wght-normal.woff2")
+  font-weight: 100 900;
+  src: url("@fontsource-variable/geist/files/geist-latin-wght-normal.woff2")
     format("woff2-variations");
 }
 
@@ -17,17 +18,35 @@
    vistas iguales: cambiar el amarillo de la marca es cambiar una línea.
    Los colores de los conos NO viven acá: son de dominio y están en dominio.ts. */
 @theme {
-  --font-sans: "Nunito Variable", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Geist Variable", system-ui, sans-serif;
 
-  --color-tinta: #0e0e0e; /* la parte oscura y el texto sobre crema */
-  --color-tinta-suave: #6b6558; /* texto secundario sobre crema */
-  --color-crema: #f5efe1; /* fondo claro */
-  --color-crema-alta: #faf6ec; /* tarjetas sobre el fondo crema */
-  --color-linea: #e6dcc6; /* bordes suaves entre claros */
-  --color-marca: #f2c230; /* amarillo dorado de la marca */
-  --color-marca-suave: #f6da92; /* botón redondo, detalles */
-  --color-listo: #15803d; /* verde de "terminado" */
+  /* Paleta "Vidrio cálido". */
+  --color-tinta: #16130f; /* carbón: la parte oscura y el texto sobre claro */
+  --color-tinta-suave: #6f6454; /* taupe: texto secundario sobre claro */
+  --color-crema: #f3ecdf; /* marfil: fondo claro */
+  --color-crema-alta: #faf6ee; /* papel: lo más claro (tarjetas, texto sobre oscuro) */
+  --color-linea: #d8c9ae; /* lino: bordes suaves entre claros */
+  --color-marca: #ebb82f; /* oro ML: amarillo dorado de la marca */
+  --color-marca-suave: #f7d678; /* oro claro: botón redondo, detalles */
+  --color-listo: #2e5e3a; /* bosque: verde de "terminado" */
+  --color-tabaco: #2b231b; /* marrón oscuro: capas sobre el carbón */
+  --color-arena: #e6dac3; /* estado "esperando" y rellenos suaves */
+  --color-peligro: #8e2b1f; /* errores y acciones destructivas */
+  --color-listo-vivo: #3f7a4e; /* verde más encendido (progreso, detalles) */
+  --color-listo-claro: #a9d3b1; /* verde claro, para usar sobre oscuro */
 }
+
+/* Variantes propias (se usan como sm:, lg:, etc.):
+   - tv:         la pantalla del showroom (1920×1080 o más, aunque el navegador
+                 no esté a pantalla completa). Pide ancho Y alto, así una
+                 notebook ancha pero baja no agranda la ficha de más.
+   - bajo:       pantallas muy bajas (celular acostado): se achican márgenes y
+                 textos para que entre lo importante.
+   - sin-vidrio: navegadores sin backdrop-filter. Ahí un velo translúcido deja
+                 ver nítido lo de atrás, así que se oscurece o se vuelve opaco. */
+@custom-variant tv (@media (min-width: 1536px) and (min-height: 900px));
+@custom-variant bajo (@media (max-height: 560px));
+@custom-variant sin-vidrio (@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))));
 
 /* Base para modo kiosko del showroom: alto contraste, sin selección de texto
    ni resaltado al tocar (pantalla táctil). */
@@ -42,73 +61,784 @@ body {
   font-family: var(--font-sans);
   background-color: var(--color-crema);
   color: var(--color-tinta);
+  -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
   user-select: none;
 }
 
-/* La curva amplia que separa la parte oscura del fondo crema, en las tres
-   vistas (la dibuja CabeceraCurva). Es un radio elíptico: se abre a lo ancho y
-   crece con la pantalla, para que en el showroom se vea igual de generosa que
-   en la referencia. Va acá y no en el componente porque necesita media queries. */
-.curva {
-  border-bottom-left-radius: 50% 56px;
-  border-bottom-right-radius: 50% 56px;
+/* Si el sistema pide menos movimiento, se apagan todas las animaciones y
+   transiciones de la app (incluido el emblema de la bienvenida). Se dejan con
+   duración casi cero en vez de "none" para que cada elemento quede igual en su
+   estado final. Las animaciones que se repiten sin fin vuelven a su estilo de
+   base: por eso cada pieza del emblema tiene un estilo quieto que se ve bien
+   armado (ver "Emblema ML" más abajo). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Materiales de vidrio. Capas translúcidas que desenfocan lo que tienen
+   detrás (los fondos ambientales de abajo). Son utilidades de Tailwind, así se
+   combinan con el resto de las clases (rounded-*, p-*, etc.).
+   Si el navegador no soporta backdrop-filter, cada una usa su mismo color casi
+   opaco para que el texto se siga leyendo bien.
+   --------------------------------------------------------------------------- */
+
+/* Vidrio claro: tarjetas, cabecera cápsula y paneles sobre el fondo claro. */
+@utility vidrio-claro {
+  background-color: rgba(250, 246, 238, 0.58);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 50px -24px rgba(43, 35, 27, 0.35);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgba(250, 246, 238, 0.94);
+  }
+}
+
+/* Vidrio oscuro: tarjetas y paneles sobre el fondo oscuro (showroom). */
+@utility vidrio-oscuro {
+  background-color: rgba(43, 35, 27, 0.42);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid rgba(243, 236, 223, 0.12);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.09),
+    0 24px 60px -24px rgba(0, 0, 0, 0.7);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgba(43, 35, 27, 0.94);
+  }
+}
+
+/* Hoja clara: modales y fichas que se apoyan encima de todo (más opaca y con
+   más sombra que la tarjeta, para separarse del fondo). */
+@utility vidrio-hoja-clara {
+  background-color: rgba(247, 242, 232, 0.8);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 50px 120px -30px rgba(43, 35, 27, 0.55);
+
+  /* Sin desenfoque, la hoja va opaca del todo: se apoya sobre la lista y con
+     un 6 % de transparencia los textos de atrás se leían como fantasmas. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: #f7f2e8;
+  }
+}
+
+/* Hoja oscura: lo mismo que la hoja clara, sobre el fondo oscuro. */
+@utility vidrio-hoja-oscura {
+  background-color: rgba(43, 35, 27, 0.62);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(243, 236, 223, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 50px 120px -30px rgba(0, 0, 0, 0.8);
+
+  /* Sin desenfoque, opaca del todo (misma razón que la hoja clara). */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: #2b231b;
+  }
+}
+
+/* Títulos grandes sobre fondo oscuro: el texto se pinta con un degradé de
+   marfil a lino tostado, como luz que cae de arriba. */
+@utility texto-degrade {
+  background-image: linear-gradient(180deg, #faf6ee 25%, #cdbd9f 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Fondos ambientales: "manchas de luz" detrás del vidrio, para que tenga algo
+   que desenfocar. Se hacen con radial-gradient y no con elementos con
+   filter: blur, que en la pantalla del showroom y en la tablet cuestan mucho
+   más.
+   Las manchas quedan quietas al hacer scroll. No se usa
+   background-attachment: fixed porque Safari de iPhone/iPad lo ignora (ahí
+   las manchas se iban con el scroll): van en un ::before con position: fixed
+   que tapa la ventana, detrás del contenido (z-index: -1) y sin recibir
+   toques. El isolation: isolate del elemento hace que ese -1 quede por
+   encima de su propio color de fondo y no se esconda detrás de la página.
+   --------------------------------------------------------------------------- */
+
+/* Fondo claro: marfil con luz dorada, lino y un toque de bosque. */
+@utility fondo-claro {
+  background-color: #f3ecdf;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 55% 45% at 88% 4%, rgba(235, 184, 47, 0.38), transparent 70%),
+      radial-gradient(ellipse 50% 45% at 6% 48%, rgba(216, 201, 174, 0.9), transparent 70%),
+      radial-gradient(ellipse 50% 40% at 84% 78%, rgba(235, 184, 47, 0.22), transparent 70%),
+      radial-gradient(ellipse 45% 35% at 26% 96%, rgba(141, 190, 150, 0.25), transparent 70%);
+  }
+}
+
+/* Fondo oscuro: carbón con tabaco, luz dorada y bosque. */
+@utility fondo-oscuro {
+  background-color: #16130f;
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      radial-gradient(ellipse 55% 50% at 8% 6%, #4a3824, transparent 70%),
+      radial-gradient(ellipse 50% 45% at 90% 8%, rgba(235, 184, 47, 0.3), transparent 70%),
+      radial-gradient(ellipse 50% 45% at 14% 94%, rgba(46, 94, 58, 0.35), transparent 70%);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Cabecera oscura (CabeceraCurva): el cielo del hero, su horizonte dorado y
+   la cúpula de la versión compacta.
+   --------------------------------------------------------------------------- */
+
+/* Cielo del hero de la bienvenida: carbón con una mancha tabaco arriba a la
+   izquierda y un reflejo de arena a la derecha. El halo dorado del centro lo
+   pone el emblema. Gradientes, no elementos con filter: blur (más livianos). */
+.cabecera-cielo {
+  background-color: #16130f;
+  background-image:
+    radial-gradient(ellipse 60% 55% at 4% 0%, rgba(58, 45, 32, 0.95), transparent 70%),
+    radial-gradient(ellipse 40% 40% at 92% 32%, rgba(230, 218, 195, 0.07), transparent 70%);
+}
+
+/* Horizonte del hero: una elipse enorme de la que solo asoma el borde de
+   arriba, como un arco convexo con filo dorado y resplandor hacia arriba.
+   Proporción fija (12:7) para que el arco tenga la misma forma en cualquier
+   ancho; en el celular es más angosta para que la curva se note. */
+.cabecera-horizonte {
+  position: absolute;
+  left: 50%;
+  top: 77%;
+  width: 140%;
+  aspect-ratio: 12 / 7;
+  translate: -50% 0;
+  border-radius: 50%;
+  border-top: 1.5px solid rgba(247, 214, 120, 0.95);
+  background: radial-gradient(ellipse 60% 30% at 50% 0%, #2b231b 0%, #16130f 70%);
+  box-shadow:
+    0 -24px 110px -6px rgba(235, 184, 47, 0.55),
+    inset 0 40px 90px -50px rgba(235, 184, 47, 0.55);
+  pointer-events: none;
 }
 
 @media (min-width: 640px) {
-  .curva {
-    border-bottom-left-radius: 50% 90px;
-    border-bottom-right-radius: 50% 90px;
+  .cabecera-horizonte {
+    width: 170%;
+  }
+}
+
+/* En pantallas bajas (celular acostado, variante "bajo") el horizonte baja un
+   poco, para que el arco no cruce los textos de la bienvenida. */
+@media (max-height: 560px) {
+  .cabecera-horizonte {
+    top: 92%;
+  }
+}
+
+/* Cúpula de la cabecera compacta: la parte oscura termina abajo en un arco
+   ancho (radio elíptico que crece con la pantalla) con filo dorado y un
+   resplandor que cae sobre el fondo de la vista. Solo lleva borde abajo: con
+   los radios, el filo se afina solo hacia los costados. */
+.cabecera-cupula {
+  background-color: #1b1712;
+  background-image:
+    radial-gradient(ellipse 40% 140% at 6% 0%, rgba(74, 56, 36, 0.8), transparent 70%),
+    radial-gradient(ellipse 55% 120% at 50% 100%, #2b231b, transparent 80%);
+  border-bottom: 1.5px solid #f7d678;
+  border-bottom-left-radius: 50% 24px;
+  border-bottom-right-radius: 50% 24px;
+  box-shadow:
+    0 2px 10px -2px rgba(247, 214, 120, 0.55),
+    0 14px 36px -10px rgba(235, 184, 47, 0.45);
+}
+
+@media (min-width: 640px) {
+  .cabecera-cupula {
+    border-bottom-left-radius: 50% 40px;
+    border-bottom-right-radius: 50% 40px;
   }
 }
 
 @media (min-width: 1280px) {
-  .curva {
-    border-bottom-left-radius: 50% 130px;
-    border-bottom-right-radius: 50% 130px;
+  .cabecera-cupula {
+    border-bottom-left-radius: 50% 64px;
+    border-bottom-right-radius: 50% 64px;
   }
 }
 
-/* Misma curva, más suave: la cabecera de las vistas con lista es baja y con el
-   radio del hero se comería el logo contra los bordes. */
-.curva-baja {
-  border-bottom-left-radius: 50% 28px;
-  border-bottom-right-radius: 50% 28px;
-}
+/* ---------------------------------------------------------------------------
+   Animaciones del showroom. Todas se apagan con prefers-reduced-motion (regla
+   de arriba). Las demoras escalonadas que dependen del elemento van en el
+   componente (style animationDelay).
+   --------------------------------------------------------------------------- */
 
-@media (min-width: 640px) {
-  .curva-baja {
-    border-bottom-left-radius: 50% 44px;
-    border-bottom-right-radius: 50% 44px;
+/* Textos de la bienvenida: entran subiendo y se enfocan. */
+@keyframes subir {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
   }
 }
 
-@media (min-width: 1280px) {
-  .curva-baja {
-    border-bottom-left-radius: 50% 62px;
-    border-bottom-right-radius: 50% 62px;
-  }
+.animate-subir {
+  animation: subir 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-/* La flecha de la bienvenida baja y sube apenas: llama la atención sin
-   parpadear ni marear. Se desactiva si el sistema pide menos movimiento. */
-@keyframes flotar {
+/* Círculo con la flecha de la bienvenida: baja y sube apenas, sin marear. */
+@keyframes bajar {
   0%,
   100% {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(25%);
+    transform: translateY(6px);
   }
 }
 
-.animate-flotar {
-  animation: flotar 1.8s ease-in-out infinite;
+.animate-bajar {
+  animation: bajar 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .animate-flotar {
-    animation: none;
+/* Pulso dorado que se expande desde el aro de un servicio en proceso. */
+@keyframes anillo {
+  0% {
+    box-shadow: 0 0 0 0 rgba(235, 184, 47, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(235, 184, 47, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(235, 184, 47, 0);
+  }
+}
+
+.animate-anillo {
+  animation: anillo 2.4s ease-out infinite;
+}
+
+/* Tarjetas de la grilla: aparecen subiendo, escalonadas por posición (sin JS:
+   la demora sale de nth-child). "backwards" y no "both": al terminar la
+   animación suelta el transform, así el hover de la tarjeta sigue andando. */
+@keyframes aparecer {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-aparecer {
+  animation: aparecer 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.animate-aparecer:nth-child(2) {
+  animation-delay: 60ms;
+}
+.animate-aparecer:nth-child(3) {
+  animation-delay: 120ms;
+}
+.animate-aparecer:nth-child(4) {
+  animation-delay: 180ms;
+}
+.animate-aparecer:nth-child(5) {
+  animation-delay: 240ms;
+}
+.animate-aparecer:nth-child(6) {
+  animation-delay: 300ms;
+}
+.animate-aparecer:nth-child(7) {
+  animation-delay: 360ms;
+}
+.animate-aparecer:nth-child(n + 8) {
+  animation-delay: 420ms;
+}
+
+/* Ficha del auto: la hoja entra subiendo desde abajo. */
+@keyframes hoja {
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-hoja {
+  animation: hoja 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+}
+
+/* Barra de progreso de la ficha: los tramos se llenan de izquierda a derecha
+   un momento después de que entra la hoja. */
+@keyframes llenar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.animate-llenar {
+  transform-origin: left center;
+  animation: llenar 0.9s 0.45s cubic-bezier(0.3, 0.7, 0.2, 1) both;
+}
+
+/* El tramo de un trabajo en proceso titila suave. */
+@keyframes titilar {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-titilar {
+  animation: titilar 1.8s ease-in-out infinite;
+}
+
+/* Tramo que se llena Y titila: las dos animaciones juntas (si no, la segunda
+   clase pisaría a la primera). */
+.animate-llenar.animate-titilar {
+  animation:
+    llenar 0.9s 0.45s cubic-bezier(0.3, 0.7, 0.2, 1) both,
+    titilar 1.8s ease-in-out infinite;
+}
+
+/* Punto del PIN que se acaba de marcar: aparece creciendo, con un rebote. */
+@keyframes marcar {
+  from {
+    transform: scale(0.2);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.animate-marcar {
+  animation: marcar 0.25s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+
+/* ---------------------------------------------------------------------------
+   Emblema ML de la bienvenida (EmblemaML.tsx). Todo se dibuja en un escenario
+   de 360×360 px y se escala entero con --emblema-escala, así el 3D no se
+   deforma en ningún tamaño. Cada pieza tiene un estilo "quieto" que se ve
+   bien armado cuando las animaciones están apagadas (menos movimiento): el
+   rombo de frente, las ondas y los destellos ocultos, el brillo fuera del
+   rombo y los puntos de las órbitas mirando a cámara.
+   --------------------------------------------------------------------------- */
+
+/* Caja que ocupa el emblema en el layout, del tamaño ya escalado. Más chico en
+   el celular, completo en pantallas grandes, y achicado en pantallas bajas
+   (celular acostado, notebooks) para que entren los textos debajo. */
+.emblema {
+  --emblema-escala: 0.6;
+  position: relative;
+  flex-shrink: 0;
+  width: calc(360px * var(--emblema-escala));
+  height: calc(360px * var(--emblema-escala));
+  /* El escenario tiene aire arriba (solo el halo) y abajo (ahí va la sombra):
+     el emblema se mete un poco bajo la barra y el título sube sobre el aire de
+     abajo, como en la maqueta. */
+  margin-top: calc(-64px * var(--emblema-escala));
+  margin-bottom: calc(-40px * var(--emblema-escala));
+}
+
+@media (min-width: 640px) {
+  .emblema {
+    --emblema-escala: 0.75;
+  }
+}
+
+@media (min-width: 1024px) {
+  .emblema {
+    --emblema-escala: 0.9;
+  }
+}
+
+@media (min-width: 1280px) {
+  .emblema {
+    --emblema-escala: 1;
+  }
+}
+
+@media (min-width: 1536px) and (min-height: 1000px) {
+  .emblema {
+    --emblema-escala: 1.2;
+  }
+}
+
+@media (min-width: 640px) and (max-height: 820px) {
+  .emblema {
+    --emblema-escala: 0.7;
+  }
+}
+
+@media (max-height: 560px) {
+  .emblema {
+    --emblema-escala: 0.45;
+  }
+}
+
+.emblema-escenario {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 360px;
+  height: 360px;
+  transform-origin: 0 0;
+  transform: scale(var(--emblema-escala));
+}
+
+/* Halo dorado detrás de todo, que late lento. Acá sí va un filter: blur: es
+   un solo elemento y solo en la bienvenida. */
+.emblema-halo {
+  position: absolute;
+  left: -40px;
+  top: -10px;
+  width: 440px;
+  height: 360px;
+  border-radius: 50%;
+  background: #ebb82f;
+  filter: blur(110px);
+  opacity: 0.55;
+  animation: emblema-latir 7s ease-in-out infinite;
+}
+
+@keyframes emblema-latir {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.08);
+  }
+}
+
+/* Sombra dorada en el "piso": se achica y aclara cuando el emblema sube (mismo
+   ritmo y curva que emblema-flotar). */
+.emblema-sombra {
+  position: absolute;
+  left: 86px;
+  top: 274px;
+  width: 188px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(235, 184, 47, 0.55), rgba(235, 184, 47, 0) 70%);
+  filter: blur(4px);
+  opacity: 0.75;
+  animation: emblema-sombra 5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes emblema-sombra {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.78);
+  }
+}
+
+/* Todo el emblema (ondas, escena 3D y destellos) sube y baja. */
+.emblema-flotar {
+  position: absolute;
+  inset: 0;
+  animation: emblema-flotar 5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+@keyframes emblema-flotar {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Ondas en forma de rombo que se expanden y se apagan. Quietas: ocultas. */
+.emblema-onda {
+  position: absolute;
+  left: 110px;
+  top: 110px;
+  width: 140px;
+  height: 140px;
+  box-sizing: border-box;
+  border-radius: 26px;
+  border: 1.5px solid rgba(247, 214, 120, 0.7);
+  opacity: 0;
+  transform: rotate(45deg);
+  animation: emblema-onda 3.6s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+
+@keyframes emblema-onda {
+  0% {
+    opacity: 0.75;
+    transform: rotate(45deg) scale(1);
+  }
+  85%,
+  100% {
+    opacity: 0;
+    transform: rotate(45deg) scale(1.9);
+  }
+}
+
+/* Entrada de la escena: aparece creciendo y enderezándose. La perspectiva es
+   la "cámara" de todo el 3D de adentro. */
+.emblema-entrada {
+  position: absolute;
+  inset: 0;
+  perspective: 1000px;
+  animation: emblema-entrada 1.4s cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+@keyframes emblema-entrada {
+  from {
+    opacity: 0;
+    transform: scale(0.55) rotate(-25deg);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Contenedor 3D: sus hijos conservan su profundidad (no se aplanan). */
+.emblema-3d {
+  position: absolute;
+  transform-style: preserve-3d;
+}
+
+/* Órbitas acostadas alrededor del rombo. */
+.emblema-orbita {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 340px;
+  height: 340px;
+  box-sizing: border-box;
+  border-radius: 50%;
+}
+
+.emblema-orbita-punteada {
+  border: 1px dashed rgba(243, 236, 223, 0.28);
+  animation: emblema-rueda 20s linear infinite reverse;
+}
+
+.emblema-orbita-dorada {
+  border: 1.2px solid rgba(247, 214, 120, 0.55);
+  animation: emblema-rueda 12s linear infinite;
+}
+
+@keyframes emblema-rueda {
+  from {
+    transform: rotateZ(0deg);
+  }
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+
+/* Puntos de las áreas sobre la órbita dorada: giran al revés que la órbita y
+   se enderezan (rotateX -74°) para mirar siempre a cámara. */
+.emblema-punto {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  transform: rotateX(-74deg);
+  animation: emblema-cara-punto 12s linear infinite;
+}
+
+@keyframes emblema-cara-punto {
+  from {
+    transform: rotateZ(0deg) rotateX(-74deg);
+  }
+  to {
+    transform: rotateZ(-360deg) rotateX(-74deg);
+  }
+}
+
+/* El rombo se mece de lado a lado… */
+.emblema-vaiven {
+  animation: emblema-vaiven 6s ease-in-out infinite;
+}
+
+@keyframes emblema-vaiven {
+  0%,
+  100% {
+    transform: rotateY(-14deg) rotateX(4deg);
+  }
+  50% {
+    transform: rotateY(14deg) rotateX(-4deg);
+  }
+}
+
+/* …y cada 8 s da una vuelta entera en Y (el resto del tiempo, quieto). */
+.emblema-giro {
+  animation: emblema-giro 8s cubic-bezier(0.65, 0, 0.25, 1) 1.6s infinite;
+}
+
+@keyframes emblema-giro {
+  0%,
+  60% {
+    transform: rotateY(0deg);
+  }
+  86%,
+  100% {
+    transform: rotateY(360deg);
+  }
+}
+
+/* Cara del rombo (frente o dorso): se oculta cuando queda de espaldas, así al
+   girar se ve la otra. */
+.emblema-cara {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 200px;
+  height: 200px;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Cada lámina del rombo (cara o capa del canto): un cuadrado de esquinas
+   redondeadas que, girado 45°, es el rombo. */
+.emblema-capa {
+  position: absolute;
+  left: 30px;
+  top: 30px;
+  width: 140px;
+  height: 140px;
+  box-sizing: border-box;
+  border-radius: 26px;
+}
+
+/* Vidrio dorado de las caras: degradé de oro claro a oro tostado, filo de luz
+   arriba y sombra interior abajo. */
+.emblema-rombo {
+  background: linear-gradient(135deg, #fadf8c 0%, #ebb82f 48%, #be8a18 100%);
+  border: 1px solid rgba(255, 244, 210, 0.75);
+  box-shadow:
+    inset 0 2px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -12px 30px rgba(120, 80, 10, 0.35);
+}
+
+/* El frente además resplandece hacia abajo y recorta el brillo que lo cruza. */
+.emblema-rombo-frente {
+  overflow: hidden;
+  box-shadow:
+    inset 0 2px 1px rgba(255, 255, 255, 0.6),
+    inset 0 -12px 30px rgba(120, 80, 10, 0.35),
+    0 30px 80px -20px rgba(235, 184, 47, 0.75);
+}
+
+/* Brillo que cruza el frente cada 4 s. Quieto: afuera del rombo (no se ve). */
+.emblema-brillo {
+  position: absolute;
+  left: 40px;
+  top: -60px;
+  width: 48px;
+  height: 260px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0));
+  transform: translateX(-150px);
+  animation: emblema-brillo 4s cubic-bezier(0.5, 0, 0.3, 1) infinite;
+}
+
+@keyframes emblema-brillo {
+  0%,
+  50% {
+    transform: translateX(-150px);
+  }
+  72%,
+  100% {
+    transform: translateX(210px);
+  }
+}
+
+/* "ML" de cada cara, en Geist como el logo. */
+.emblema-letras {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 58px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  color: #16130f;
+}
+
+/* Destellos: estrellitas que aparecen, giran y se apagan. Quietos: ocultos. */
+.emblema-destello {
+  position: absolute;
+  opacity: 0;
+  animation: emblema-destello 4s ease-in-out infinite;
+}
+
+@keyframes emblema-destello {
+  0%,
+  68% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+  78% {
+    opacity: 1;
+    transform: scale(1) rotate(90deg);
+  }
+  90%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(180deg);
   }
 }

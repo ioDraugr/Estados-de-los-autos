@@ -14,7 +14,7 @@ import {
 } from "../api";
 import { borrarPin, leerPin } from "../sesion";
 import type { EstadoServicio, Vehiculo } from "../types";
-import { AVISO, BOTON_OSCURO, TEXTO_VACIO } from "../tema";
+import { AVISO, BOTON_SUAVE, TEXTO_VACIO } from "../tema";
 import { CabeceraCurva } from "../components/CabeceraCurva";
 import { PinLogin } from "../components/PinLogin";
 import { TallerTarjeta } from "../components/TallerTarjeta";
@@ -94,26 +94,33 @@ export function Taller() {
   }
 
   return (
-    <div className="min-h-full bg-crema">
+    <div className="min-h-full fondo-claro">
+      {/* Barra cápsula de vidrio claro, flotando sobre el fondo de la página. */}
       <CabeceraCurva
         alto="compacta"
+        tono="claro"
         conos
         acciones={
           <button
             type="button"
             onClick={salir}
-            className={`${BOTON_OSCURO} px-4 py-2 text-base sm:px-5 sm:py-3 sm:text-xl`}
+            className={`${BOTON_SUAVE} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
           >
             Salir
           </button>
         }
       />
 
-      <main className="px-4 py-6 sm:px-8 sm:py-8">
+      <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
         {sinConexion && (
           <p
-            className={`${AVISO} mb-5 rounded-2xl px-4 py-3 text-lg sm:mb-6 sm:text-2xl`}
+            className={`${AVISO} mx-auto mb-6 flex w-fit max-w-full items-center justify-center gap-3 px-5 py-3 text-base shadow-[0_16px_40px_-18px_rgba(150,100,10,0.6)] sm:mb-8 sm:text-lg`}
           >
+            {/* Puntito que titila: está reintentando. */}
+            <span
+              aria-hidden="true"
+              className="animate-titilar h-2 w-2 shrink-0 rounded-full bg-tinta"
+            />
             Sin conexión con el servidor — reintentando…
           </p>
         )}
@@ -130,7 +137,7 @@ export function Taller() {
             No hay autos en el taller.
           </p>
         ) : (
-          <div className="mt-5 grid grid-cols-1 gap-5 sm:mt-7 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 items-start gap-5 sm:mt-9 sm:gap-7 lg:grid-cols-2 xl:grid-cols-3">
             {vehiculos.map((v) => (
               <TallerTarjeta
                 key={v.id}

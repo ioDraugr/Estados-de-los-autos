@@ -1,15 +1,24 @@
-// La parte oscura con la curva amplia hacia el fondo crema: es lo que le da la
-// misma cara a /display, /admin y /taller. Adentro van siempre el logo ML
-// (arriba a la izquierda) y, según la vista, la referencia de conos y/o los
-// botones de la vista (arriba a la derecha).
+// La parte oscura con la curva dorada: es lo que le da la misma cara a
+// /display, /admin y /taller. Arriba va siempre una barra cápsula de vidrio
+// oscuro con el logo ML (a la izquierda) y, según la vista, la referencia de
+// conos y/o los botones de la vista (a la derecha).
 //
-//   alto="hero"     → casi toda la pantalla, para la bienvenida del showroom.
-//   alto="compacta" → una barra superior, para las vistas con lista.
+//   alto="hero"     → toda la pantalla, para la bienvenida del showroom. El
+//                     filo dorado es un HORIZONTE abajo: un arco convexo enorme
+//                     que asoma desde el borde inferior.
+//   alto="compacta" → una cúpula oscura arriba, para las vistas con lista. La
+//                     parte oscura termina abajo en un arco ancho con filo
+//                     dorado y resplandor que cae sobre el fondo de la página.
 //
-// La curva la dibuja la clase .curva (index.css, con media queries); el
-// resplandor dorado del borde es una sombra interior que sigue esa misma curva.
+// Los dos arcos (radios, filo y resplandor) están en index.css
+// (.cabecera-cupula y .cabecera-horizonte), porque necesitan media queries.
+//
+// Las vistas del personal (/taller y /admin) usan tono="claro": sin parte
+// oscura ni curva, solo la barra cápsula de vidrio CLARO flotando sobre el
+// fondo claro de la página (texto en tinta y conos en sus tonos para claro).
+// /display usa el tono "oscuro" (por defecto), que es lo de arriba.
 import type { ReactNode } from "react";
-import { AREAS, COLOR_AREA, NOMBRE_AREA } from "../dominio";
+import { AREAS, COLOR_AREA, COLOR_AREA_OSCURO, NOMBRE_AREA } from "../dominio";
 import { Cono } from "./Cono";
 import { LogoML } from "./LogoML";
 
@@ -19,56 +28,99 @@ interface Props {
   conos?: boolean;
   // Botones propios de la vista (Inicio, + Nuevo auto, Salir…).
   acciones?: ReactNode;
-  // Contenido centrado del hero (título, subtítulo, flecha).
+  // Contenido centrado del hero (emblema, título, subtítulo, flecha).
   children?: ReactNode;
+  // "oscuro" (por defecto) = cúpula/horizonte oscuro del showroom.
+  // "claro" = solo la barra de vidrio claro (vistas del personal, compacta).
+  tono?: "oscuro" | "claro";
 }
 
-export function CabeceraCurva({ alto, conos, acciones, children }: Props) {
+export function CabeceraCurva({
+  alto,
+  conos,
+  acciones,
+  children,
+  tono = "oscuro",
+}: Props) {
   const hero = alto === "hero";
+  const claro = tono === "claro";
 
-  return (
+  // Barra cápsula de vidrio oscuro. En el celular no entra todo en una fila:
+  // el logo y los botones quedan arriba y la referencia de conos baja a una
+  // segunda fila (por eso deja de ser una cápsula perfecta y pasa a esquinas
+  // redondeadas). De tablet para arriba, todo en una sola fila.
+  const barra = (
     <div
-      className={`relative overflow-hidden bg-tinta text-white ${
-        hero
-          ? "curva flex min-h-[86dvh] flex-col px-4 pt-4 pb-16 sm:px-8 sm:pt-6 sm:pb-24"
-          : "curva-baja px-4 pt-4 pb-12 sm:px-8 sm:pt-5 sm:pb-16 xl:pb-20"
+      className={`relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[28px] py-2 pr-2 pl-4 sm:gap-x-6 sm:rounded-full sm:pl-5 ${
+        claro ? "text-tinta vidrio-claro" : "vidrio-oscuro"
       }`}
-      style={{
-        boxShadow:
-          "inset 0 -42px 28px -32px rgba(238, 172, 28, 0.85), 0 8px 28px -14px rgba(242, 194, 48, 0.2)",
-      }}
     >
-      {/* Fila de arriba: logo a la izquierda, referencia y botones a la derecha.
-          En el celular bajan de fila en vez de apretarse. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-        <LogoML className="h-10 w-auto shrink-0 sm:h-14 xl:h-16" />
+      <LogoML className="h-9 w-auto shrink-0 sm:h-10 xl:h-12" />
 
-        <div className="flex flex-wrap items-center gap-3 sm:gap-6">
-          {conos && (
-            <div className="flex flex-wrap gap-x-4 gap-y-2 sm:gap-6">
-              {AREAS.map((tipo) => (
-                <div key={tipo} className="flex items-center gap-2">
-                  <Cono
-                    color={COLOR_AREA[tipo]}
-                    estado="esperando"
-                    className="h-6 w-6 shrink-0 sm:h-8 sm:w-8 xl:h-9 xl:w-9"
-                  />
-                  <span className="text-base sm:text-xl xl:text-2xl">
-                    {NOMBRE_AREA[tipo]}
-                  </span>
-                </div>
-              ))}
+      {conos && (
+        <div className="order-last flex w-full flex-wrap justify-center gap-x-4 gap-y-1 pb-1 sm:order-none sm:ml-auto sm:w-auto sm:justify-end sm:gap-x-6 sm:pb-0 xl:gap-x-8">
+          {AREAS.map((tipo) => (
+            <div key={tipo} className="flex items-center gap-2 sm:gap-2.5">
+              <Cono
+                color={claro ? COLOR_AREA[tipo] : COLOR_AREA_OSCURO[tipo]}
+                estado="esperando"
+                className="h-5 w-auto shrink-0 sm:h-6 xl:h-7"
+              />
+              <span className="text-sm font-medium sm:text-lg xl:text-xl">
+                {NOMBRE_AREA[tipo]}
+              </span>
             </div>
-          )}
-          {acciones}
-        </div>
-      </div>
-
-      {hero && (
-        <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center sm:gap-6">
-          {children}
+          ))}
         </div>
       )}
+
+      {acciones && (
+        <div
+          className={`ml-auto flex items-center gap-2 sm:gap-3 ${
+            conos ? "sm:ml-0" : ""
+          }`}
+        >
+          {acciones}
+        </div>
+      )}
+    </div>
+  );
+
+  if (hero) {
+    return (
+      <div className="relative flex min-h-dvh flex-1 flex-col overflow-hidden bg-tinta px-3 pt-3 text-crema cabecera-cielo sm:px-8 sm:pt-6 bajo:pt-3">
+        {/* El horizonte dorado: decorativo, detrás de todo el contenido. */}
+        <div aria-hidden="true" className="cabecera-horizonte" />
+
+        {barra}
+
+        {/* En pantallas bajas (celular acostado) casi sin aire abajo, para
+            que el emblema y los textos entren sin scroll ni pisen el
+            horizonte. */}
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center pt-4 pb-[16dvh] text-center bajo:pt-0 bajo:pb-[7dvh]">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  // Claro: la barra sola, flotando con un margen chico alrededor. Sin relleno
+  // abajo: el aire hasta el título lo pone la página.
+  if (claro) {
+    return <div className="px-3 pt-3 sm:px-6 sm:pt-6 xl:px-10">{barra}</div>;
+  }
+
+  // Compacta: la cúpula oscura va detrás de la barra y termina un poco antes
+  // del borde de abajo, para que su resplandor dorado tenga lugar donde
+  // apagarse (el contenedor recorta lo que sobra y no pisa el contenido de la
+  // página). El espacio de abajo es transparente: se ve el fondo de la vista.
+  return (
+    <div className="relative overflow-hidden px-3 pt-3 pb-14 text-crema sm:px-8 sm:pt-6 sm:pb-20 xl:pb-26">
+      <div
+        aria-hidden="true"
+        className="absolute inset-x-0 top-0 bottom-8 cabecera-cupula sm:bottom-10 xl:bottom-12"
+      />
+      {barra}
     </div>
   );
 }

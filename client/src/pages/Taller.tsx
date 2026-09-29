@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import {
+  ErrorApi,
   NoAutorizado,
   cambiarEstadoServicio,
   obtenerVehiculosAdmin,
@@ -27,15 +28,21 @@ export function Taller() {
   const [logueado, setLogueado] = useState(() => leerPin() !== null);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [sinConexion, setSinConexion] = useState(false);
+  // Aviso de arriba: sin conexión, o el mensaje de error del server (ej. 429).
+  const [aviso, setAviso] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
+  // 401 (PIN viejo) => volver al login, que corta el poll y el socket.
   const cargar = useCallback(async () => {
     try {
       setVehiculos(await obtenerVehiculosAdmin());
-      setSinConexion(false);
-    } catch {
-      setSinConexion(true);
+      setAviso(null);
+    } catch (e) {
+      if (e instanceof NoAutorizado) {
+        setLogueado(false);
+      } else {
+        setAviso(avisoDeError(e));
+      }
     } finally {
       setCargando(false);
     }
@@ -69,7 +76,7 @@ export function Taller() {
       if (e instanceof NoAutorizado) {
         setLogueado(false);
       } else {
-        setSinConexion(true);
+        setAviso(avisoDeError(e));
       }
     } finally {
       setOcupado(false);
@@ -112,7 +119,7 @@ export function Taller() {
       />
 
       <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
-        {sinConexion && (
+        {aviso && (
           <p
             className={`${AVISO} mx-auto mb-6 flex w-fit max-w-full items-center justify-center gap-3 px-5 py-3 text-base shadow-[0_16px_40px_-18px_rgba(150,100,10,0.6)] sm:mb-8 sm:text-lg`}
           >
@@ -121,7 +128,7 @@ export function Taller() {
               aria-hidden="true"
               className="animate-titilar h-2 w-2 shrink-0 rounded-full bg-tinta"
             />
-            Sin conexión con el servidor — reintentando…
+            {aviso}
           </p>
         )}
 
@@ -151,4 +158,12 @@ export function Taller() {
       </main>
     </div>
   );
+}
+
+// Texto del aviso para un error que no es de PIN: el mensaje del server si lo
+// hay (ej. demasiados intentos) o, si no respondió, sin conexión.
+function avisoDeError(e: unknown): string {
+  return e instanceof ErrorApi
+    ? e.message
+    : "Sin conexión con el servidor — reintentando…";
 }

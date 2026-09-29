@@ -3,6 +3,7 @@
 // Fase 3: sin tiempo real; tras cada acción se vuelve a pedir la lista.
 import { useCallback, useEffect, useState } from "react";
 import {
+  ErrorApi,
   NoAutorizado,
   agregarServicio,
   cambiarEstadoServicio,
@@ -32,12 +33,20 @@ export function Admin() {
   const [ocupado, setOcupado] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
 
+  // 401 (PIN viejo) => volver al login; 429 u otro error del server => su
+  // mensaje; sin respuesta => sin conexión.
   const cargar = useCallback(async () => {
     try {
       setVehiculos(await obtenerVehiculosAdmin());
       setError(null);
-    } catch {
-      setError("No se pudo conectar con el servidor.");
+    } catch (e) {
+      if (e instanceof NoAutorizado) {
+        setLogueado(false);
+      } else {
+        setError(
+          e instanceof ErrorApi ? e.message : "No se pudo conectar con el servidor.",
+        );
+      }
     } finally {
       setCargando(false);
     }

@@ -13,11 +13,13 @@ import type { TipoServicio } from "../src/tipos.js";
 
 // Una base nueva por archivo de test (node --test corre cada archivo en su
 // propio proceso), con sus backups en una subcarpeta. Sin demora: los avisos
-// vencen apenas se programan.
+// vencen apenas se programan. Las horas visibles no son las de fábrica (4), para
+// poder ver que el valor inicial sale de la variable de entorno.
 const carpeta = mkdtempSync(join(tmpdir(), "taller-tests-"));
 process.env.DB_PATH = join(carpeta, "taller.db");
 process.env.CARPETA_BACKUPS = join(carpeta, "backups");
 process.env.AVISOS_DEMORA_MIN = "0";
+process.env.HORAS_VISIBLE_TERMINADO = "6";
 
 export const { db } = await import("../src/db.js");
 export const { despacharPendientes } = await import("../src/avisos.js");
@@ -25,9 +27,19 @@ export const { ErrorDefinitivo } = await import("../src/enviadores.js");
 export const { agregarServicio, cambiarEstado, quitarServicio } = await import(
   "../src/servicios.js"
 );
-export const { crearVehiculo, editarVehiculo, retirarVehiculo } = await import(
-  "../src/vehiculos.js"
+export const {
+  crearVehiculo,
+  editarVehiculo,
+  listarVehiculosVisibles,
+  retirarVehiculo,
+} = await import("../src/vehiculos.js");
+export const { AJUSTES, guardarAjustes, leerAjuste, listarAjustes } = await import(
+  "../src/ajustes.js"
 );
+export const { cambiarPin, exigirPin, limitePin, obtenerPin, verificarPin } =
+  await import("../src/auth.js");
+export const { MAX_FALLIDOS, MINUTOS_BLOQUEO, MINUTOS_OLVIDO, crearLimitador } =
+  await import("../src/intentosPin.js");
 export const {
   CARPETA_BACKUPS,
   MAX_BACKUPS,

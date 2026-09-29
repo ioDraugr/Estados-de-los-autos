@@ -1,0 +1,4 @@
+# Fin de línea fijo para los scripts de arranque, así un clon en Windows no
+# los rompe: bash necesita LF y cmd.exe necesita CRLF.
+*.sh text eol=lf
+*.bat text eol=crlf

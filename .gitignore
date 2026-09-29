@@ -24,3 +24,6 @@ server/data/whatsapp-sesion/
 
 # Índice local de CodeGraph
 .codegraph/
+
+# Configuración local de Docker (puede tener el PIN). El modelo es .env.example.
+.env

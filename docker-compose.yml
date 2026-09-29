@@ -1,0 +1,43 @@
+# Tablero del taller en Docker. Se levanta (y se actualiza) con:
+#   docker compose up -d --build
+# Ver la sección "Desplegar en una PC nueva (Docker)" del README.
+
+# Nombre fijo del proyecto: así el volumen de la base se llama siempre igual
+# (taller-ml_datos), aunque la carpeta del repo tenga otro nombre.
+name: taller-ml
+
+services:
+  taller:
+    build: .
+    image: taller-ml:latest
+    # Vuelve a arrancar solo si se cae o se reinicia la PC (con Docker
+    # configurado para arrancar al prender). Solo queda parado si alguien lo
+    # para a mano con `docker compose stop` o `down`.
+    restart: unless-stopped
+    # Un init chiquito como proceso 1: pasa las señales a Node para que
+    # `docker compose stop` lo pare al toque.
+    init: true
+    ports:
+      # Puerto de la PC → puerto del contenedor. Se cambia con PUERTO en el .env.
+      - "${PUERTO:-3000}:3000"
+    # Configuración del taller (PIN, avisos, etc.). Es opcional: sin .env se
+    # usan los defaults. Ver .env.example.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # Hora local para los logs (Uruguay). Se cambia con TZ en el .env.
+      TZ: ${TZ:-America/Montevideo}
+      # Fijos en Docker: el puerto de adentro no se toca (se cambia PUERTO) y la
+      # base y la sesión de WhatsApp van SIEMPRE al volumen.
+      PORT: "3000"
+      DB_PATH: /app/server/data/taller.db
+      WHATSAPP_SESION_DIR: /app/server/data/whatsapp-sesion
+    volumes:
+      # Base (taller.db) + sesión de WhatsApp. Sobrevive a reinicios, a
+      # `docker compose down` y a las actualizaciones. Se borra SOLO con
+      # `docker compose down -v`.
+      - datos:/app/server/data
+
+volumes:
+  datos:

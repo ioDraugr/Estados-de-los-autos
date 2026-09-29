@@ -1,0 +1,35 @@
+# Lo que NO entra al build de la imagen. Las dependencias y los builds se
+# generan adentro; la base, la sesión de WhatsApp y el .env nunca se meten en
+# la imagen (son datos y credenciales de cada taller).
+
+# Dependencias y builds locales
+**/node_modules
+**/dist
+
+# Datos: base SQLite y sesión de WhatsApp (credenciales)
+server/data
+
+# Configuración local (puede tener el PIN)
+.env
+.env.*
+
+# Git, herramientas y documentación
+.git
+.gitignore
+.gitattributes
+.codegraph
+.claude
+odd
+*.md
+Ejemplo.png
+
+# Archivos de despliegue (no hacen falta adentro de la imagen)
+Dockerfile
+.dockerignore
+docker-compose.yml
+iniciar.sh
+iniciar.bat
+
+# Logs y sistema
+*.log
+.DS_Store

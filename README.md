@@ -10,14 +10,213 @@ Ver [CLAUDE.md](./CLAUDE.md) para el detalle del proyecto y las reglas.
 
 ```
 proyectoML2/
-├── client/   → Front: Vite + React + TypeScript + Tailwind
-├── server/   → Back: Node + Express + better-sqlite3 + Socket.IO
+├── client/              → Front: Vite + React + TypeScript + Tailwind
+├── server/              → Back: Node + Express + better-sqlite3 + Socket.IO
+├── Dockerfile           → Imagen con todo adentro (ver "Desplegar en una PC nueva")
+├── docker-compose.yml   → Cómo se levanta: puerto, volumen de datos, reinicio solo
+├── .env.example         → Modelo de la configuración del taller
+├── iniciar.bat / .sh    → Arrancar con doble clic (Windows) o ./iniciar.sh (Linux)
 └── CLAUDE.md
 ```
 
 ## Requisitos
 
-- Node.js 20 o superior (probado con Node 24).
+- **Para dejarlo andando en el taller (recomendado): solo Docker.** No hace falta
+  Node, npm ni compiladores. Ver
+  [Desplegar en una PC nueva (Docker)](#desplegar-en-una-pc-nueva-docker).
+- Para desarrollar (o correrlo sin Docker): Node.js 20 o superior (probado con
+  Node 24).
+
+## Desplegar en una PC nueva (Docker)
+
+Es la forma recomendada de instalarlo en la PC que hace de servidor. Todo lo que
+necesita la app (Node, las dependencias, el binario de `better-sqlite3`) queda
+adentro de una imagen de Docker, así que en la PC solo se instala Docker. El
+server **arranca solo al prender la PC** y la base queda guardada aparte (en un
+volumen de Docker), así que no se pierde al reiniciar ni al actualizar.
+
+> ⚠️ **La primera vez (y en cada actualización) hace falta internet**: el build
+> baja la imagen de Node y las dependencias. Después la app anda sin internet,
+> como siempre (salvo los [avisos reales por WhatsApp](#avisos-por-whatsapp)).
+
+### 1. Instalar Docker (una sola vez)
+
+**Windows 10/11**
+
+1. Instalá [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/).
+   Usa **WSL 2**: si el instalador lo pide, aceptá y reiniciá (si no está, se
+   instala con `wsl --install` en una PowerShell como administrador).
+2. Abrí Docker Desktop → **Settings → General** → tildá **"Start Docker Desktop
+   when you sign in to your computer"**. Así, al prender la PC, Docker arranca y
+   levanta el tablero solo.
+3. Docker Desktop arranca cuando alguien **inicia sesión** en Windows. Si la PC
+   se reinicia (un corte de luz, una actualización) y nadie entra, el tablero no
+   vuelve. Para que quede solo, activá el **inicio de sesión automático** (ver
+   abajo).
+4. La primera vez que arranque el tablero, Windows puede preguntar por el
+   **firewall**: permití el acceso en **redes privadas**, si no, la pantalla y la
+   tablet no llegan al server.
+
+**Windows: inicio de sesión automático**
+
+> ⚠️ Con esto, **cualquiera que prenda la PC queda adentro** de ese usuario sin
+> poner contraseña. Usá un usuario **local y estándar** (sin permisos de
+> administrador), dedicado al tablero, y no dejes en él nada personal.
+
+1. Creá (o elegí) ese usuario en **Configuración → Cuentas → Otros usuarios**.
+   Tiene que estar en el grupo **`docker-users`** para poder usar Docker Desktop
+   (el instalador solo agrega al usuario que instaló). Se agrega desde una
+   PowerShell como administrador:
+   ```powershell
+   net localgroup docker-users NOMBRE_DEL_USUARIO /add
+   ```
+   Entrá una vez con ese usuario y hacé el paso 2 de arriba (que Docker arranque
+   al iniciar sesión).
+2. En **Windows 11**, primero desactivá **Configuración → Cuentas → Opciones de
+   inicio de sesión → "Para mayor seguridad, permitir solo el inicio de sesión
+   con Windows Hello…"** (si no, el paso 3 no muestra la casilla).
+3. Apretá `Win + R`, escribí `netplwiz` y Enter. Elegí el usuario, destildá
+   **"Los usuarios deben escribir su nombre y contraseña para usar el equipo"**,
+   Aceptar, y poné la contraseña de ese usuario cuando la pida.
+4. Reiniciá la PC para probar: tiene que entrar sola, arrancar Docker Desktop y a
+   los pocos segundos el tablero responde en la pantalla del showroom.
+
+Si la casilla de `netplwiz` no aparece igual, la herramienta oficial
+[Autologon](https://learn.microsoft.com/sysinternals/downloads/autologon) de
+Microsoft hace lo mismo (y guarda la contraseña cifrada).
+
+**Linux (Ubuntu, Debian, etc.)**
+
+1. Instalá [Docker Engine](https://docs.docker.com/engine/install/) con el plugin
+   `docker compose` (viene en los paquetes oficiales).
+2. Que arranque ahora y en cada inicio:
+   ```bash
+   sudo systemctl enable --now docker
+   ```
+3. Para usar Docker sin `sudo`, agregá tu usuario al grupo `docker` y **cerrá la
+   sesión y volvé a entrar**:
+   ```bash
+   sudo usermod -aG docker "$USER"
+   ```
+
+### 2. Bajar el proyecto y arrancar
+
+```bash
+git clone <url-del-repo> tablero-taller
+cd tablero-taller
+```
+
+(En Windows, `git` viene con [Git for Windows](https://git-scm.com/download/win).)
+
+Y después, **una de estas**:
+
+- **Windows:** doble clic en `iniciar.bat`.
+- **Linux:** `./iniciar.sh`
+- **A mano (cualquiera):** `docker compose up -d --build`
+
+Los scripts chequean que Docker esté instalado y andando, crean el `.env` si no
+existe (copiando `.env.example`), levantan todo, esperan a que el server responda
+y muestran las direcciones para abrir desde los otros dispositivos, por ejemplo:
+
+```
+  Pantalla del showroom: http://192.168.1.50:3000/display
+  Vendedores (admin):    http://192.168.1.50:3000/admin
+  Taller:                http://192.168.1.50:3000/taller
+```
+
+Si algo falla, muestran los últimos logs del server. La primera vez tarda unos
+minutos (el build); las siguientes, segundos.
+
+A partir de ahí el contenedor queda con `restart: unless-stopped`: si se cae o se
+reinicia la PC, **vuelve a arrancar solo**. Solo queda parado si alguien lo para
+a mano.
+
+### 3. Configurar (`.env`)
+
+La configuración del taller va en un archivo `.env`, en la carpeta del proyecto.
+Es opcional (sin `.env` se usan los defaults) y **no se sube a git**. El modelo es
+`.env.example`, con cada variable explicada:
+
+| Variable | Default | Para qué sirve |
+| --- | --- | --- |
+| `PUERTO` | `3000` | Puerto de la PC donde queda la app (`http://<ip>:PUERTO`). |
+| `TZ` | `America/Montevideo` | Zona horaria de los logs. |
+| `ADMIN_PIN`, `HORAS_VISIBLE_TERMINADO`, `AVISOS_*` | | Igual que sin Docker, ver [Configuración](#configuración). |
+
+Después de cambiar el `.env`: `docker compose up -d` (recrea el contenedor con la
+configuración nueva; los datos quedan). Ojo que `ADMIN_PIN` solo sirve **la
+primera vez** (después el PIN vive en la base).
+
+En Docker, `PORT`, `DB_PATH` y `WHATSAPP_SESION_DIR` **no se configuran**: los
+fija el `docker-compose.yml`, para que la base y la sesión de WhatsApp vayan
+siempre al volumen de datos.
+
+### El día a día
+
+Todos los comandos se corren **en la carpeta del proyecto** (en Windows, en una
+PowerShell o Windows Terminal abierta ahí).
+
+| Para | Comando |
+| --- | --- |
+| Ver los logs en vivo (y el QR de WhatsApp) | `docker compose logs -f` (Ctrl+C para salir; el server sigue andando) |
+| Ver si está andando | `docker compose ps` (tiene que decir `healthy`) |
+| Reiniciar el server | `docker compose restart` |
+| Parar el tablero | `docker compose down` (no vuelve a arrancar hasta el próximo `up`) |
+| Actualizar a la última versión | `git pull` y después `docker compose up -d --build` (o `iniciar.bat` / `./iniciar.sh`) |
+
+Actualizar **no toca los datos**: se rearma la imagen y el contenedor nuevo usa el
+mismo volumen.
+
+> ⚠️ **Nunca uses `docker compose down -v`.** La `-v` borra el volumen, o sea **la
+> base con todos los autos y la sesión de WhatsApp**. Para parar, `docker compose
+> down` a secas.
+
+**Vincular WhatsApp en Docker.** Poné `AVISOS_ENVIO=baileys` en el `.env`, corré
+`docker compose up -d` y mirá los logs con `docker compose logs -f --no-log-prefix`
+(sin el prefijo de cada línea el QR se escanea mejor). El resto es igual que en
+[Vincular el celular](#vincular-el-celular-una-sola-vez). La sesión queda en el
+volumen, así que sobrevive a reinicios y actualizaciones. En Windows, mirá el QR
+en PowerShell o Windows Terminal (el `cmd` viejo puede mostrarlo roto).
+
+### Respaldo de la base
+
+La base (`taller.db`) y la sesión de WhatsApp viven en el volumen `taller-ml_datos`,
+que adentro del contenedor está en `/app/server/data`. La base usa el modo WAL de
+SQLite: los últimos cambios pueden estar todavía en `taller.db-wal`, así que
+**copiar `taller.db` suelto con el server andando puede dejar datos afuera**. Hay
+dos formas seguras:
+
+**Solo la base, sin parar nada** (usa el backup de SQLite, que sale consistente
+aunque el server esté andando):
+
+```bash
+docker compose exec taller node -e "const D=require('better-sqlite3');new D('/app/server/data/taller.db',{readonly:true}).backup('/app/server/data/respaldo.db').then(()=>console.log('Respaldo listo'))"
+docker compose cp taller:/app/server/data/respaldo.db ./respaldo-taller.db
+docker compose exec taller rm /app/server/data/respaldo.db
+```
+
+Queda `respaldo-taller.db` en la carpeta del proyecto; guardalo en otro lado
+(pendrive, otra PC).
+
+**Todo (base + sesión de WhatsApp), parando un momento:**
+
+```bash
+docker compose stop
+docker compose cp taller:/app/server/data ./respaldo-completo
+docker compose start
+```
+
+> ⚠️ El respaldo completo **incluye la sesión de WhatsApp**, que son las
+> credenciales del número (ver [La sesión es secreta](#la-sesión-es-secreta)):
+> guardalo en un lugar privado.
+
+**Restaurar** un `respaldo-taller.db` (pisa la base actual):
+
+```bash
+docker compose stop
+docker compose run --rm --no-deps --user root -v ./respaldo-taller.db:/respaldo.db:ro taller sh -c "cp /respaldo.db /app/server/data/taller.db && rm -f /app/server/data/taller.db-wal /app/server/data/taller.db-shm && chown node:node /app/server/data/taller.db"
+docker compose start
+```
 
 ## Instalar
 
@@ -64,6 +263,9 @@ En dev, el front hace proxy de `/api` y `/socket.io` hacia el backend, así que 
 hace falta configurar nada más.
 
 ## Correr en producción (una sola máquina en el taller)
+
+> Lo recomendado es [con Docker](#desplegar-en-una-pc-nueva-docker). Esto es para
+> correrlo a mano, con Node instalado.
 
 ```bash
 # 1. Buildear el front

@@ -82,6 +82,10 @@ compose, scripts y README). Un writer acotado, verificación en el padre.
   impresas, `/api/health` `{"ok":true}`, 8 autos, `/admin` sirve el front. Limpieza hecha.
 - Sin probar: `iniciar.bat` (no hay Windows acá; revisado por lectura, CRLF ok) y el reinicio
   real de la PC/daemon.
+- RDD assess (base `1f7bd9e`, commits D1–D3): high (`iniciar.sh` ejecutable/shell), 707 líneas,
+  `review_due=true` / `high_risk` → STATUS → start → `consent_required`. El usuario eligió
+  **saltear esta vez** → `declined_this_candidate` (sin registro de revisión). Entrega bajo la
+  política normal del repo.
 
 ## Próximo paso
 Push de `feat/despliegue-docker` y PR contra `main` (decisión del usuario). Probar `iniciar.bat` en

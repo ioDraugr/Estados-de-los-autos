@@ -7,11 +7,12 @@ import { Server as SocketServer } from "socket.io";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import "./db.js"; // inicializa la base y crea las tablas
-import { exigirPin, pinEsValido } from "./auth.js";
+import { guardarAjustes, listarAjustes } from "./ajustes.js";
+import { cambiarPin, exigirPin, ipDe, verificarPin } from "./auth.js";
 import { iniciarAvisos } from "./avisos.js";
 import { elegirEnviador } from "./enviadores.js";
 import { ErrorValidacion } from "./errores.js";
-import { iniciarBackups } from "./respaldos.js";
+import { estadoBackups, hacerBackup, iniciarBackups } from "./respaldos.js";
 import { sembrarSiVacia } from "./seed.js";
 import {
   agregarServicio,
@@ -68,22 +69,34 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Login: valida el PIN para que el front rechace uno mal al iniciar. Igual cada
-// endpoint que escribe revalida el PIN por su cuenta (exigirPin).
+// endpoint que escribe revalida el PIN por su cuenta (exigirPin). Cuenta para
+// el límite de intentos: 5 mal => 429 por 5 minutos (ver intentosPin.ts).
 app.post("/api/login", (req, res) => {
-  if (pinEsValido(req.body?.pin)) {
-    res.json({ ok: true });
+  const rechazo = verificarPin(ipDe(req), req.body?.pin, { reiniciarFallos: true });
+  if (rechazo) {
+    res.status(rechazo.status).json(rechazo.cuerpo);
     return;
   }
-  res.status(401).json({ error: "PIN inválido" });
+  res.json({ ok: true });
 });
 
 // Autos a mostrar. Sin parámetros: los del showroom (/display). Con ?todos=1:
 // todos los no retirados, incluidos los terminados hace rato (para /admin).
-// Es pública (sin PIN), pero el celular del cliente solo viaja si el pedido
-// trae un `x-pin` válido: /display NUNCA lo recibe.
+// Sin `x-pin` es pública, pero sin el celular del cliente: /display NUNCA lo
+// recibe. Con `x-pin` el PIN se valida como en cualquier otra ruta (mal => 401
+// y cuenta para el bloqueo): si no, probar PINs acá se saltearía el límite,
+// porque que vengan o no los celulares dice si el PIN era el correcto.
 app.get("/api/vehiculos", (req, res) => {
+  const pin = req.header("x-pin");
+  if (pin) {
+    const rechazo = verificarPin(ipDe(req), pin);
+    if (rechazo) {
+      res.status(rechazo.status).json(rechazo.cuerpo);
+      return;
+    }
+  }
   manejar(res, "listar vehículos", () => {
-    const opciones = { incluirTelefono: pinEsValido(req.header("x-pin")) };
+    const opciones = { incluirTelefono: Boolean(pin) };
     const lista = req.query.todos
       ? listarTodos(opciones)
       : listarVehiculosVisibles(opciones);
@@ -172,6 +185,54 @@ app.delete("/api/servicios/:id", exigirPin, (req, res) => {
     emitirCambio();
     res.json({ ok: true });
   });
+});
+
+// --- Configuración (/admin → Configuración) ---
+
+// Ajustes editables y estado de los backups, todo junto para la pantalla.
+function configuracion() {
+  return { ajustes: listarAjustes(), backups: estadoBackups() };
+}
+
+app.get("/api/config", exigirPin, (_req, res) => {
+  manejar(res, "leer configuración", () => {
+    res.json(configuracion());
+  });
+});
+
+// Guarda ajustes: body { clave: valor, ... } (todos o ninguno, ver ajustes.ts).
+// Se avisa el cambio para que el showroom se actualice ya (ej. las horas que
+// sigue visible un auto terminado).
+app.patch("/api/config", exigirPin, (req, res) => {
+  manejar(res, "guardar configuración", () => {
+    guardarAjustes(req.body);
+    emitirCambio();
+    res.json(configuracion());
+  });
+});
+
+// Cambiar el PIN: body { actual, nuevo }. El actual mal cuenta para el bloqueo.
+app.post("/api/config/pin", exigirPin, (req, res) => {
+  manejar(res, "cambiar PIN", () => {
+    const rechazo = cambiarPin(ipDe(req), req.body?.actual, req.body?.nuevo);
+    if (rechazo) {
+      res.status(rechazo.status).json(rechazo.cuerpo);
+      return;
+    }
+    res.json({ ok: true });
+  });
+});
+
+// Backup a mano ("Hacer backup ahora"). Devuelve el estado con el nuevo.
+app.post("/api/backups", exigirPin, async (_req, res) => {
+  try {
+    await hacerBackup("manual");
+    res.json(estadoBackups());
+  } catch (error) {
+    // hacerBackup ya lo logueó y lo dejó en estadoBackups().ultimoError.
+    const motivo = error instanceof Error ? error.message : String(error);
+    res.status(500).json({ error: `No se pudo hacer el backup: ${motivo}` });
+  }
 });
 
 // --- Front (build de Vite) ---

@@ -30,8 +30,10 @@ cambian por `.env`/base, y no hay freno a probar PINs.
 ## Alcance y restricciones
 - Un solo PIN compartido /admin y /taller (no se agregan roles).
 - Copia con `db.backup()` de better-sqlite3 (WAL-safe). Nada de copiar el archivo a mano.
-- Los intentos que cuentan para el bloqueo: `POST /api/login` y rutas con `exigirPin`. El
-  `GET /api/vehiculos` con PIN viejo NO cuenta (si no, una tablet con PIN viejo se bloquearía sola).
+- Los intentos que cuentan para el bloqueo: `POST /api/login`, rutas con `exigirPin`, el cambio
+  de PIN y `GET /api/vehiculos` cuando trae `x-pin` (revisado en F2: si no contara, se podrían
+  probar PINs por ahí). Para que una tablet con el PIN viejo no se bloquee sola, ante el 401 el
+  cliente borra el PIN y vuelve a la pantalla de PIN.
 - Ajustes editables guardados en la tabla `config` (clave/valor) ya existente; la variable de
   entorno solo da el valor inicial.
 - Todo en español; touch-first; sin `<form>` submit (onClick/onChange). CLAUDE.md: commit por fase.
@@ -59,14 +61,14 @@ cambian por `.env`/base, y no hay freno a probar PINs.
   - Docker: bind mount `./server/data/backups` → `/app/server/data/backups`; `iniciar.sh` /
     `iniciar.bat` crean la carpeta antes de levantar (permisos del usuario `node`).
   - Tests: copia legible con los datos, rotación a 30, "ya hay copia de hoy".
-- [ ] F2 — Límite de PIN + API de configuración. Ruta: delegated direct.
+- [x] F2 — Límite de PIN + API de configuración. Ruta: delegated direct.
   - Bloqueo por IP: 5 fallidos → 429 `{error, minutosRestantes}` por 5 min.
   - `GET/PATCH /api/config` con registro de ajustes (clave, tipo, min/max, default desde env),
     `POST /api/config/pin` (PIN actual + nuevo), `POST /api/backups`.
   - `HORAS_VISIBLE_TERMINADO` leído de `config` en cada consulta; al cambiar, emitir
     `vehiculos:cambio`.
   - Tests.
-- [ ] F3 — Pantalla "Configuración" en /admin + README. Ruta: delegated direct.
+- [x] F3 — Pantalla "Configuración" en /admin + README. Ruta: delegated direct.
   - Botón en la cabecera → vista en vidrio con secciones PIN / Backups / Pantalla del showroom.
   - PinLogin muestra "Bloqueado, probá en X min"; PIN viejo guardado → vuelve a pedir PIN.
   - README: backups automáticos, Configuración, API, variables.
@@ -91,6 +93,68 @@ cambian por `.env`/base, y no hay freno a probar PINs.
   punta a punta, el timer horario en tiempo real (lógica con test).
   Riesgo conocido: host Linux con uid ≠ 1000 → `sudo chown 1000:1000 server/data/backups`
   (documentado en README). ~495+/32− líneas (≈200 tests, ≈80 README).
+  Commit F1: `208f83f` (slice PR 1 = `7e87af3..208f83f`). RDD assess (base `7e87af3`,
+  committed-only): high (`iniciar.sh`), 613 líneas, `review_due=true/high_risk` → STATUS → start →
+  `consent_required`; el usuario eligió **saltear esta vez** → `declined_this_candidate`.
+  Próxima base: `208f83f`.
+- F2 (writer delegado; verificación del padre): `npm test` 42/42 (24 + 7 `ajustes` + 11 `pin`),
+  `tsc --noEmit` ok, client `npm run build` ok + `npm run lint` (oxlint) sin hallazgos. Writer, smoke
+  en dev (puerto 3096, base temporal): 5 PIN mal → 429 en el 5.º, PIN bueno bloqueado → 429 (login,
+  lista y config); otra IP → 200; GET/PATCH `/api/config` (100 → 400); `vehiculos:cambio` recibido
+  por socket; `POST /api/backups` ok; cambio de PIN (actual mal → 401, `"12"` → 400, ok → 200) y
+  PIN viejo en la lista → 401; lista pública sin PIN → 200 sin `telefono`.
+  Diseño: `intentosPin.ts` (`crearLimitador(reloj)`, olvida IPs sin bloqueo tras 60 min), PIN vacío
+  = 401 sin contar, `ajustes.ts` (registro `AJUSTES`, `leerAjuste/listarAjustes/guardarAjustes` en
+  transacción), `HORAS_VISIBLE_TERMINADO` ahora entero 1–72 (antes aceptaba decimales). Cliente:
+  `ErrorApi`, `login()` → `{ok}|{ok:false,bloqueado,mensaje}`, 401 en la lista → vuelve al PIN.
+  Sin probar: pantallas del cliente en navegador (F3), vencimiento del bloqueo por HTTP (test con
+  reloj falso), Docker/IP en Windows, 500 de `POST /api/backups`. ~828+/58− líneas.
+  Commit F2: `6ff7240` (slice PR 2 = `208f83f..6ff7240`). RDD assess (base `208f83f`,
+  committed-only): high (`hot_path: server/src/auth.ts`), 902 líneas, `review_due=true/high_risk`
+  → STATUS → start → `consent_required`; el usuario eligió **saltear esta vez** →
+  `declined_this_candidate`. Próxima base: `6ff7240`.
+- F3 (writer delegado; correcciones y verificación del padre): vista Configuración dentro de
+  /admin (`Configuracion.tsx`, `CambiarPin.tsx`, `TarjetaConfig.tsx`), PinLogin con cuenta regresiva
+  de bloqueo, Taller sin "reintentando" en el 429, README "Pantalla de Configuración".
+  Correcciones del padre sobre hallazgos del writer: (1) en el cambio de PIN el `x-pin` válido
+  ponía los fallos en cero, así que el PIN actual se podía adivinar sin límite → ahora solo el
+  login (`reiniciarFallos`) pone la cuenta en cero (F2 se corrige en este commit); (2) el cliente
+  distinguía el 401 del PIN actual por el texto del mensaje → ahora por `motivo: "pin_actual"`;
+  (3) "N de 30" estaba fijo en el cliente → `estadoBackups().maximo`.
+  Chequeos: `npm test` 43/43, `tsc --noEmit` ok, client build ok + oxlint sin hallazgos.
+  Navegador (headless 1180×820, server dev en 3095 con base temporal): vista se ve bien en
+  tablet; "Hacer backup ahora" → "Backup hecho." y 2 de 30; horas +2 → Guardar → "Guardado", API
+  devuelve 6; PIN actual mal → error en el campo sin desloguear; cambio 1234→5678 ok y el PIN queda
+  guardado; con el PIN viejo guardado → vuelve a la pantalla de PIN; 5 PIN mal → "Demasiados
+  intentos. Probá de nuevo en 5 min." y teclado deshabilitado. Server y datos temporales borrados.
+  Sin probar: celular (cabecera solo con íconos), fallback sin vidrio, estado de error de backup
+  en la UI, la cuenta regresiva hasta que vence, `iniciar.bat`.
+  Commit F3: `63965c4` (slice PR 3 = `6ff7240..63965c4`). RDD assess (base `6ff7240`,
+  committed-only): high (`hot_path: server/src/auth.ts`), 1013 líneas, `review_due=true/high_risk`
+  → STATUS → start → `consent_required`; el usuario eligió **saltear esta vez** →
+  `declined_this_candidate`. Entrega bajo la política normal del repo (sin revisión registrada).
+  Detalle F2: Ajuste de alcance: el `GET /api/vehiculos` con `x-pin` también
+  cuenta para el bloqueo (hoy filtra si el PIN es válido: aparecen o no los celulares, y eso
+  saltearía el límite). PIN mal → 401 y el cliente vuelve a pedir PIN (deja de sondear con el PIN
+  viejo, así no se bloquea solo). Limitación: detrás de Docker Desktop (Windows) la IP de origen
+  puede no preservarse → el bloqueo actuaría para todos.
+
+- 2026-10-01: chequeos del padre antes de entregar: `npm test` 43/43, `tsc --noEmit` ok, client
+  build ok + oxlint sin hallazgos. El usuario probó a mano (backups, restauración, cambio de PIN y
+  bloqueo) y dio el OK; pidió commit + push, el merge lo hace él en GitHub.
+  Entrega (`stacked-to-main`): ramas por fase en `origin` —
+  `feat/backup-configuracion-1-backup` (`7e87af3..208f83f`, base `main`),
+  `feat/backup-configuracion-2-pin` (`..6ff7240`, base la 1) y `feat/backup-configuracion`
+  (`..HEAD`, base la 2). Los PR no se crearon (no pedidos): links de creación en el cierre.
+  Skills `work-unit-commits` / `chained-pr`: no están en el registro de esta sesión.
+
+- 2026-10-01: el usuario mergeó con squash #8 (F1 → `main`, `60716cd`), #9 (F2 → rama 1) y
+  #10 (F3 → rama 2). GitHub no rebasó #9/#10 a `main`, así que a `main` solo llegó F1. Arreglo
+  (elegido por el usuario): rama `feat/backup-configuracion-pin-y-pantalla` sobre `main` con
+  cherry-pick de F2/F3/docs (árbol idéntico a `68c6b8d`; 43/43, tsc, build y lint ok) → PR #11.
+  Se borraron las ramas viejas de las fases (local + `origin`).
+  Lección: en cadenas de PR con squash, o se mergea uno por vez cambiando la base a `main`, o se
+  usa un solo PR.
 
 ## Próximo paso
-F2 — límite de PIN + API de configuración.
+El usuario mergea #11. Después: borrar el worktree y la rama `feat/backup-configuracion-pin-y-pantalla`.

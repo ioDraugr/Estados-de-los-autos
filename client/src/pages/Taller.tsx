@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import {
+  ErrorApi,
   NoAutorizado,
   cambiarEstadoServicio,
   obtenerVehiculosAdmin,
@@ -27,15 +28,22 @@ export function Taller() {
   const [logueado, setLogueado] = useState(() => leerPin() !== null);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [sinConexion, setSinConexion] = useState(false);
+  // Aviso de arriba: sin conexión (reintentando), o el mensaje de error del
+  // server (ej. 429 por demasiados intentos, que no es un problema de conexión).
+  const [aviso, setAviso] = useState<Aviso | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
+  // 401 (PIN viejo) => volver al login, que corta el poll y el socket.
   const cargar = useCallback(async () => {
     try {
       setVehiculos(await obtenerVehiculosAdmin());
-      setSinConexion(false);
-    } catch {
-      setSinConexion(true);
+      setAviso(null);
+    } catch (e) {
+      if (e instanceof NoAutorizado) {
+        setLogueado(false);
+      } else {
+        setAviso(avisoDeError(e));
+      }
     } finally {
       setCargando(false);
     }
@@ -69,7 +77,7 @@ export function Taller() {
       if (e instanceof NoAutorizado) {
         setLogueado(false);
       } else {
-        setSinConexion(true);
+        setAviso(avisoDeError(e));
       }
     } finally {
       setOcupado(false);
@@ -112,16 +120,18 @@ export function Taller() {
       />
 
       <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
-        {sinConexion && (
+        {aviso && (
           <p
             className={`${AVISO} mx-auto mb-6 flex w-fit max-w-full items-center justify-center gap-3 px-5 py-3 text-base shadow-[0_16px_40px_-18px_rgba(150,100,10,0.6)] sm:mb-8 sm:text-lg`}
           >
             {/* Puntito que titila: está reintentando. */}
-            <span
-              aria-hidden="true"
-              className="animate-titilar h-2 w-2 shrink-0 rounded-full bg-tinta"
-            />
-            Sin conexión con el servidor — reintentando…
+            {aviso.reintentando && (
+              <span
+                aria-hidden="true"
+                className="animate-titilar h-2 w-2 shrink-0 rounded-full bg-tinta"
+              />
+            )}
+            {aviso.texto}
           </p>
         )}
 
@@ -151,4 +161,17 @@ export function Taller() {
       </main>
     </div>
   );
+}
+
+interface Aviso {
+  texto: string;
+  reintentando: boolean;
+}
+
+// Aviso para un error que no es de PIN: el mensaje del server si lo hay (ej.
+// demasiados intentos) o, si no respondió, sin conexión (y reintentando).
+function avisoDeError(e: unknown): Aviso {
+  return e instanceof ErrorApi
+    ? { texto: e.message, reintentando: false }
+    : { texto: "Sin conexión con el servidor — reintentando…", reintentando: true };
 }

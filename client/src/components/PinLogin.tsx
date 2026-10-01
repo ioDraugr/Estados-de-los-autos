@@ -2,7 +2,9 @@
 // tablet). Valida el PIN contra el servidor; si es correcto lo guarda y avisa al
 // padre. Se ve sobre el fondo oscuro, con teclas circulares de vidrio y el OK
 // en el oro de la marca.
-import { useState } from "react";
+// Si el server bloqueó el dispositivo por demasiados PIN mal, el teclado se
+// apaga y el aviso cuenta los minutos que faltan; al terminar, vuelve solo.
+import { useEffect, useState } from "react";
 import { login } from "../api";
 import { guardarPin } from "../sesion";
 import { BOTON_MARCA } from "../tema";
@@ -16,7 +18,7 @@ const MEDIDA_TECLA =
 
 // Tecla circular de vidrio sobre el fondo oscuro. Al tocarla se ilumina y se
 // hunde apenas.
-const TECLA = `flex ${MEDIDA_TECLA} items-center justify-center rounded-full border border-crema/10 bg-crema/[0.09] text-[32px] font-normal text-crema shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl backdrop-saturate-[1.7] transition-[background-color,scale] duration-150 hover:bg-crema/[0.16] active:scale-[0.94] active:bg-crema/30 sm:text-4xl bajo:text-[28px]`;
+const TECLA = `flex ${MEDIDA_TECLA} items-center justify-center rounded-full border border-crema/10 bg-crema/[0.09] text-[32px] font-normal text-crema shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl backdrop-saturate-[1.7] transition-[background-color,scale] duration-150 hover:bg-crema/[0.16] active:scale-[0.94] active:bg-crema/30 disabled:opacity-40 sm:text-4xl bajo:text-[28px]`;
 
 // Cuántos aros se ven como mínimo (el PIN puede tener hasta 8 dígitos).
 const AROS_MINIMOS = 4;
@@ -27,36 +29,68 @@ interface Props {
 
 export function PinLogin({ onIngresar }: Props) {
   const [pin, setPin] = useState("");
-  const [error, setError] = useState(false);
+  // Mensaje a mostrar debajo de los puntitos (null = sin error).
+  const [error, setError] = useState<string | null>(null);
   const [verificando, setVerificando] = useState(false);
+  // Bloqueado por demasiados intentos: hasta cuándo (ms) y la hora de la última
+  // cuenta, que se refresca cada segundo mientras dura.
+  const [bloqueadoHasta, setBloqueadoHasta] = useState<number | null>(null);
+  const [ahora, setAhora] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (bloqueadoHasta === null) return;
+    const id = setInterval(() => {
+      const t = Date.now();
+      if (t >= bloqueadoHasta) {
+        setBloqueadoHasta(null);
+        setError(null);
+      } else {
+        setAhora(t);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [bloqueadoHasta]);
+
+  const bloqueado = bloqueadoHasta !== null;
+  const aviso = bloqueado
+    ? `Demasiados intentos. Probá de nuevo en ${Math.max(1, Math.ceil((bloqueadoHasta - ahora) / 60_000))} min.`
+    : error;
 
   const teclas = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
   function agregar(digito: string) {
-    if (verificando) return;
-    setError(false);
+    if (verificando || bloqueado) return;
+    setError(null);
     setPin((p) => (p.length < 8 ? p + digito : p));
   }
 
   function borrar() {
-    setError(false);
+    setError(null);
     setPin((p) => p.slice(0, -1));
   }
 
   async function ingresar() {
-    if (pin.length === 0 || verificando) return;
+    if (pin.length === 0 || verificando || bloqueado) return;
     setVerificando(true);
-    setError(false);
+    setError(null);
     try {
-      if (await login(pin)) {
+      const resultado = await login(pin);
+      if (resultado.ok) {
         guardarPin(pin);
         onIngresar();
       } else {
-        setError(true);
+        // PIN mal ("PIN incorrecto") o bloqueado por demasiados intentos (el
+        // server dice cuánto falta; si no lo dice, queda su mensaje tal cual).
+        setError(resultado.mensaje);
         setPin("");
+        if (resultado.bloqueado && resultado.minutosRestantes !== null) {
+          const t = Date.now();
+          setAhora(t);
+          setBloqueadoHasta(t + resultado.minutosRestantes * 60_000);
+        }
       }
     } catch {
-      setError(true);
+      setError("No se pudo conectar con el servidor.");
       setPin("");
     } finally {
       setVerificando(false);
@@ -95,9 +129,9 @@ export function PinLogin({ onIngresar }: Props) {
         </div>
 
         {/* Mismo lugar para el error: un rojo claro que se lee sobre el oscuro. */}
-        {error && (
-          <p className="mt-3 rounded-full bg-peligro/30 px-4 py-1.5 text-lg font-semibold text-[#F6B7A9] sm:text-xl">
-            PIN incorrecto
+        {aviso && (
+          <p className="mt-3 max-w-md rounded-3xl bg-peligro/30 px-4 py-1.5 text-center text-lg font-semibold text-[#F6B7A9] sm:text-xl">
+            {aviso}
           </p>
         )}
       </div>
@@ -108,6 +142,7 @@ export function PinLogin({ onIngresar }: Props) {
             key={t}
             type="button"
             onClick={() => agregar(t)}
+            disabled={bloqueado}
             className={TECLA}
           >
             {t}
@@ -117,18 +152,24 @@ export function PinLogin({ onIngresar }: Props) {
         <button
           type="button"
           onClick={borrar}
+          disabled={bloqueado}
           aria-label="Borrar"
-          className={`flex ${MEDIDA_TECLA} items-center justify-center rounded-full text-[28px] text-crema/75 transition-[background-color,color,scale] duration-150 hover:text-crema active:scale-[0.94] active:bg-crema/10 sm:text-[32px] bajo:text-[26px]`}
+          className={`flex ${MEDIDA_TECLA} items-center justify-center rounded-full text-[28px] text-crema/75 transition-[background-color,color,scale] duration-150 hover:text-crema active:scale-[0.94] active:bg-crema/10 disabled:opacity-40 sm:text-[32px] bajo:text-[26px]`}
         >
           ←
         </button>
-        <button type="button" onClick={() => agregar("0")} className={TECLA}>
+        <button
+          type="button"
+          onClick={() => agregar("0")}
+          disabled={bloqueado}
+          className={TECLA}
+        >
           0
         </button>
         <button
           type="button"
           onClick={ingresar}
-          disabled={verificando}
+          disabled={verificando || bloqueado}
           className={`${BOTON_MARCA} flex ${MEDIDA_TECLA} items-center justify-center text-[22px] tracking-[-0.01em] bajo:text-xl`}
         >
           {verificando ? "…" : "OK"}

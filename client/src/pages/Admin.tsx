@@ -1,8 +1,11 @@
 // Vista /admin: panel de los trabajadores. Login por PIN y, ya adentro, alta de
 // autos, cambio de estado por servicio, agregar/quitar servicios y retirar autos.
 // Fase 3: sin tiempo real; tras cada acción se vuelve a pedir la lista.
+// Desde la cabecera se entra a Configuración (PIN, backups, ajustes), que ocupa
+// el lugar de la lista (components/Configuracion.tsx).
 import { useCallback, useEffect, useState } from "react";
 import {
+  ErrorApi,
   NoAutorizado,
   agregarServicio,
   cambiarEstadoServicio,
@@ -18,6 +21,7 @@ import type { EstadoServicio, TipoServicio, Vehiculo } from "../types";
 import { AVISO_ERROR, BOTON_MARCA, BOTON_SUAVE, TEXTO_VACIO } from "../tema";
 import { AdminTarjeta } from "../components/AdminTarjeta";
 import { CabeceraCurva } from "../components/CabeceraCurva";
+import { Configuracion } from "../components/Configuracion";
 import { FormVehiculo } from "../components/FormVehiculo";
 import { PinLogin } from "../components/PinLogin";
 import { TituloSeccion } from "../components/TituloSeccion";
@@ -31,13 +35,22 @@ export function Admin() {
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
+  const [vista, setVista] = useState<"autos" | "config">("autos");
 
+  // 401 (PIN viejo) => volver al login; 429 u otro error del server => su
+  // mensaje; sin respuesta => sin conexión.
   const cargar = useCallback(async () => {
     try {
       setVehiculos(await obtenerVehiculosAdmin());
       setError(null);
-    } catch {
-      setError("No se pudo conectar con el servidor.");
+    } catch (e) {
+      if (e instanceof NoAutorizado) {
+        setLogueado(false);
+      } else {
+        setError(
+          e instanceof ErrorApi ? e.message : "No se pudo conectar con el servidor.",
+        );
+      }
     } finally {
       setCargando(false);
     }
@@ -46,6 +59,13 @@ export function Admin() {
   useEffect(() => {
     if (logueado) cargar();
   }, [logueado, cargar]);
+
+  // El PIN guardado ya no sirve (401): de vuelta al login y, al volver a
+  // entrar, a la lista. Estable, porque Configuración carga según él.
+  const volverAlLogin = useCallback(() => {
+    setLogueado(false);
+    setVista("autos");
+  }, []);
 
   // Corre una acción que escribe, refresca la lista y maneja los errores:
   // 401 => volver al login; error de datos => mostrar el mensaje del server.
@@ -59,7 +79,7 @@ export function Admin() {
       return true;
     } catch (e) {
       if (e instanceof NoAutorizado) {
-        setLogueado(false);
+        volverAlLogin();
       } else {
         setError(e instanceof Error ? e.message : "Ocurrió un error.");
       }
@@ -71,8 +91,14 @@ export function Admin() {
 
   function salir() {
     borrarPin();
-    setLogueado(false);
+    volverAlLogin();
     setVehiculos([]);
+  }
+
+  // Al volver de Configuración se refresca la lista (acá no hay tiempo real).
+  function volverALosAutos() {
+    setVista("autos");
+    cargar();
   }
 
   if (!logueado) {
@@ -110,14 +136,31 @@ export function Admin() {
         tono="claro"
         acciones={
           <>
-            <button
-              type="button"
-              onClick={() => abrirModal({ tipo: "alta" })}
-              disabled={ocupado}
-              className={`${BOTON_MARCA} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
-            >
-              + Nuevo auto
-            </button>
+            {vista === "autos" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => abrirModal({ tipo: "alta" })}
+                  disabled={ocupado}
+                  className={`${BOTON_MARCA} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
+                >
+                  + Nuevo auto
+                </button>
+                {/* En el celular solo el ícono (no entra todo en la barra). */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError(null);
+                    setVista("config");
+                  }}
+                  aria-label="Configuración"
+                  className={`${BOTON_SUAVE} flex h-11 w-11 items-center justify-center gap-2 text-base sm:h-12 sm:w-auto sm:px-[22px] sm:text-[17px]`}
+                >
+                  <IconoAjustes />
+                  <span className="hidden sm:inline">Configuración</span>
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={salir}
@@ -130,48 +173,57 @@ export function Admin() {
       />
 
       <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
-        {error && (
-          <p
-            className={`${AVISO_ERROR} mb-6 px-4 py-3 text-lg sm:mb-8 sm:text-xl`}
-          >
-            {error}
-          </p>
-        )}
-
-        <TituloSeccion
-          titulo="Autos en el taller"
-          ayuda="Cargá autos, cambiá sus estados y retiralos cuando salen."
-        />
-
-        {cargando ? (
-          <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>Cargando…</p>
-        ) : vehiculos.length === 0 ? (
-          <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>
-            No hay autos en el taller. Tocá “+ Nuevo auto” para agregar uno.
-          </p>
+        {vista === "config" ? (
+          <Configuracion
+            onVolver={volverALosAutos}
+            onNoAutorizado={volverAlLogin}
+          />
         ) : (
-          <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-9 sm:gap-7 lg:grid-cols-2 xl:grid-cols-3">
-            {vehiculos.map((v) => (
-              <AdminTarjeta
-                key={v.id}
-                vehiculo={v}
-                ocupado={ocupado}
-                onCambiarEstado={(id, estado: EstadoServicio) =>
-                  accion(() => cambiarEstadoServicio(id, estado))
-                }
-                onAgregarServicio={(vehiculoId, tipo) =>
-                  accion(() => agregarServicio(vehiculoId, tipo))
-                }
-                onQuitarServicio={(id) => accion(() => quitarServicio(id))}
-                onEditar={(vehiculo) =>
-                  abrirModal({ tipo: "edicion", vehiculo })
-                }
-                onRetirar={(vehiculo) =>
-                  accion(() => retirarVehiculo(vehiculo.id))
-                }
-              />
-            ))}
-          </div>
+          <>
+            {error && (
+              <p
+                className={`${AVISO_ERROR} mb-6 px-4 py-3 text-lg sm:mb-8 sm:text-xl`}
+              >
+                {error}
+              </p>
+            )}
+
+            <TituloSeccion
+              titulo="Autos en el taller"
+              ayuda="Cargá autos, cambiá sus estados y retiralos cuando salen."
+            />
+
+            {cargando ? (
+              <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>Cargando…</p>
+            ) : vehiculos.length === 0 ? (
+              <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>
+                No hay autos en el taller. Tocá “+ Nuevo auto” para agregar uno.
+              </p>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-9 sm:gap-7 lg:grid-cols-2 xl:grid-cols-3">
+                {vehiculos.map((v) => (
+                  <AdminTarjeta
+                    key={v.id}
+                    vehiculo={v}
+                    ocupado={ocupado}
+                    onCambiarEstado={(id, estado: EstadoServicio) =>
+                      accion(() => cambiarEstadoServicio(id, estado))
+                    }
+                    onAgregarServicio={(vehiculoId, tipo) =>
+                      accion(() => agregarServicio(vehiculoId, tipo))
+                    }
+                    onQuitarServicio={(id) => accion(() => quitarServicio(id))}
+                    onEditar={(vehiculo) =>
+                      abrirModal({ tipo: "edicion", vehiculo })
+                    }
+                    onRetirar={(vehiculo) =>
+                      accion(() => retirarVehiculo(vehiculo.id))
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </main>
 
@@ -186,5 +238,25 @@ export function Admin() {
         />
       )}
     </div>
+  );
+}
+
+// Ícono de "ajustes" (tres controles deslizables) del botón Configuración.
+function IconoAjustes() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      aria-hidden="true"
+      className="h-5 w-5 shrink-0"
+    >
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="10" cy="12" r="2" />
+      <circle cx="18" cy="18" r="2" />
+    </svg>
   );
 }

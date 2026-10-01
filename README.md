@@ -202,6 +202,9 @@ los últimos cambios pueden estar todavía en `taller.db-wal`).
 > ⚠️ Los backups tienen los datos de los clientes (matrículas, celulares):
 > guardalos en un lugar privado. **No** incluyen la sesión de WhatsApp.
 
+**Ver el último o hacer uno ya:** desde `/admin` → **Configuración** (ver
+[La vista /admin](#la-vista-admin-trabajadores)).
+
 **Llevarlos a un pendrive u otra PC:** copiá a mano uno o varios archivos de
 `server/data/backups` (el último por nombre es el más nuevo). Se pueden copiar
 con el server andando.
@@ -361,9 +364,19 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
 
 - **El PIN se valida en el servidor.** No alcanza con esconder la pantalla: los
   endpoints que modifican datos exigen el PIN en el header `x-pin` (si no, un 401).
-- El PIN vive en la base (tabla `config`). El **default es `1234`**. Para fijar
-  otro la primera vez, arrancá el server con `ADMIN_PIN=xxxx`; queda guardado en la
-  base y después ya no depende de esa variable.
+- **Límite de intentos.** 5 PIN mal seguidos desde un mismo dispositivo (misma IP)
+  lo bloquean **5 minutos**: mientras tanto se rechaza todo intento con PIN, aunque
+  sea el correcto (`429`, "Demasiados intentos. Probá de nuevo en N min."). Los
+  demás dispositivos siguen entrando. Entrar bien (login) vuelve la cuenta a cero. El
+  bloqueo vive en memoria: reiniciar el server lo borra. Ojo: con **Docker
+  Desktop (Windows)** el server puede no ver la IP real de cada dispositivo, y
+  entonces el bloqueo alcanza a todos a la vez.
+- Si el PIN cambia, las tablets que tenían el viejo vuelven solas a la pantalla del
+  PIN en su próximo pedido.
+- El PIN vive en la base (tabla `config`). El **default es `1234`**. Se cambia
+  desde **Configuración** (abajo). Para fijar otro la primera vez, también se
+  puede arrancar el server con `ADMIN_PIN=xxxx`; queda guardado en la base y
+  después ya no depende de esa variable.
 - La tablet **queda logueada** (el PIN se guarda en el navegador). Hay botón
   "Salir" para cerrar sesión a mano.
 - **Retirar** un auto y **quitar** un servicio son *soft delete*: no se borran, se
@@ -381,6 +394,24 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
 - **El celular es privado.** La API solo lo manda si el pedido trae un PIN válido
   en `x-pin` (`/admin` y `/taller`). **Nunca** llega a `/display` ni a quien pida
   la lista sin PIN, y `/taller` no lo muestra.
+
+### Pantalla de Configuración
+
+El botón **Configuración** de la cabecera (en el celular, solo el ícono) cambia la
+lista de autos por tres tarjetas; se vuelve con "← Volver a los autos":
+
+- **PIN de acceso.** PIN actual, PIN nuevo (de 4 a 8 números) y repetirlo. Vale
+  para `/admin` **y** `/taller`. El dispositivo desde el que se cambia sigue
+  adentro; las demás tablets y PCs vuelven a pedir el PIN (el nuevo) en su próximo
+  pedido. Un PIN actual mal cuenta como intento fallido.
+- **Backups.** Cuándo fue el último, cuánto pesa, cuántos hay guardados (de 30),
+  la carpeta en la PC servidor y, si el último intento falló, el motivo. Con
+  **"Hacer backup ahora"** se hace uno en el momento (por ejemplo, antes de tocar
+  algo). Ver [Respaldo de la base](#respaldo-de-la-base).
+- **Pantalla del showroom.** Cuántas horas sigue visible un auto terminado (de 1
+  a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante. Los
+  ajustes salen de la lista del server (`server/src/ajustes.ts`): uno nuevo
+  aparece solo en esta tarjeta.
 
 ## Avisos por WhatsApp
 
@@ -543,8 +574,8 @@ subset latino (~29 KB).
 | Variable | Default | Para qué sirve |
 | --- | --- | --- |
 | `PORT` | `3000` | Puerto del servidor. |
-| `HORAS_VISIBLE_TERMINADO` | `4` | Cuántas horas sigue en pantalla un auto con **todos** sus servicios terminados antes de ocultarse solo. |
-| `ADMIN_PIN` | `1234` | PIN inicial de `/admin`. Solo se usa la primera vez, para sembrarlo en la base; después el PIN vive en `config`. |
+| `HORAS_VISIBLE_TERMINADO` | `4` | Cuántas horas sigue en pantalla un auto con **todos** sus servicios terminados antes de ocultarse solo (entero de 1 a 72). Es solo el **valor inicial**: se cambia desde `/admin` → [Configuración](#pantalla-de-configuración) (o `PATCH /api/config`) y lo guardado en la base manda sobre la variable. |
+| `ADMIN_PIN` | `1234` | PIN inicial de `/admin`. Solo se usa la primera vez, para sembrarlo en la base; después el PIN vive en `config` y se cambia desde `/admin` → Configuración. |
 | `DB_PATH` | `server/data/taller.db` | Archivo de la base SQLite. Útil para probar contra una base descartable; si la carpeta no existe, se crea. |
 | `CARPETA_BACKUPS` | `backups` al lado de la base (`server/data/backups`) | Dónde van los [backups automáticos](#respaldo-de-la-base) (al arrancar y uno por día; quedan los últimos 30). Si la carpeta no existe, se crea. En Docker la fija el `docker-compose.yml`. |
 | `AVISOS_DEMORA_MIN` | `5` | Minutos de seguridad entre el cambio y el aviso por WhatsApp. Acepta decimales (`0.1` = 6 s, para probar). |
@@ -555,19 +586,26 @@ subset latino (~29 KB).
 ## API
 
 Los endpoints que **escriben** exigen el header `x-pin` con el PIN (si no, `401`).
+Todo intento con PIN (incluido el login y `GET /api/vehiculos` con `x-pin`) cuenta
+para el [límite de intentos](#la-vista-admin-trabajadores): bloqueado =>
+`429 { error, minutosRestantes }`.
 
 | Endpoint | Qué hace |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }`, para saber si el server está vivo. |
-| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de `HORAS_VISIBLE_TERMINADO` ni los retirados. No pide PIN; **solo con `x-pin` válido** incluye `telefono` (si no, la clave no aparece). |
+| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de las horas configuradas (`horas_visible_terminado`) ni los retirados. Sin `x-pin` es pública y sin `telefono` (la clave no aparece); **con `x-pin`** el PIN se valida: bien => incluye `telefono`, mal => `401`. |
 | `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono`. |
-| `POST /api/login` | Valida el PIN (body `{ pin }`). `{ ok: true }` o `401`. |
+| `POST /api/login` | Valida el PIN (body `{ pin }`). `{ ok: true }`, `401` o `429` (bloqueado). |
 | `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). |
 | `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. |
 | `POST /api/vehiculos/:id/retirar` | Retira el auto (soft delete). |
 | `POST /api/vehiculos/:id/servicios` | Agrega un servicio (body `{ tipo }`). |
 | `PATCH /api/servicios/:id` | Cambia el estado de un servicio (body `{ estado }`). |
 | `DELETE /api/servicios/:id` | Quita un servicio (soft delete; `400` si es el último activo del auto). |
+| `GET /api/config` | `{ ajustes, backups }`: cada ajuste editable con su definición (`clave`, `etiqueta`, `ayuda`, `tipo`, `min`, `max`, `porDefecto`) y su `valor`, y el estado de los backups (`carpeta`, `ultimo`, `ultimoError`, `cantidad`). |
+| `PATCH /api/config` | Guarda ajustes (body `{ clave: valor }`, ej. `{ "horas_visible_terminado": 6 }`). Todos o ninguno (`400` si alguno no sirve). Avisa a las pantallas para que se actualicen ya. Devuelve lo mismo que el `GET`. |
+| `POST /api/config/pin` | Cambia el PIN (body `{ actual, nuevo }`; el nuevo, de 4 a 8 números). `actual` mal => `401` y cuenta para el bloqueo. |
+| `POST /api/backups` | Hace un backup ya ("manual") y devuelve el estado de los backups; `500` con el motivo si falla. |
 
 ## Tiempo real (Socket.IO)
 
@@ -588,7 +626,10 @@ se encarga el poll. Socket.IO cubre los cambios; el poll, el tiempo.
   instante por Socket.IO ante cambios de `/admin`; si se cae el server mantiene los
   últimos datos, avisa "Sin conexión" y reconecta sola.
 - ✅ Vista `/admin` con login por PIN (validado en el server), alta de autos, cambio
-  de estado por servicio, agregar/quitar servicios y retirar autos.
+  de estado por servicio, agregar/quitar servicios y retirar autos. Pantalla de
+  Configuración: cambiar el PIN, ver/hacer backups y las horas visibles.
+- ✅ Backups automáticos de la base (al arrancar y uno por día, quedan 30) y
+  límite de intentos de PIN (5 mal = 5 minutos de bloqueo).
 - ✅ Tablas + datos de ejemplo que se crean solos la primera vez; migración
   automática de las columnas nuevas sobre bases ya existentes.
 - ✅ Los autos con todos los servicios terminados se ocultan solos a las 4 horas

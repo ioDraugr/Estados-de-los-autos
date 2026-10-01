@@ -1,15 +1,11 @@
 // Consultas y comandos de vehículos para la API.
+import { leerAjuste } from "./ajustes.js";
 import { cancelarAvisos, programarIngreso } from "./avisos.js";
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 import { TIPOS_SERVICIO } from "./servicios.js";
 import { normalizarTelefono } from "./telefono.js";
 import type { Servicio, TipoServicio, Vehiculo } from "./tipos.js";
-
-// Un auto con TODOS sus servicios terminados se sigue mostrando en el showroom
-// durante estas horas (para que el cliente lo vea) y después desaparece solo.
-export const HORAS_VISIBLE_TERMINADO =
-  Number(process.env.HORAS_VISIBLE_TERMINADO) || 4;
 
 type FilaVehiculo = Omit<Vehiculo, "servicios">;
 type FilaServicio = Servicio & { actualizado_en: string };
@@ -94,12 +90,15 @@ function anidar(
 /**
  * Vehículos que tiene que mostrar /display: los que están en el taller, más
  * los terminados hace poco. Esconde los retirados y los terminados hace rato.
+ * "Hace poco" = el ajuste horas_visible_terminado (se cambia desde /admin →
+ * Configuración), leído en cada llamada para que el cambio valga al instante.
  */
 export function listarVehiculosVisibles(
   opciones: OpcionesListado = {},
 ): Vehiculo[] {
   const { vehiculos, porVehiculo } = cargarVehiculos();
-  const limite = Date.now() - HORAS_VISIBLE_TERMINADO * 60 * 60 * 1000;
+  const horas = leerAjuste("horas_visible_terminado");
+  const limite = Date.now() - horas * 60 * 60 * 1000;
 
   return vehiculos
     .filter((v) => !estaVencido(porVehiculo.get(v.id) ?? [], limite))

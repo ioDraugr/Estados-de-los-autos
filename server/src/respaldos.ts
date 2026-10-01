@@ -25,6 +25,7 @@ export interface EstadoBackups {
   // cuando un backup sale bien).
   ultimoError: { fecha: string; mensaje: string } | null;
   cantidad: number;
+  maximo: number; // MAX_BACKUPS
 }
 
 export const CARPETA_BACKUPS = process.env.CARPETA_BACKUPS
@@ -85,6 +86,7 @@ export function estadoBackups(): EstadoBackups {
     ultimo: ultimo ? infoDe(ultimo) : null,
     ultimoError,
     cantidad: archivos.length,
+    maximo: MAX_BACKUPS,
   };
 }
 

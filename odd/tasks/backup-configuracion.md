@@ -129,6 +129,10 @@ cambian por `.env`/base, y no hay freno a probar PINs.
   intentos. Probá de nuevo en 5 min." y teclado deshabilitado. Server y datos temporales borrados.
   Sin probar: celular (cabecera solo con íconos), fallback sin vidrio, estado de error de backup
   en la UI, la cuenta regresiva hasta que vence, `iniciar.bat`.
+  Commit F3: `63965c4` (slice PR 3 = `6ff7240..63965c4`). RDD assess (base `6ff7240`,
+  committed-only): high (`hot_path: server/src/auth.ts`), 1013 líneas, `review_due=true/high_risk`
+  → STATUS → start → `consent_required`; el usuario eligió **saltear esta vez** →
+  `declined_this_candidate`. Entrega bajo la política normal del repo (sin revisión registrada).
   Detalle F2: Ajuste de alcance: el `GET /api/vehiculos` con `x-pin` también
   cuenta para el bloqueo (hoy filtra si el PIN es válido: aparecen o no los celulares, y eso
   saltearía el límite). PIN mal → 401 y el cliente vuelve a pedir PIN (deja de sondear con el PIN

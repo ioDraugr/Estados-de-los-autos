@@ -11,6 +11,7 @@ import { exigirPin, pinEsValido } from "./auth.js";
 import { iniciarAvisos } from "./avisos.js";
 import { elegirEnviador } from "./enviadores.js";
 import { ErrorValidacion } from "./errores.js";
+import { iniciarBackups } from "./respaldos.js";
 import { sembrarSiVacia } from "./seed.js";
 import {
   agregarServicio,
@@ -194,6 +195,9 @@ io.on("connection", (socket) => {
 
 httpServer.listen(PORT, () => {
   console.log(`Servidor del taller escuchando en http://localhost:${PORT}`);
+  // Backups de la base: uno ya y uno por día (ver respaldos.ts). Si fallan,
+  // queda en el log y el server sigue andando.
+  iniciarBackups();
   // Avisos por WhatsApp: elige el envío (AVISOS_ENVIO) y arranca el despachador
   // de la cola (ver avisos.ts). Si el envío pedido no se pudo cargar, NO se cae
   // en "log" (marcaría como enviados avisos que nunca salieron): la cola queda

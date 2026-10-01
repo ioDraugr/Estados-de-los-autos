@@ -10,6 +10,11 @@ server/data/*.db
 server/data/*.db-shm
 server/data/*.db-wal
 
+# Backups automáticos de la base (tienen los datos de los clientes). La carpeta
+# queda en git vacía (.gitkeep) para que exista antes de levantar Docker.
+server/data/backups/*
+!server/data/backups/.gitkeep
+
 # Sesión de WhatsApp (avisos con AVISOS_ENVIO=baileys): son las CREDENCIALES del
 # celular vinculado. Con esos archivos cualquiera manda mensajes como ese número.
 # Nunca se suben ni se comparten.

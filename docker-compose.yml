@@ -33,11 +33,18 @@ services:
       PORT: "3000"
       DB_PATH: /app/server/data/taller.db
       WHATSAPP_SESION_DIR: /app/server/data/whatsapp-sesion
+      CARPETA_BACKUPS: /app/server/data/backups
     volumes:
       # Base (taller.db) + sesión de WhatsApp. Sobrevive a reinicios, a
       # `docker compose down` y a las actualizaciones. Se borra SOLO con
       # `docker compose down -v`.
       - datos:/app/server/data
+      # Backups automáticos de la base: en una carpeta de la PC (no en el
+      # volumen), para verlos y copiarlos sin entrar al contenedor. `down -v`
+      # no los borra. La carpeta tiene que existir y poder escribirla el
+      # usuario `node` del contenedor (uid 1000): la crean iniciar.sh /
+      # iniciar.bat (y viene en el repo con un .gitkeep).
+      - ./server/data/backups:/app/server/data/backups
 
 volumes:
   datos:

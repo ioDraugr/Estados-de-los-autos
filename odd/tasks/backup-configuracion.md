@@ -148,5 +148,13 @@ cambian por `.env`/base, y no hay freno a probar PINs.
   (`..HEAD`, base la 2). Los PR no se crearon (no pedidos): links de creación en el cierre.
   Skills `work-unit-commits` / `chained-pr`: no están en el registro de esta sesión.
 
+- 2026-10-01: el usuario mergeó con squash #8 (F1 → `main`, `60716cd`), #9 (F2 → rama 1) y
+  #10 (F3 → rama 2). GitHub no rebasó #9/#10 a `main`, así que a `main` solo llegó F1. Arreglo
+  (elegido por el usuario): rama `feat/backup-configuracion-pin-y-pantalla` sobre `main` con
+  cherry-pick de F2/F3/docs (árbol idéntico a `68c6b8d`; 43/43, tsc, build y lint ok) → PR #11.
+  Se borraron las ramas viejas de las fases (local + `origin`).
+  Lección: en cadenas de PR con squash, o se mergea uno por vez cambiando la base a `main`, o se
+  usa un solo PR.
+
 ## Próximo paso
-El usuario abre/mergea los PR en orden (1 → 2 → 3). Después: borrar el worktree y las ramas.
+El usuario mergea #11. Después: borrar el worktree y la rama `feat/backup-configuracion-pin-y-pantalla`.

@@ -139,5 +139,14 @@ cambian por `.env`/base, y no hay freno a probar PINs.
   viejo, así no se bloquea solo). Limitación: detrás de Docker Desktop (Windows) la IP de origen
   puede no preservarse → el bloqueo actuaría para todos.
 
+- 2026-10-01: chequeos del padre antes de entregar: `npm test` 43/43, `tsc --noEmit` ok, client
+  build ok + oxlint sin hallazgos. El usuario probó a mano (backups, restauración, cambio de PIN y
+  bloqueo) y dio el OK; pidió commit + push, el merge lo hace él en GitHub.
+  Entrega (`stacked-to-main`): ramas por fase en `origin` —
+  `feat/backup-configuracion-1-backup` (`7e87af3..208f83f`, base `main`),
+  `feat/backup-configuracion-2-pin` (`..6ff7240`, base la 1) y `feat/backup-configuracion`
+  (`..HEAD`, base la 2). Los PR no se crearon (no pedidos): links de creación en el cierre.
+  Skills `work-unit-commits` / `chained-pr`: no están en el registro de esta sesión.
+
 ## Próximo paso
-Push de la rama y los 3 PRs en cadena (lo decide el usuario).
+El usuario abre/mergea los PR en orden (1 → 2 → 3). Después: borrar el worktree y las ramas.

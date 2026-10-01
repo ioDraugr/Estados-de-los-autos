@@ -3,7 +3,13 @@
 // en producción salen del mismo servidor que sirve el front, así que no hay
 // ninguna IP hardcodeada que haya que cambiar si cambia la máquina del taller.
 import { borrarPin, leerPin } from "./sesion";
-import type { EstadoServicio, TipoServicio, Vehiculo } from "./types";
+import type {
+  DatosConfig,
+  EstadoBackups,
+  EstadoServicio,
+  TipoServicio,
+  Vehiculo,
+} from "./types";
 
 // Error 401: el PIN no sirve (o venció). Las vistas lo usan para volver al login.
 export class NoAutorizado extends Error {}
@@ -11,6 +17,12 @@ export class NoAutorizado extends Error {}
 // El server respondió con un error y un mensaje para mostrar tal cual (ej. un
 // dato mal o "Demasiados intentos. Probá de nuevo en 3 min.").
 export class ErrorApi extends Error {}
+
+// Texto para el trabajador de un error que no es de sesión: el mensaje del
+// server si respondió (ErrorApi) o, si no, que no hay conexión.
+export function textoDeError(e: unknown): string {
+  return e instanceof ErrorApi ? e.message : "No se pudo conectar con el servidor.";
+}
 
 export async function obtenerVehiculos(): Promise<Vehiculo[]> {
   const res = await fetch("/api/vehiculos");
@@ -34,10 +46,11 @@ export async function obtenerVehiculosAdmin(): Promise<Vehiculo[]> {
 }
 
 // Resultado del login: bien, PIN mal, o dispositivo bloqueado por demasiados
-// intentos (con el mensaje del server, que dice cuántos minutos faltan).
+// intentos (con el mensaje del server y cuántos minutos faltan, si los dice).
 export type ResultadoLogin =
   | { ok: true }
-  | { ok: false; bloqueado: boolean; mensaje: string };
+  | { ok: false; bloqueado: false; mensaje: string }
+  | { ok: false; bloqueado: true; mensaje: string; minutosRestantes: number | null };
 
 // Valida el PIN contra el servidor (sin guardarlo: eso lo decide quien llama).
 export async function login(pin: string): Promise<ResultadoLogin> {
@@ -48,9 +61,16 @@ export async function login(pin: string): Promise<ResultadoLogin> {
   });
   if (res.ok) return { ok: true };
   const detalle = await res.json().catch(() => null);
-  return res.status === 429
-    ? { ok: false, bloqueado: true, mensaje: detalle?.error ?? "Demasiados intentos." }
-    : { ok: false, bloqueado: false, mensaje: "PIN incorrecto" };
+  if (res.status === 429) {
+    const minutos = detalle?.minutosRestantes;
+    return {
+      ok: false,
+      bloqueado: true,
+      mensaje: detalle?.error ?? "Demasiados intentos.",
+      minutosRestantes: typeof minutos === "number" ? minutos : null,
+    };
+  }
+  return { ok: false, bloqueado: false, mensaje: "PIN incorrecto" };
 }
 
 export interface DatosVehiculo {
@@ -99,15 +119,63 @@ export async function quitarServicio(id: number): Promise<void> {
   await escribir(`/api/servicios/${id}`, "DELETE");
 }
 
+// --- Configuración (/admin → Configuración) ---
+
+// Ajustes editables y estado de los backups.
+export async function obtenerConfig(): Promise<DatosConfig> {
+  const res = await fetch("/api/config", {
+    headers: { "x-pin": leerPin() ?? "" },
+  });
+  if (!res.ok) await lanzarError(res);
+  return res.json();
+}
+
+// Guarda ajustes ({ clave: valor }). Devuelve la configuración ya actualizada.
+export async function guardarAjustes(
+  cambios: Record<string, number>,
+): Promise<DatosConfig> {
+  const res = await escribir("/api/config", "PATCH", cambios);
+  return res.json();
+}
+
+// "Hacer backup ahora". Devuelve el estado de los backups con el nuevo.
+export async function hacerBackup(): Promise<EstadoBackups> {
+  const res = await escribir("/api/backups", "POST");
+  return res.json();
+}
+
+// Cambia el PIN compartido de /admin y /taller. Ojo con el 401: acá casi
+// siempre quiere decir que el trabajador escribió mal el PIN *actual* (el del
+// header sigue sirviendo), así que es un ErrorApi para mostrar en el campo y NO
+// desloguea. Solo si el 401 es del header (el PIN guardado ya no sirve, ej. lo
+// cambiaron desde otra tablet) se vuelve al login como en el resto.
+export async function cambiarPin(actual: string, nuevo: string): Promise<void> {
+  const res = await fetch("/api/config/pin", {
+    method: "POST",
+    headers: { "x-pin": leerPin() ?? "", "content-type": "application/json" },
+    body: JSON.stringify({ actual, nuevo }),
+  });
+  if (res.ok) return;
+  if (res.status === 401) {
+    const detalle = await res.json().catch(() => null);
+    // motivo "pin_actual": ver cambiarPin en server/src/auth.ts.
+    if (detalle?.motivo === "pin_actual") throw new ErrorApi(`${detalle.error}.`);
+  }
+  // 401 del header => NoAutorizado (lanzarError no vuelve a leer el cuerpo en
+  // ese caso); 429 o 400 (PIN nuevo que no sirve) => ErrorApi con su mensaje.
+  await lanzarError(res);
+}
+
 // --- Interno ---
 
 // Hace un request que modifica datos, adjuntando el PIN en el header x-pin.
-// Los errores, como en lanzarError.
+// Los errores, como en lanzarError. Devuelve la respuesta (ya chequeada) para
+// quien necesite leer el cuerpo.
 async function escribir(
   ruta: string,
   metodo: "POST" | "PATCH" | "DELETE",
   cuerpo?: unknown,
-): Promise<void> {
+): Promise<Response> {
   const res = await fetch(ruta, {
     method: metodo,
     headers: {
@@ -118,6 +186,7 @@ async function escribir(
   });
 
   if (!res.ok) await lanzarError(res);
+  return res;
 }
 
 // Respuesta con error de un pedido con PIN. 401 => limpia la sesión y lanza

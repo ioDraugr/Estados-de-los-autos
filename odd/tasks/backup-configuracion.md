@@ -68,7 +68,7 @@ cambian por `.env`/base, y no hay freno a probar PINs.
   - `HORAS_VISIBLE_TERMINADO` leído de `config` en cada consulta; al cambiar, emitir
     `vehiculos:cambio`.
   - Tests.
-- [ ] F3 — Pantalla "Configuración" en /admin + README. Ruta: delegated direct.
+- [x] F3 — Pantalla "Configuración" en /admin + README. Ruta: delegated direct.
   - Botón en la cabecera → vista en vidrio con secciones PIN / Backups / Pantalla del showroom.
   - PinLogin muestra "Bloqueado, probá en X min"; PIN viejo guardado → vuelve a pedir PIN.
   - README: backups automáticos, Configuración, API, variables.
@@ -109,11 +109,31 @@ cambian por `.env`/base, y no hay freno a probar PINs.
   `ErrorApi`, `login()` → `{ok}|{ok:false,bloqueado,mensaje}`, 401 en la lista → vuelve al PIN.
   Sin probar: pantallas del cliente en navegador (F3), vencimiento del bloqueo por HTTP (test con
   reloj falso), Docker/IP en Windows, 500 de `POST /api/backups`. ~828+/58− líneas.
-  Detalle anterior: Ajuste de alcance: el `GET /api/vehiculos` con `x-pin` también
+  Commit F2: `6ff7240` (slice PR 2 = `208f83f..6ff7240`). RDD assess (base `208f83f`,
+  committed-only): high (`hot_path: server/src/auth.ts`), 902 líneas, `review_due=true/high_risk`
+  → STATUS → start → `consent_required`; el usuario eligió **saltear esta vez** →
+  `declined_this_candidate`. Próxima base: `6ff7240`.
+- F3 (writer delegado; correcciones y verificación del padre): vista Configuración dentro de
+  /admin (`Configuracion.tsx`, `CambiarPin.tsx`, `TarjetaConfig.tsx`), PinLogin con cuenta regresiva
+  de bloqueo, Taller sin "reintentando" en el 429, README "Pantalla de Configuración".
+  Correcciones del padre sobre hallazgos del writer: (1) en el cambio de PIN el `x-pin` válido
+  ponía los fallos en cero, así que el PIN actual se podía adivinar sin límite → ahora solo el
+  login (`reiniciarFallos`) pone la cuenta en cero (F2 se corrige en este commit); (2) el cliente
+  distinguía el 401 del PIN actual por el texto del mensaje → ahora por `motivo: "pin_actual"`;
+  (3) "N de 30" estaba fijo en el cliente → `estadoBackups().maximo`.
+  Chequeos: `npm test` 43/43, `tsc --noEmit` ok, client build ok + oxlint sin hallazgos.
+  Navegador (headless 1180×820, server dev en 3095 con base temporal): vista se ve bien en
+  tablet; "Hacer backup ahora" → "Backup hecho." y 2 de 30; horas +2 → Guardar → "Guardado", API
+  devuelve 6; PIN actual mal → error en el campo sin desloguear; cambio 1234→5678 ok y el PIN queda
+  guardado; con el PIN viejo guardado → vuelve a la pantalla de PIN; 5 PIN mal → "Demasiados
+  intentos. Probá de nuevo en 5 min." y teclado deshabilitado. Server y datos temporales borrados.
+  Sin probar: celular (cabecera solo con íconos), fallback sin vidrio, estado de error de backup
+  en la UI, la cuenta regresiva hasta que vence, `iniciar.bat`.
+  Detalle F2: Ajuste de alcance: el `GET /api/vehiculos` con `x-pin` también
   cuenta para el bloqueo (hoy filtra si el PIN es válido: aparecen o no los celulares, y eso
   saltearía el límite). PIN mal → 401 y el cliente vuelve a pedir PIN (deja de sondear con el PIN
   viejo, así no se bloquea solo). Limitación: detrás de Docker Desktop (Windows) la IP de origen
   puede no preservarse → el bloqueo actuaría para todos.
 
 ## Próximo paso
-F3 — pantalla Configuración en /admin + README.
+Push de la rama y los 3 PRs en cadena (lo decide el usuario).

@@ -62,5 +62,9 @@ export const AVISO =
 export const AVISO_ERROR =
   "rounded-2xl border border-peligro/20 bg-peligro/10 text-center font-semibold text-peligro";
 
+// Aviso de que algo salió bien (ej. "PIN cambiado"): el mismo recuadro, en verde.
+export const AVISO_OK =
+  "rounded-2xl border border-listo/20 bg-listo/10 text-center font-semibold text-listo";
+
 // Mensajes de "Cargando…" / "No hay autos…".
 export const TEXTO_VACIO = "text-center text-tinta-suave";

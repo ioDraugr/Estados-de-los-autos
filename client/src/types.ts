@@ -23,3 +23,42 @@ export interface Vehiculo {
   telefono?: string | null;
   servicios: Servicio[];
 }
+
+// --- Configuración (/admin → Configuración), tal como la manda GET /api/config ---
+
+// Un ajuste editable: su definición (qué es, qué valores acepta) y su valor
+// actual. Por ahora solo hay enteros; si el server suma otro tipo (ej. "texto"
+// para los mensajes de WhatsApp), se agrega acá a la unión `Ajuste` y su campo
+// en CampoAjuste (components/Configuracion.tsx).
+export interface AjusteEntero {
+  clave: string;
+  etiqueta: string;
+  ayuda: string;
+  tipo: "entero";
+  min: number;
+  max: number;
+  porDefecto: number;
+  valor: number;
+}
+
+export type Ajuste = AjusteEntero;
+
+export interface InfoBackup {
+  archivo: string; // solo el nombre, dentro de la carpeta de backups
+  fecha: string; // ISO (UTC)
+  bytes: number;
+}
+
+export interface EstadoBackups {
+  carpeta: string; // ruta en la PC servidor
+  ultimo: InfoBackup | null;
+  // El último intento falló (se borra con el próximo backup que salga bien).
+  ultimoError: { fecha: string; mensaje: string } | null;
+  cantidad: number;
+  maximo: number; // cuántos guarda el server
+}
+
+export interface DatosConfig {
+  ajustes: Ajuste[];
+  backups: EstadoBackups;
+}

@@ -13,7 +13,9 @@ export const limitePin = crearLimitador();
 // Lo que hay que responder cuando un PIN no pasa.
 export interface RechazoPin {
   status: 401 | 429;
-  cuerpo: { error: string; minutosRestantes?: number };
+  // motivo "pin_actual": el 401 es por el PIN actual del cambio de PIN (el del
+  // header sirve), así el front no desloguea.
+  cuerpo: { error: string; minutosRestantes?: number; motivo?: "pin_actual" };
 }
 
 // PIN actual, leído de la tabla config (ver db.ts).
@@ -38,17 +40,21 @@ export function ipDe(req: Request): string {
  * null si está bien, o el rechazo a responder: 429 si la IP está bloqueada (o
  * este fallo la bloqueó), 401 con `mensaje` si el PIN está mal. Un PIN vacío
  * es 401 pero no cuenta como intento (no es adivinar).
+ *
+ * Solo el login (`reiniciarFallos`) pone los fallos en cero. Si lo hiciera
+ * cualquier pedido con el PIN guardado bien, en el cambio de PIN el header
+ * borraría los fallos del PIN actual y se podría adivinar sin límite.
  */
 export function verificarPin(
   ip: string,
   pin: unknown,
-  mensaje = "PIN inválido",
+  { mensaje = "PIN inválido", reiniciarFallos = false } = {},
 ): RechazoPin | null {
   const estado = limitePin.consultar(ip);
   if (estado.bloqueado) return bloqueado(estado.minutosRestantes);
 
   if (pinEsValido(pin)) {
-    limitePin.registrarExito(ip);
+    if (reiniciarFallos) limitePin.registrarExito(ip);
     return null;
   }
   if (typeof pin === "string" && pin.length > 0) {
@@ -80,7 +86,8 @@ export function cambiarPin(
   actual: unknown,
   nuevo: unknown,
 ): RechazoPin | null {
-  const rechazo = verificarPin(ip, actual, "El PIN actual no es correcto");
+  const rechazo = verificarPin(ip, actual, { mensaje: "El PIN actual no es correcto" });
+  if (rechazo?.status === 401) rechazo.cuerpo.motivo = "pin_actual";
   if (rechazo) return rechazo;
 
   if (typeof nuevo !== "string" || !/^\d{4,8}$/.test(nuevo)) {

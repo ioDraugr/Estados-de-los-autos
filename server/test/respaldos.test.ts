@@ -167,6 +167,7 @@ describe("backups", () => {
       ultimo: null,
       ultimoError: null,
       cantidad: 0,
+      maximo: MAX_BACKUPS,
     });
 
     backupFalso("taller-2020-01-01_00-00-00-diario.db");

@@ -1,7 +1,8 @@
 // Límite de intentos de PIN por dispositivo: 5 PIN mal seguidos desde la misma
 // IP => esa IP queda bloqueada 5 minutos. Mientras dura el bloqueo se rechaza
 // TODO intento, aunque traiga el PIN correcto (si no, el bloqueo no frena nada).
-// Un PIN bien vuelve la cuenta a cero; cuando el bloqueo vence, también.
+// Un login bien vuelve la cuenta a cero (ver verificarPin en auth.ts); cuando el
+// bloqueo vence, también.
 //
 // Vive en memoria: si el server se reinicia, se borra (decisión del usuario).
 //

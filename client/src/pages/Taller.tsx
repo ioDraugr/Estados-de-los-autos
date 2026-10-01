@@ -28,8 +28,9 @@ export function Taller() {
   const [logueado, setLogueado] = useState(() => leerPin() !== null);
   const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
   const [cargando, setCargando] = useState(true);
-  // Aviso de arriba: sin conexión, o el mensaje de error del server (ej. 429).
-  const [aviso, setAviso] = useState<string | null>(null);
+  // Aviso de arriba: sin conexión (reintentando), o el mensaje de error del
+  // server (ej. 429 por demasiados intentos, que no es un problema de conexión).
+  const [aviso, setAviso] = useState<Aviso | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
   // 401 (PIN viejo) => volver al login, que corta el poll y el socket.
@@ -124,11 +125,13 @@ export function Taller() {
             className={`${AVISO} mx-auto mb-6 flex w-fit max-w-full items-center justify-center gap-3 px-5 py-3 text-base shadow-[0_16px_40px_-18px_rgba(150,100,10,0.6)] sm:mb-8 sm:text-lg`}
           >
             {/* Puntito que titila: está reintentando. */}
-            <span
-              aria-hidden="true"
-              className="animate-titilar h-2 w-2 shrink-0 rounded-full bg-tinta"
-            />
-            {aviso}
+            {aviso.reintentando && (
+              <span
+                aria-hidden="true"
+                className="animate-titilar h-2 w-2 shrink-0 rounded-full bg-tinta"
+              />
+            )}
+            {aviso.texto}
           </p>
         )}
 
@@ -160,10 +163,15 @@ export function Taller() {
   );
 }
 
-// Texto del aviso para un error que no es de PIN: el mensaje del server si lo
-// hay (ej. demasiados intentos) o, si no respondió, sin conexión.
-function avisoDeError(e: unknown): string {
+interface Aviso {
+  texto: string;
+  reintentando: boolean;
+}
+
+// Aviso para un error que no es de PIN: el mensaje del server si lo hay (ej.
+// demasiados intentos) o, si no respondió, sin conexión (y reintentando).
+function avisoDeError(e: unknown): Aviso {
   return e instanceof ErrorApi
-    ? e.message
-    : "Sin conexión con el servidor — reintentando…";
+    ? { texto: e.message, reintentando: false }
+    : { texto: "Sin conexión con el servidor — reintentando…", reintentando: true };
 }

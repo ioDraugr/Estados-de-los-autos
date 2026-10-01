@@ -72,7 +72,7 @@ app.get("/api/health", (_req, res) => {
 // endpoint que escribe revalida el PIN por su cuenta (exigirPin). Cuenta para
 // el límite de intentos: 5 mal => 429 por 5 minutos (ver intentosPin.ts).
 app.post("/api/login", (req, res) => {
-  const rechazo = verificarPin(ipDe(req), req.body?.pin);
+  const rechazo = verificarPin(ipDe(req), req.body?.pin, { reiniciarFallos: true });
   if (rechazo) {
     res.status(rechazo.status).json(rechazo.cuerpo);
     return;

@@ -123,6 +123,17 @@ describe("PIN con límite (auth.ts)", () => {
     assert.equal(verificarPin(`${ip}-otro`, PIN), null);
   });
 
+  test("solo el login pone los fallos en cero", () => {
+    for (let i = 1; i < MAX_FALLIDOS; i++) verificarPin(ip, "0000");
+    assert.equal(verificarPin(ip, PIN), null); // pedido común: no reinicia
+    assert.equal(verificarPin(ip, "0000")?.status, 429);
+
+    const otra = `${ip}-login`;
+    for (let i = 1; i < MAX_FALLIDOS; i++) verificarPin(otra, "0000");
+    assert.equal(verificarPin(otra, PIN, { reiniciarFallos: true }), null);
+    assert.equal(verificarPin(otra, "0000")?.status, 401);
+  });
+
   test("un PIN vacío no cuenta como intento", () => {
     for (let i = 0; i < MAX_FALLIDOS + 2; i++) {
       assert.equal(verificarPin(ip, "")?.status, 401);
@@ -182,8 +193,10 @@ describe("PIN con límite (auth.ts)", () => {
     for (let i = 1; i < MAX_FALLIDOS; i++) {
       assert.deepEqual(cambiarPin(ip, "0000", "5678"), {
         status: 401,
-        cuerpo: { error: "El PIN actual no es correcto" },
+        cuerpo: { error: "El PIN actual no es correcto", motivo: "pin_actual" },
       });
+      // Como en la ruta: el header con el PIN guardado bien no borra los fallos.
+      assert.equal(verificarPin(ip, PIN), null);
     }
     assert.equal(cambiarPin(ip, "0000", "5678")?.status, 429);
     // Bloqueado: ni con el actual bien se cambia, ni se entra.

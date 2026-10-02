@@ -76,7 +76,7 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
   - Decisión propia (conservadora): por API, alta sin `acepta_whatsapp` = no aceptó (el "marcado por
     defecto" es solo del formulario); valores no booleanos => 400. El consentimiento solo viaja con PIN,
     igual que el celular. En el formulario es un interruptor (mismo estilo que los servicios), no un checkbox.
-- T3 hecha (hash en el commit siguiente). Checks: `npm test` server 89/89 pass (nuevo: `postventa.test.ts`,
+- T3 hecha, commit `6272907`. Checks: `npm test` server 89/89 pass (nuevo: `postventa.test.ts`,
   21 tests; `avisos.test.ts` sin tocar y verde); `tsc --noEmit` server OK; client `npm run build` OK;
   `oxlint src` sin avisos.
   - Módulo nuevo `server/src/postventa.ts` (programar, horario, espaciado, motivos, texto); avisos.ts

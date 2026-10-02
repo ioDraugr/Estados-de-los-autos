@@ -320,21 +320,6 @@ body {
   animation: subir 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-/* Círculo con la flecha de la bienvenida: baja y sube apenas, sin marear. */
-@keyframes bajar {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(6px);
-  }
-}
-
-.animate-bajar {
-  animation: bajar 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-
 /* Pulso dorado que se expande desde el aro de un servicio en proceso. */
 @keyframes anillo {
   0% {

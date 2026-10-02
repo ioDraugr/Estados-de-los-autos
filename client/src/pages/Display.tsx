@@ -11,7 +11,7 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import type { Vehiculo } from "../types";
-import { obtenerVehiculos } from "../api";
+import { obtenerFrases, obtenerVehiculos } from "../api";
 import { AVISO, BOTON_OSCURO } from "../tema";
 import { TarjetaVehiculo } from "../components/TarjetaVehiculo";
 import { DetalleVehiculo } from "../components/DetalleVehiculo";
@@ -37,6 +37,8 @@ export function Display() {
   const [sinConexion, setSinConexion] = useState(false);
   // Arranca en la pantalla de bienvenida; el toque la pasa a la lista.
   const [bienvenida, setBienvenida] = useState(true);
+  // Frases rotativas de la bienvenida (se editan en /admin → Configuración).
+  const [frases, setFrases] = useState<string[]>([]);
   // Si ya llegaron datos alguna vez. En un ref para no re-disparar el efecto.
   const huboDatos = useRef(false);
 
@@ -65,16 +67,31 @@ export function Display() {
       }
     }
 
+    // Las frases de la bienvenida. Si falla, quedan las últimas que llegaron:
+    // un corte no tiene que dejar la pantalla sin frases ni romperla.
+    async function cargarFrases() {
+      try {
+        const lista = await obtenerFrases();
+        if (vigente) setFrases(lista);
+      } catch (error) {
+        console.error("No se pudieron traer las frases:", error);
+      }
+    }
+
     cargar();
+    cargarFrases();
     const id = setInterval(cargar, MS_REFRESCO);
 
     // Tiempo real: el server avisa "vehiculos:cambio" tras cada cambio en /admin.
     // io() sin URL conecta al mismo origen (en dev lo proxya Vite); reconecta solo
     // si se corta el wifi. Al (re)conectar refrescamos para no perder cambios que
-    // hayan pasado mientras estuvo caído.
+    // hayan pasado mientras estuvo caído. Guardar la configuración también
+    // emite "vehiculos:cambio", así las frases nuevas llegan sin recargar.
     const socket = io();
     socket.on("vehiculos:cambio", cargar);
+    socket.on("vehiculos:cambio", cargarFrases);
     socket.on("connect", cargar);
+    socket.on("connect", cargarFrases);
 
     return () => {
       vigente = false;
@@ -106,7 +123,17 @@ export function Display() {
   }, [bienvenida]);
 
   if (bienvenida) {
-    return <Bienvenida onTocar={() => setBienvenida(false)} />;
+    return (
+      <Bienvenida
+        onTocar={() => setBienvenida(false)}
+        // Sin cápsula hasta tener datos (o si nunca llegaron por un corte),
+        // para no anunciar "sin autos" sin saberlo.
+        vehiculos={
+          cargando || (sinConexion && vehiculos.length === 0) ? null : vehiculos
+        }
+        frases={frases}
+      />
+    );
   }
 
   return (

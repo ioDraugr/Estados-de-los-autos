@@ -112,3 +112,111 @@ describe("ajustes", () => {
     assert.equal(visible(), true);
   });
 });
+
+describe("ajustes de texto (cuidados del aviso de listo)", () => {
+  beforeEach(borrarAjustes);
+
+  // La definición del ajuste, para comparar con su valor por defecto.
+  const definicion = (clave: string) => {
+    const encontrada = AJUSTES.find((ajuste) => ajuste.clave === clave);
+    if (!encontrada) throw new Error(`No existe el ajuste ${clave}.`);
+    return encontrada;
+  };
+
+  test("sin nada guardado, cada cuidado vale su texto inicial", () => {
+    for (const clave of [
+      "cuidados_instalacion",
+      "cuidados_polarizado",
+      "cuidados_vitrificado",
+    ] as const) {
+      const texto = leerAjuste(clave);
+      assert.equal(typeof texto, "string");
+      assert.ok(texto.length > 0);
+      assert.equal(texto, definicion(clave).porDefecto);
+    }
+    assert.match(leerAjuste("cuidados_polarizado"), /^No bajes las ventanillas/);
+  });
+
+  test("aparecen en listarAjustes como 'texto', con su largo máximo y su valor", () => {
+    guardarAjustes({ cuidados_vitrificado: "No lo laves por 7 días." });
+    const vitrificado = listarAjustes().find((a) => a.clave === "cuidados_vitrificado");
+    assert.ok(vitrificado);
+    assert.equal(vitrificado.tipo, "texto");
+    assert.equal(vitrificado.valor, "No lo laves por 7 días.");
+    assert.ok(vitrificado.etiqueta.length > 0);
+    assert.ok(vitrificado.ayuda.length > 0);
+    assert.deepEqual(
+      listarAjustes().map((a) => a.clave),
+      [
+        "horas_visible_terminado",
+        "cuidados_instalacion",
+        "cuidados_polarizado",
+        "cuidados_vitrificado",
+      ],
+    );
+    const { maxLargo } = definicion("cuidados_vitrificado") as { maxLargo: number };
+    assert.equal(maxLargo, 800);
+  });
+
+  test("guarda y lee, sin los espacios de las puntas", () => {
+    guardarAjustes({ cuidados_polarizado: "  No bajes las ventanillas.\nUsá paño suave.  \n" });
+    assert.equal(leerAjuste("cuidados_polarizado"), "No bajes las ventanillas.\nUsá paño suave.");
+  });
+
+  test("vacío (o solo espacios) se guarda como vacío, no vuelve al inicial", () => {
+    guardarAjustes({ cuidados_instalacion: "" });
+    assert.equal(leerAjuste("cuidados_instalacion"), "");
+    guardarAjustes({ cuidados_instalacion: "Algo" });
+    guardarAjustes({ cuidados_instalacion: "   \n  " });
+    assert.equal(leerAjuste("cuidados_instalacion"), "");
+  });
+
+  test("acepta hasta 800 caracteres (contados sin las puntas) y rechaza más", () => {
+    const justo = "a".repeat(800);
+    guardarAjustes({ cuidados_polarizado: `  ${justo}  ` });
+    assert.equal(leerAjuste("cuidados_polarizado"), justo);
+
+    assert.throws(
+      () => guardarAjustes({ cuidados_polarizado: "a".repeat(801) }),
+      /hasta 800 caracteres/,
+    );
+    assert.equal(leerAjuste("cuidados_polarizado"), justo);
+  });
+
+  test("rechaza lo que no es texto", () => {
+    for (const valor of [3, null, true, ["a"], { texto: "a" }]) {
+      assert.throws(
+        () => guardarAjustes({ cuidados_vitrificado: valor }),
+        /tiene que ser un texto/,
+      );
+    }
+    assert.equal(leerAjuste("cuidados_vitrificado"), definicion("cuidados_vitrificado").porDefecto);
+  });
+
+  test("un texto guardado que no sirve (más largo, editado a mano) cae en el inicial", () => {
+    db.prepare("INSERT INTO config (clave, valor) VALUES ('cuidados_instalacion', ?)").run(
+      "a".repeat(801),
+    );
+    assert.equal(leerAjuste("cuidados_instalacion"), definicion("cuidados_instalacion").porDefecto);
+  });
+
+  test("entero y texto juntos: se guardan los dos o ninguno", () => {
+    guardarAjustes({ horas_visible_terminado: 8, cuidados_polarizado: "Primero" });
+    assert.equal(leerAjuste("horas_visible_terminado"), 8);
+    assert.equal(leerAjuste("cuidados_polarizado"), "Primero");
+
+    // El texto no sirve: tampoco se guardan las horas.
+    assert.throws(
+      () =>
+        guardarAjustes({ horas_visible_terminado: 10, cuidados_polarizado: "a".repeat(801) }),
+      /hasta 800 caracteres/,
+    );
+    // Las horas no sirven: tampoco se guarda el texto.
+    assert.throws(
+      () => guardarAjustes({ cuidados_polarizado: "Segundo", horas_visible_terminado: 0 }),
+      /entre 1 y 72/,
+    );
+    assert.equal(leerAjuste("horas_visible_terminado"), 8);
+    assert.equal(leerAjuste("cuidados_polarizado"), "Primero");
+  });
+});

@@ -3,14 +3,14 @@
 // valor vive en la tabla config (clave/valor). La variable de entorno, si hay,
 // solo da el valor inicial: lo que se guarda desde /admin manda.
 //
-// Para sumar uno (ej. un texto de los mensajes) alcanza con agregarlo a AJUSTES
-// (y, si es de un tipo nuevo, su validación en `validar`). El PIN NO es un
-// ajuste: se cambia aparte, pidiendo el actual (ver auth.ts).
+// Hay dos tipos: "entero" (con mínimo y máximo) y "texto" (con largo máximo;
+// vacío vale). Para sumar uno alcanza con agregarlo a AJUSTES (y, si es de un
+// tipo nuevo, su validación en `validar` y `esValido`). El PIN NO es un ajuste:
+// se cambia aparte, pidiendo el actual (ver auth.ts).
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 
-// Por ahora solo hay números enteros; más adelante, "texto".
-export type TipoAjuste = "entero";
+export type TipoAjuste = "entero" | "texto";
 
 interface AjusteEntero {
   clave: string;
@@ -22,9 +22,25 @@ interface AjusteEntero {
   porDefecto: number;
 }
 
-export type DefinicionAjuste = AjusteEntero;
-export type ValorAjuste = number;
-export type AjusteConValor = DefinicionAjuste & { valor: ValorAjuste };
+// Texto libre (ej. los cuidados del aviso de "listo"). Se guarda sin los
+// espacios de las puntas; vacío vale (el que lo usa decide qué significa).
+interface AjusteTexto {
+  clave: string;
+  etiqueta: string;
+  ayuda: string;
+  tipo: "texto";
+  maxLargo: number;
+  porDefecto: string;
+}
+
+export type DefinicionAjuste = AjusteEntero | AjusteTexto;
+export type ValorAjuste = number | string;
+export type AjusteConValor =
+  | (AjusteEntero & { valor: number })
+  | (AjusteTexto & { valor: string });
+
+// Largo máximo de los textos (los cuidados van dentro de un WhatsApp).
+const MAX_LARGO_TEXTO = 800;
 
 export const AJUSTES = [
   {
@@ -37,29 +53,62 @@ export const AJUSTES = [
     max: 72,
     porDefecto: enteroDeEntorno("HORAS_VISIBLE_TERMINADO", 4, 1, 72),
   },
+  // Cuidados que se suman al WhatsApp de "listo", uno por servicio que se le
+  // hizo al auto (ver avisos.ts). Los textos iniciales los aprobó el taller.
+  {
+    clave: "cuidados_instalacion",
+    etiqueta: "Cuidados de la instalación (aviso de listo)",
+    ayuda:
+      'Va al final del WhatsApp de "listo" si el auto tuvo instalación. Vacío = no se manda nada.',
+    tipo: "texto",
+    maxLargo: MAX_LARGO_TEXTO,
+    porDefecto:
+      "Antes de irte probá que todo funcione como esperabas. No desconectes la batería ni toques el cableado de lo que instalamos sin consultarnos. Si notás cualquier falla o tenés una duda, escribinos por acá.",
+  },
+  {
+    clave: "cuidados_polarizado",
+    etiqueta: "Cuidados del polarizado (aviso de listo)",
+    ayuda:
+      'Va al final del WhatsApp de "listo" si el auto tuvo polarizado. Vacío = no se manda nada.',
+    tipo: "texto",
+    maxLargo: MAX_LARGO_TEXTO,
+    porDefecto:
+      "No bajes las ventanillas durante 2 días para que la lámina se asiente bien. Es normal ver alguna burbuja o zona empañada los primeros días: desaparece sola a medida que se seca. Para limpiar los vidrios usá un paño suave con agua o un limpiador sin amoníaco.",
+  },
+  {
+    clave: "cuidados_vitrificado",
+    etiqueta: "Cuidados del vitrificado (aviso de listo)",
+    ayuda:
+      'Va al final del WhatsApp de "listo" si el auto tuvo vitrificado. Vacío = no se manda nada.',
+    tipo: "texto",
+    maxLargo: MAX_LARGO_TEXTO,
+    porDefecto:
+      "Durante los primeros 7 días no lo laves y, si podés, evitá dejarlo bajo la lluvia. Después lavalo a mano con shampoo neutro y paño de microfibra; evitá los lavaderos con cepillos y los productos con cera o abrasivos. Si le cae caca de pájaro o resina, sacala cuanto antes con agua.",
+  },
 ] as const satisfies readonly DefinicionAjuste[];
 
 export type ClaveAjuste = (typeof AJUSTES)[number]["clave"];
 
+// Qué devuelve leerAjuste según la clave: string para los de texto, number para
+// los enteros (así vehiculos.ts hace cuentas y avisos.ts arma mensajes sin
+// convertir nada).
+export type ValorDe<C extends ClaveAjuste> =
+  Extract<(typeof AJUSTES)[number], { clave: C }>["tipo"] extends "texto" ? string : number;
+
 // Valor actual del ajuste: el guardado en config o, si no hay (o no sirve), el
 // valor por defecto. Se lee en cada llamada: un cambio vale al instante.
-export function leerAjuste(clave: ClaveAjuste): ValorAjuste {
+export function leerAjuste<C extends ClaveAjuste>(clave: C): ValorDe<C> {
   const definicion = buscar(clave);
   if (!definicion) throw new Error(`Ajuste desconocido: ${clave}`);
-  const fila = db
-    .prepare("SELECT valor FROM config WHERE clave = ?")
-    .get(clave) as { valor: string } | undefined;
-  if (fila === undefined) return definicion.porDefecto;
-  const valor = Number(fila.valor);
-  return esValido(definicion, valor) ? valor : definicion.porDefecto;
+  return leerValor(definicion) as ValorDe<C>;
 }
 
 // Todos los ajustes, con su definición y su valor actual (para la pantalla).
 export function listarAjustes(): AjusteConValor[] {
-  return AJUSTES.map((definicion) => ({
-    ...definicion,
-    valor: leerAjuste(definicion.clave),
-  }));
+  return AJUSTES.map(
+    (definicion: DefinicionAjuste) =>
+      ({ ...definicion, valor: leerValor(definicion) }) as AjusteConValor,
+  );
 }
 
 /**
@@ -79,8 +128,7 @@ export function guardarAjustes(cambios: unknown): void {
   const validados = entradas.map(([clave, valor]) => {
     const definicion = buscar(clave);
     if (!definicion) throw new ErrorValidacion(`Ajuste desconocido: ${clave}.`);
-    validar(definicion, valor);
-    return { clave, valor: String(valor) };
+    return { clave, valor: validar(definicion, valor) };
   });
 
   const guardar = db.prepare(
@@ -97,23 +145,57 @@ function buscar(clave: string): DefinicionAjuste | undefined {
   return AJUSTES.find((definicion) => definicion.clave === clave);
 }
 
-function esValido(definicion: DefinicionAjuste, valor: unknown): valor is number {
-  return (
-    typeof valor === "number" &&
-    Number.isInteger(valor) &&
-    valor >= definicion.min &&
-    valor <= definicion.max
-  );
+// Lo guardado en config (siempre texto) pasado al tipo del ajuste; si no hay
+// nada o no sirve (ej. editado a mano), el valor por defecto.
+function leerValor(definicion: DefinicionAjuste): ValorAjuste {
+  const fila = db
+    .prepare("SELECT valor FROM config WHERE clave = ?")
+    .get(definicion.clave) as { valor: string } | undefined;
+  if (fila === undefined) return definicion.porDefecto;
+  const valor = definicion.tipo === "entero" ? Number(fila.valor) : fila.valor;
+  return esValido(definicion, valor) ? valor : definicion.porDefecto;
 }
 
-function validar(definicion: DefinicionAjuste, valor: unknown): void {
-  if (typeof valor !== "number" || !Number.isInteger(valor)) {
-    throw new ErrorValidacion(`"${definicion.etiqueta}" tiene que ser un número entero.`);
+function esValido(definicion: DefinicionAjuste, valor: unknown): boolean {
+  switch (definicion.tipo) {
+    case "entero":
+      return (
+        typeof valor === "number" &&
+        Number.isInteger(valor) &&
+        valor >= definicion.min &&
+        valor <= definicion.max
+      );
+    case "texto":
+      return typeof valor === "string" && valor.length <= definicion.maxLargo;
   }
-  if (!esValido(definicion, valor)) {
-    throw new ErrorValidacion(
-      `"${definicion.etiqueta}" tiene que estar entre ${definicion.min} y ${definicion.max}.`,
-    );
+}
+
+// Revisa el valor que llegó y devuelve cómo se guarda en config (como texto).
+// Si no sirve, ErrorValidacion con un mensaje para mostrar en la pantalla.
+function validar(definicion: DefinicionAjuste, valor: unknown): string {
+  switch (definicion.tipo) {
+    case "entero":
+      if (typeof valor !== "number" || !Number.isInteger(valor)) {
+        throw new ErrorValidacion(`"${definicion.etiqueta}" tiene que ser un número entero.`);
+      }
+      if (!esValido(definicion, valor)) {
+        throw new ErrorValidacion(
+          `"${definicion.etiqueta}" tiene que estar entre ${definicion.min} y ${definicion.max}.`,
+        );
+      }
+      return String(valor);
+    case "texto": {
+      if (typeof valor !== "string") {
+        throw new ErrorValidacion(`"${definicion.etiqueta}" tiene que ser un texto.`);
+      }
+      const texto = valor.trim();
+      if (!esValido(definicion, texto)) {
+        throw new ErrorValidacion(
+          `"${definicion.etiqueta}" puede tener hasta ${definicion.maxLargo} caracteres (tiene ${texto.length}).`,
+        );
+      }
+      return texto;
+    }
   }
 }
 

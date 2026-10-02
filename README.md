@@ -408,7 +408,7 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
 ### Pantalla de Configuración
 
 El botón **Configuración** de la cabecera (en el celular, solo el ícono) cambia la
-lista de autos por tres tarjetas; se vuelve con "← Volver a los autos":
+lista de autos por cuatro tarjetas; se vuelve con "← Volver a los autos":
 
 - **PIN de acceso.** PIN actual, PIN nuevo (de 4 a 8 números) y repetirlo. Vale
   para `/admin` **y** `/taller`. El dispositivo desde el que se cambia sigue
@@ -422,6 +422,10 @@ lista de autos por tres tarjetas; se vuelve con "← Volver a los autos":
   a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante. Los
   ajustes salen de la lista del server (`server/src/ajustes.ts`): uno nuevo
   aparece solo en esta tarjeta.
+- **Cuidados en el aviso de listo.** Un texto por servicio (instalación,
+  polarizado, vitrificado), de hasta 800 caracteres, con "Guardar". Van al final
+  del WhatsApp de "listo" (ver [Avisos por WhatsApp](#avisos-por-whatsapp)); vacío
+  = ese servicio no lleva cuidados.
 
 ## Avisos por WhatsApp
 
@@ -436,6 +440,13 @@ mensajes automáticos:
 
 Los mensajes solo llevan marca y modelo (nunca la matrícula). Los textos están
 todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
+
+El de **"listo"** suma, en el mismo mensaje, los **cuidados** de cada servicio que
+se le hizo al auto (instalación, polarizado y vitrificado, en ese orden), cada uno
+en su párrafo ("Cuidados del polarizado:" y el texto). Esos textos se editan desde
+`/admin` → **Configuración** → "Cuidados en el aviso de listo", sin tocar código; se
+leen al momento de mandar, así que un cambio vale también para los avisos que ya
+estaban esperando. Si un texto está vacío, ese servicio no lleva cuidados.
 
 - **Los 5 minutos son de seguridad.** Al llegar la hora, el server vuelve a mirar
   cómo está el auto antes de mandar. Si alguien tocó "en proceso" sin querer y lo

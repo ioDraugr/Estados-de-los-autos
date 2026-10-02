@@ -1,10 +1,11 @@
 // Pantalla "Configuración" de /admin: reemplaza a la lista de autos (la
-// cabecera queda) y se vuelve con "← Volver". Tres tarjetas de vidrio:
+// cabecera queda) y se vuelve con "← Volver". Tarjetas de vidrio:
 //   - PIN de acceso (CambiarPin.tsx),
 //   - Backups: cuándo fue el último, cuántos hay y "Hacer backup ahora",
-//   - Ajustes: se arman solos desde la lista que manda el server (GET
-//     /api/config), así un ajuste nuevo en server/src/ajustes.ts aparece acá
-//     sin tocar esta pantalla (salvo que sea de un tipo nuevo: ver CampoAjuste).
+//   - Ajustes (pantalla del showroom y cuidados del aviso de "listo"): se arman
+//     solos desde la lista que manda el server (GET /api/config), así un ajuste
+//     nuevo en server/src/ajustes.ts aparece acá sin tocar esta pantalla (salvo
+//     que sea de un tipo nuevo: ver CampoAjuste).
 // Si el PIN de este dispositivo deja de servir (ej. lo cambiaron desde otra
 // tablet), vuelve al login como el resto de /admin.
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -15,7 +16,13 @@ import {
   obtenerConfig,
   textoDeError,
 } from "../api";
-import type { Ajuste, AjusteEntero, DatosConfig, EstadoBackups } from "../types";
+import type {
+  Ajuste,
+  AjusteEntero,
+  AjusteTexto,
+  DatosConfig,
+  EstadoBackups,
+} from "../types";
 import {
   AVISO_ERROR,
   AVISO_OK,
@@ -56,7 +63,7 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <TituloSeccion
           titulo="Configuración"
-          ayuda="El PIN, los backups de la base y los ajustes del showroom."
+          ayuda="El PIN, los backups de la base, los ajustes del showroom y los cuidados del aviso de listo."
         />
         <button
           type="button"
@@ -92,13 +99,11 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
             onEstado={(backups) => setDatos((d) => d && { ...d, backups })}
             onNoAutorizado={onNoAutorizado}
           />
-          <div className="lg:col-span-2">
-            <Ajustes
-              ajustes={datos.ajustes}
-              onGuardado={setDatos}
-              onNoAutorizado={onNoAutorizado}
-            />
-          </div>
+          <Ajustes
+            ajustes={datos.ajustes}
+            onGuardado={setDatos}
+            onNoAutorizado={onNoAutorizado}
+          />
         </div>
       )}
     </>
@@ -202,21 +207,41 @@ interface AjustesProps {
   onNoAutorizado: () => void;
 }
 
+// Dos tarjetas a lo ancho: los enteros (hoy, las horas del showroom) y los
+// textos (hoy, los cuidados que van en el WhatsApp de "listo"). Una tarjeta sin
+// ajustes no se muestra.
 function Ajustes({ ajustes, onGuardado, onNoAutorizado }: AjustesProps) {
-  if (ajustes.length === 0) return null;
-  return (
-    <TarjetaConfig titulo="Pantalla del showroom">
-      <div className="flex flex-col gap-4">
-        {ajustes.map((ajuste) => (
-          <CampoAjuste
-            key={ajuste.clave}
-            ajuste={ajuste}
-            onGuardado={onGuardado}
-            onNoAutorizado={onNoAutorizado}
-          />
-        ))}
-      </div>
-    </TarjetaConfig>
+  const grupos = [
+    {
+      titulo: "Pantalla del showroom",
+      ayuda: undefined,
+      ajustes: ajustes.filter((ajuste) => ajuste.tipo === "entero"),
+    },
+    {
+      titulo: "Cuidados en el aviso de listo",
+      ayuda:
+        "Van al final del WhatsApp que avisa que el auto está listo, uno por cada servicio que se le hizo.",
+      ajustes: ajustes.filter((ajuste) => ajuste.tipo === "texto"),
+    },
+  ];
+  return grupos.map(
+    (grupo) =>
+      grupo.ajustes.length > 0 && (
+        <div key={grupo.titulo} className="lg:col-span-2">
+          <TarjetaConfig titulo={grupo.titulo} ayuda={grupo.ayuda}>
+            <div className="flex flex-col gap-4">
+              {grupo.ajustes.map((ajuste) => (
+                <CampoAjuste
+                  key={ajuste.clave}
+                  ajuste={ajuste}
+                  onGuardado={onGuardado}
+                  onNoAutorizado={onNoAutorizado}
+                />
+              ))}
+            </div>
+          </TarjetaConfig>
+        </div>
+      ),
   );
 }
 
@@ -226,14 +251,22 @@ interface CampoProps<A extends Ajuste> {
   onNoAutorizado: () => void;
 }
 
-// Un campo por tipo de ajuste. Para sumar un tipo (ej. "texto" para los
-// mensajes de WhatsApp): agregarlo a `Ajuste` en types.ts y acá su caso, con
-// su propio campo (el guardado es el mismo: PATCH /api/config con { clave: valor }).
+// Un campo por tipo de ajuste. Para sumar un tipo: agregarlo a `Ajuste` en
+// types.ts y acá su caso, con su propio campo (el guardado es el mismo: PATCH
+// /api/config con { clave: valor }).
 function CampoAjuste({ ajuste, onGuardado, onNoAutorizado }: CampoProps<Ajuste>) {
   switch (ajuste.tipo) {
     case "entero":
       return (
         <CampoEntero
+          ajuste={ajuste}
+          onGuardado={onGuardado}
+          onNoAutorizado={onNoAutorizado}
+        />
+      );
+    case "texto":
+      return (
+        <CampoTexto
           ajuste={ajuste}
           onGuardado={onGuardado}
           onNoAutorizado={onNoAutorizado}
@@ -328,6 +361,95 @@ function CampoEntero({ ajuste, onGuardado, onNoAutorizado }: CampoProps<AjusteEn
       {listo && !cambiado && (
         <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>
           Guardado. El showroom ya se actualizó.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Ajuste de texto: un recuadro grande para escribir, con la cuenta de
+// caracteres ("N/800") y "Guardar", que se habilita solo si el texto cambió.
+// Los espacios de las puntas no cuentan (el server los saca al guardar).
+function CampoTexto({ ajuste, onGuardado, onNoAutorizado }: CampoProps<AjusteTexto>) {
+  const [valor, setValor] = useState(ajuste.valor);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [listo, setListo] = useState(false);
+
+  const texto = valor.trim();
+  const cambiado = texto !== ajuste.valor;
+  const largo = texto.length;
+  const pasado = largo > ajuste.maxLargo;
+
+  function cambiar(nuevo: string) {
+    setValor(nuevo);
+    setError(null);
+    setListo(false);
+  }
+
+  async function guardar() {
+    if (!cambiado || pasado || guardando) return;
+    setGuardando(true);
+    setError(null);
+    try {
+      onGuardado(await guardarAjustes({ [ajuste.clave]: texto }));
+      setValor(texto);
+      setListo(true);
+    } catch (e) {
+      if (e instanceof NoAutorizado) onNoAutorizado();
+      else setError(textoDeError(e));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className={`${GRUPO} p-4 sm:p-[18px]`}>
+      <label
+        htmlFor={ajuste.clave}
+        className="block text-xl font-semibold text-tinta sm:text-[22px]"
+      >
+        {ajuste.etiqueta}
+      </label>
+      <p className="mt-1 text-base text-tinta-suave sm:text-lg">{ajuste.ayuda}</p>
+
+      <textarea
+        id={ajuste.clave}
+        value={valor}
+        rows={5}
+        disabled={guardando}
+        placeholder="Sin cuidados: no se manda nada para este servicio."
+        onChange={(e) => cambiar(e.target.value)}
+        className="mt-4 block min-h-40 w-full resize-y rounded-2xl border border-tinta/[0.12] bg-white/80 px-4 py-3 text-xl leading-snug text-tinta caret-[#be8a18] outline-none placeholder:text-[#A89B84] focus:border-marca disabled:opacity-60 sm:text-[22px]"
+      />
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+        <span
+          className={`text-lg tabular-nums ${pasado ? "font-semibold text-peligro" : "text-tinta-suave"}`}
+        >
+          {largo}/{ajuste.maxLargo}
+        </span>
+        <button
+          type="button"
+          onClick={guardar}
+          disabled={!cambiado || pasado || guardando}
+          className={`${BOTON_MARCA} h-14 min-w-40 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
+        >
+          {guardando ? "Guardando…" : "Guardar"}
+        </button>
+      </div>
+
+      {pasado && (
+        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
+          Es muy largo: puede tener hasta {ajuste.maxLargo} caracteres.
+        </p>
+      )}
+      {error && (
+        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>
+      )}
+      {listo && !cambiado && (
+        <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>
+          Guardado. Va en los próximos avisos de listo.
         </p>
       )}
     </div>

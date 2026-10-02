@@ -3,9 +3,12 @@
 // despachador los manda cuando vencen. La demora de seguridad existe para que un
 // toque sin querer en /admin no le escriba al cliente: al momento de enviar se
 // vuelve a revisar que la condición siga siendo cierta.
-// Solo importa la base y los envíos: vehiculos.ts y servicios.ts lo llaman a él.
+// Solo importa la base, los ajustes (los cuidados del "listo") y los envíos:
+// vehiculos.ts y servicios.ts lo llaman a él.
+import { leerAjuste } from "./ajustes.js";
 import { db } from "./db.js";
 import { ErrorDefinitivo, type Enviador } from "./enviadores.js";
+import type { TipoServicio } from "./tipos.js";
 
 export type TipoAviso = "ingreso" | "en_proceso" | "listo";
 
@@ -27,6 +30,15 @@ const MENSAJES: Record<TipoAviso, (auto: { marca: string; modelo: string }) => s
   listo: ({ marca, modelo }) =>
     `¡Tu ${marca} ${modelo} está listo! Ya podés pasar a buscarlo por ML Center.`,
 };
+
+// Al "listo" se le suman los cuidados de cada servicio que se le hizo al auto,
+// en este orden y cada uno una sola vez. El texto es un ajuste que se edita
+// desde /admin → Configuración (ajustes.ts); si está vacío, ese bloque no va.
+const CUIDADOS = [
+  { tipo: "instalacion", titulo: "Cuidados de la instalación:", clave: "cuidados_instalacion" },
+  { tipo: "polarizado", titulo: "Cuidados del polarizado:", clave: "cuidados_polarizado" },
+  { tipo: "vitrificado", titulo: "Cuidados del vitrificado:", clave: "cuidados_vitrificado" },
+] as const satisfies readonly { tipo: TipoServicio; titulo: string; clave: string }[];
 
 // "+N seconds" para datetime('now', ?): la demora ya pasada a segundos enteros.
 const DESPLAZAMIENTO_DEMORA = `+${Math.round(DEMORA_MIN * 60)} seconds`;
@@ -185,7 +197,7 @@ async function despacharUno(id: number, enviador: Enviador): Promise<void> {
   }
 
   try {
-    await enviador.enviar(aviso.telefono, MENSAJES[aviso.tipo](aviso));
+    await enviador.enviar(aviso.telefono, armarMensaje(aviso));
   } catch (error) {
     registrarFalla(aviso, error);
     return;
@@ -195,6 +207,31 @@ async function despacharUno(id: number, enviador: Enviador): Promise<void> {
   db.prepare(
     "UPDATE avisos SET estado = 'enviado', enviado_en = datetime('now') WHERE id = ?",
   ).run(id);
+}
+
+// El texto que se manda. Se arma recién al enviar: un cambio en los cuidados
+// vale también para los avisos que ya estaban esperando. Todo va en un solo
+// mensaje, con una línea en blanco entre el saludo y cada bloque de cuidados.
+function armarMensaje(aviso: AvisoAEnviar): string {
+  const base = MENSAJES[aviso.tipo](aviso);
+  if (aviso.tipo !== "listo") return base;
+  return [base, ...cuidadosDe(aviso.vehiculo_id)].join("\n\n");
+}
+
+// Un bloque "Cuidados del …:\n{texto}" por cada tipo de servicio ACTIVO del
+// auto que tenga texto, en el orden de CUIDADOS.
+function cuidadosDe(vehiculoId: number): string[] {
+  const filas = db
+    .prepare("SELECT DISTINCT tipo FROM servicios WHERE vehiculo_id = ? AND eliminado_en IS NULL")
+    .all(vehiculoId) as { tipo: TipoServicio }[];
+  const tipos = new Set(filas.map((fila) => fila.tipo));
+  const bloques: string[] = [];
+  for (const { tipo, titulo, clave } of CUIDADOS) {
+    if (!tipos.has(tipo)) continue;
+    const texto = leerAjuste(clave);
+    if (texto !== "") bloques.push(`${titulo}\n${texto}`);
+  }
+  return bloques;
 }
 
 // Por qué el aviso ya no tiene sentido (o null si hay que mandarlo).

@@ -408,7 +408,7 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
 ### Pantalla de Configuración
 
 El botón **Configuración** de la cabecera (en el celular, solo el ícono) cambia la
-lista de autos por tres tarjetas; se vuelve con "← Volver a los autos":
+lista de autos por tarjetas; se vuelve con "← Volver a los autos":
 
 - **PIN de acceso.** PIN actual, PIN nuevo (de 4 a 8 números) y repetirlo. Vale
   para `/admin` **y** `/taller`. El dispositivo desde el que se cambia sigue
@@ -419,9 +419,16 @@ lista de autos por tres tarjetas; se vuelve con "← Volver a los autos":
   **"Hacer backup ahora"** se hace uno en el momento (por ejemplo, antes de tocar
   algo). Ver [Respaldo de la base](#respaldo-de-la-base).
 - **Pantalla del showroom.** Cuántas horas sigue visible un auto terminado (de 1
-  a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante. Los
-  ajustes salen de la lista del server (`server/src/ajustes.ts`): uno nuevo
-  aparece solo en esta tarjeta.
+  a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante.
+- **Post-venta por WhatsApp.** Prender o apagar el pedido de reseña y el
+  recordatorio de mantenimiento (interruptores: se guardan al tocarlos), cuántos
+  días / meses después del retiro, los dos textos (con "Usar el de fábrica"), el
+  link de reseñas, el horario, si se manda los domingos y los minutos entre un
+  mensaje y otro. Los textos y el link se escriben y se guardan con "Guardar".
+
+Los ajustes salen de la lista del server (`server/src/ajustes.ts`), cada uno con
+su tipo (número entero, sí/no o texto) y su grupo (la tarjeta donde aparece): uno
+nuevo aparece solo en su tarjeta.
 
 ## Avisos por WhatsApp
 
@@ -612,8 +619,8 @@ para el [límite de intentos](#la-vista-admin-trabajadores): bloqueado =>
 | `POST /api/vehiculos/:id/servicios` | Agrega un servicio (body `{ tipo }`). |
 | `PATCH /api/servicios/:id` | Cambia el estado de un servicio (body `{ estado }`). |
 | `DELETE /api/servicios/:id` | Quita un servicio (soft delete; `400` si es el último activo del auto). |
-| `GET /api/config` | `{ ajustes, backups }`: cada ajuste editable con su definición (`clave`, `etiqueta`, `ayuda`, `tipo`, `min`, `max`, `porDefecto`) y su `valor`, y el estado de los backups (`carpeta`, `ultimo`, `ultimoError`, `cantidad`). |
-| `PATCH /api/config` | Guarda ajustes (body `{ clave: valor }`, ej. `{ "horas_visible_terminado": 6 }`). Todos o ninguno (`400` si alguno no sirve). Avisa a las pantallas para que se actualicen ya. Devuelve lo mismo que el `GET`. |
+| `GET /api/config` | `{ ajustes, backups }`: cada ajuste editable con su definición (`clave`, `grupo`, `etiqueta`, `ayuda`, `tipo` y `porDefecto`; los enteros traen `min`/`max` y los textos `maxLargo`, `permiteVacio`, `multilinea` y `formato`) y su `valor` (número, `true`/`false` o texto), y el estado de los backups (`carpeta`, `ultimo`, `ultimoError`, `cantidad`). |
+| `PATCH /api/config` | Guarda ajustes (body `{ clave: valor }`, ej. `{ "horas_visible_terminado": 6, "postventa_domingos": false }`). Todos o ninguno (`400` si alguno no sirve: fuera de rango, texto vacío o muy largo, link que no es `http(s)`, horario con "desde" ≥ "hasta"). Avisa a las pantallas para que se actualicen ya. Devuelve lo mismo que el `GET`. |
 | `POST /api/config/pin` | Cambia el PIN (body `{ actual, nuevo }`; el nuevo, de 4 a 8 números). `actual` mal => `401` y cuenta para el bloqueo. |
 | `POST /api/backups` | Hace un backup ya ("manual") y devuelve el estado de los backups; `500` con el motivo si falla. |
 

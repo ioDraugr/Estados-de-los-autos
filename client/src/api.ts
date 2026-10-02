@@ -132,7 +132,7 @@ export async function obtenerConfig(): Promise<DatosConfig> {
 
 // Guarda ajustes ({ clave: valor }). Devuelve la configuración ya actualizada.
 export async function guardarAjustes(
-  cambios: Record<string, number>,
+  cambios: Record<string, number | boolean | string>,
 ): Promise<DatosConfig> {
   const res = await escribir("/api/config", "PATCH", cambios);
   return res.json();

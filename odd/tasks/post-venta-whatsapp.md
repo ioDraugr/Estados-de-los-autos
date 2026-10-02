@@ -1,0 +1,68 @@
+# Feature: post-venta automática por WhatsApp
+
+Locator: `odd/tasks/post-venta-whatsapp.md` · Engram: `odd/post-venta-whatsapp/tasks` · Rama: `feat/post-venta-whatsapp` (desde `6688a2e`)
+
+## Objetivo
+Después de que el cliente retira el auto, mandarle por WhatsApp (reusando la cola `avisos`):
+1. **Pedido de reseña** N días después del retiro (default 3) con el link de reseñas de Google.
+2. **Recordatorio de mantenimiento** N meses después (default 6), solo si el auto tuvo vitrificado.
+
+## Por qué
+Fidelizar y conseguir reseñas sin trabajo manual del taller.
+
+## Alcance y decisiones del usuario (2026-10-02)
+- Todo configurable desde /admin → Configuración: activar/desactivar cada uno, días/meses, textos, link,
+  horario y espaciado. Textos con marcadores `{marca}`, `{modelo}`, `{link}`.
+- Casilla en alta/edición "Acepta recibir mensajes por WhatsApp" → columna `vehiculos.acepta_whatsapp`.
+  - Aplica **solo a post-venta**; los avisos ingreso/en_proceso/listo siguen como hoy.
+  - Autos existentes (antes de la migración) = **no aceptaron**.
+  - En el alta la casilla arranca **marcada**.
+- Horario: configurable, default **10 a 19 h, lunes a sábado**, hora local (TZ del server, America/Montevideo).
+- Espaciado: mínimo **3 min** entre dos mensajes de post-venta (configurable). Los avisos operativos no se espacian.
+- Fecha de envío se fija **al retirar** con la config vigente; cambiar días/meses vale para próximos retiros.
+  Activar/desactivar, textos, link, horario y espaciado se evalúan al momento de mandar.
+- Sin link cargado, la reseña no se manda (queda cancelada con motivo).
+- Solo clientes con celular cargado (sin celular → `sin_telefono`, como hoy).
+- Textos por defecto:
+  - Reseña: "¡Hola! Gracias por confiar en ML Center con tu {marca} {modelo}. Si te gustó el trabajo, nos ayudás mucho dejándonos una reseña acá: {link}"
+  - Mantenimiento: "¡Hola! Ya pasaron unos meses desde el vitrificado de tu {marca} {modelo}. Es un buen momento para hacerle el mantenimiento y que siga protegido. Escribinos por acá y coordinamos un día."
+
+## Restricciones
+- Español, touch-first, sin `<form>` submit (onClick/onChange).
+- La tabla `avisos` tiene CHECK de tipos: migración que reconstruye la tabla sin perder filas.
+- Al retirar hoy se cancelan los avisos pendientes; los de post-venta quedan fuera de esa cancelación.
+- Mantenimiento: corresponde si el auto tiene un servicio vitrificado no eliminado.
+
+## Modo de trabajo
+- TDD: **off** (fuente: sin configuración de proyecto/sesión, igual que features previas). Checks funcionales.
+- Runner: `cd server && npm test` (`node --import tsx --test "test/**/*.test.ts"`); client: `npm run build` (tsc + vite).
+- RDD: **on** (global). Assess después de cada commit; boundary inicial `6688a2e`.
+- Entrega: `single-pr` (el usuario mergea con squash, un PR por feature). Pronóstico ~950 líneas.
+
+## Tareas
+- [x] T1 — Ajustes tipo `booleano` y `texto` (server `ajustes.ts` + UI `Configuracion.tsx`) y definiciones de
+  post-venta (activar ×2, días reseña, meses mantenimiento, textos ×2, link, hora desde/hasta, domingo no, espaciado). Tests de validación.
+  Ruta: delegated direct (writer trigger: server + client, 2+ archivos no triviales).
+- [ ] T2 — Migración: `avisos.tipo` acepta `resena`/`mantenimiento`; columna `acepta_whatsapp` (existentes 0).
+  Casilla en alta/edición (server `vehiculos.ts` + client `FormVehiculo.tsx`). Tests de migración y consentimiento.
+  Ruta: delegated direct (writer trigger: db, vehiculos, FormVehiculo, tipos).
+- [ ] T3 — Programar al retirar + despachador (horario, espaciado, consentimiento, activado, link, textos) +
+  README. Tests de programación, horario, espaciado, desactivado, sin link, sin consentimiento.
+  Ruta: delegated direct (writer trigger: avisos, vehiculos, README, tests).
+
+## Criterios de aceptación
+- Retirar un auto con celular y consentimiento encola reseña a +N días; con vitrificado, también mantenimiento a +N meses.
+- Fuera de horario o domingo no sale nada de post-venta; dentro sale, con ≥ espaciado entre ellos.
+- Desactivado, sin consentimiento, sin link (reseña) → no sale y queda registrado el motivo.
+- Avisos ingreso/en_proceso/listo sin cambios de comportamiento.
+- Tests server verdes y build del client OK.
+
+## Progreso
+- Exploración hecha; decisiones del usuario registradas.
+- T1 hecha (commit: ver la línea de T2, el hash se anota en el commit siguiente). Checks: `npm test` server
+  59/59 pass; client `npm run build` OK; `oxlint src` sin avisos.
+  - Ajustes ahora tienen `grupo` (showroom | postventa): una tarjeta por grupo en Configuración.
+  - Sí/no se guarda al tocar el interruptor (sin botón Guardar). Textos con "Usar el de fábrica".
+  - Interruptor extraído a `client/src/components/Interruptor.tsx` (lo usa también FormVehiculo).
+  - Decisión propia (conservadora): textos sin espacios en las puntas; mensajes máx. 600, link máx. 300;
+    el link puede ser http o https; no se exige que el texto de reseña contenga `{link}`.

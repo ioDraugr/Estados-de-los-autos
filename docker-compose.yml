@@ -26,7 +26,8 @@ services:
       - path: .env
         required: false
     environment:
-      # Hora local para los logs (Uruguay). Se cambia con TZ en el .env.
+      # Hora local (Uruguay) para los logs y el horario de la post-venta por
+      # WhatsApp. Se cambia con TZ en el .env.
       TZ: ${TZ:-America/Montevideo}
       # Fijos en Docker: el puerto de adentro no se toca (se cambia PUERTO) y la
       # base y la sesión de WhatsApp van SIEMPRE al volumen.

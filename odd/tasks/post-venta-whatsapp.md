@@ -46,7 +46,7 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
 - [x] T2 — Migración: `avisos.tipo` acepta `resena`/`mantenimiento`; columna `acepta_whatsapp` (existentes 0).
   Casilla en alta/edición (server `vehiculos.ts` + client `FormVehiculo.tsx`). Tests de migración y consentimiento.
   Ruta: delegated direct (writer trigger: db, vehiculos, FormVehiculo, tipos).
-- [ ] T3 — Programar al retirar + despachador (horario, espaciado, consentimiento, activado, link, textos) +
+- [x] T3 — Programar al retirar + despachador (horario, espaciado, consentimiento, activado, link, textos) +
   README. Tests de programación, horario, espaciado, desactivado, sin link, sin consentimiento.
   Ruta: delegated direct (writer trigger: avisos, vehiculos, README, tests).
 
@@ -68,7 +68,7 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
     el link puede ser http o https; no se exige que el texto de reseña contenga `{link}`.
   - Tamaño: ~770 líneas (sobre la heurística de 400): dos tipos nuevos de ajuste en server y client, sus
     campos táctiles y 11 definiciones con su ayuda; partirla habría dejado tipos sin UI.
-- T2 hecha (hash en el commit siguiente). Checks: `npm test` server 68/68 pass (nuevos: `migracion.test.ts`,
+- T2 hecha, commit `0d98493`. Checks: `npm test` server 68/68 pass (nuevos: `migracion.test.ts`,
   `consentimiento.test.ts`); client `npm run build` OK; `oxlint src` sin avisos.
   - Migración: reconstruye `avisos` si su CREATE no menciona 'resena' (foreign_keys OFF fuera de la
     transacción, copia con ids, recrea el índice, conserva el contador AUTOINCREMENT, `foreign_key_check`).
@@ -76,3 +76,18 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
   - Decisión propia (conservadora): por API, alta sin `acepta_whatsapp` = no aceptó (el "marcado por
     defecto" es solo del formulario); valores no booleanos => 400. El consentimiento solo viaja con PIN,
     igual que el celular. En el formulario es un interruptor (mismo estilo que los servicios), no un checkbox.
+- T3 hecha (hash en el commit siguiente). Checks: `npm test` server 89/89 pass (nuevo: `postventa.test.ts`,
+  21 tests; `avisos.test.ts` sin tocar y verde); `tsc --noEmit` server OK; client `npm run build` OK;
+  `oxlint src` sin avisos.
+  - Módulo nuevo `server/src/postventa.ts` (programar, horario, espaciado, motivos, texto); avisos.ts
+    lo usa en el despachador. `despacharPendientes(enviador, reloj?)`: reloj inyectable solo para el horario.
+  - Orden al vencer un post-venta: fuera de horario => espera (sin intentos) → motivo (desactivado, sin
+    consentimiento, sin link) => cancelado → sin celular => sin_telefono → espaciado => espera → envío.
+  - `cancelarAvisos` (retiro y auto inactivo) solo toca ingreso/en_proceso/listo; "el auto ya se retiró"
+    solo aplica a esos tipos.
+  - Decisiones propias (conservadoras): el motivo de cancelación de post-venta también queda en
+    `avisos.ultimo_error` (los del taller siguen igual, solo log). Un post-venta desactivado se decide
+    recién dentro del horario (si lo reactivan antes, sale). El espaciado se mide con `enviado_en` (reloj de
+    SQLite). Se documentó `TZ` como zona del horario (README, `.env.example`, `docker-compose.yml`).
+- RDD assess por commit: no corrido por el writer (queda para el orquestador).
+- Próximo: revisión del usuario y PR único (`single-pr`).

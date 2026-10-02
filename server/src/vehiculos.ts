@@ -4,6 +4,7 @@ import { cancelarAvisos, programarIngreso } from "./avisos.js";
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 import { registrarEvento } from "./historial.js";
+import { programarPostventa } from "./postventa.js";
 import { TIPOS_SERVICIO } from "./servicios.js";
 import { normalizarTelefono } from "./telefono.js";
 import type { Servicio, TipoServicio, Vehiculo } from "./tipos.js";
@@ -193,7 +194,9 @@ export function editarVehiculo(id: number, datos: DatosVehiculo): boolean {
 }
 
 // Retirar = soft delete: el auto no se borra, se marca con fecha y desaparece
-// de /display y de /admin al instante. Los avisos pendientes se cancelan.
+// de /display y de /admin al instante. Los avisos del taller pendientes se
+// cancelan y quedan programados los de post-venta (reseña y, si tuvo
+// vitrificado, mantenimiento; ver postventa.ts).
 // Retirar dos veces no anota un segundo retiro en el historial.
 export function retirarVehiculo(id: number): boolean {
   const retirar = db.transaction((): boolean => {
@@ -205,6 +208,7 @@ export function retirarVehiculo(id: number): boolean {
     if (changes === 0) return false;
     registrarEvento({ vehiculoId: id, evento: "retiro" });
     cancelarAvisos(id);
+    programarPostventa(id);
     return true;
   });
   return retirar();

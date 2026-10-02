@@ -140,7 +140,7 @@ Es opcional (sin `.env` se usan los defaults) y **no se sube a git**. El modelo 
 | Variable | Default | Para qué sirve |
 | --- | --- | --- |
 | `PUERTO` | `3000` | Puerto de la PC donde queda la app (`http://<ip>:PUERTO`). |
-| `TZ` | `America/Montevideo` | Zona horaria de los logs. |
+| `TZ` | `America/Montevideo` | Zona horaria de los logs y del horario de los mensajes de [post-venta](#post-venta-por-whatsapp). |
 | `ADMIN_PIN`, `HORAS_VISIBLE_TERMINADO`, `AVISOS_*` | | Igual que sin Docker, ver [Configuración](#configuración). |
 
 Después de cambiar el `.env`: `docker compose up -d` (recrea el contenedor con la
@@ -435,6 +435,7 @@ lista de autos por tarjetas; se vuelve con "← Volver a los autos":
   días / meses después del retiro, los dos textos (con "Usar el de fábrica"), el
   link de reseñas, el horario, si se manda los domingos y los minutos entre un
   mensaje y otro. Los textos y el link se escriben y se guardan con "Guardar".
+  Ver [Post-venta por WhatsApp](#post-venta-por-whatsapp).
 
 Los ajustes salen de la lista del server (`server/src/ajustes.ts`), cada uno con
 su tipo (número entero, sí/no o texto) y su grupo (la tarjeta donde aparece): uno
@@ -461,7 +462,8 @@ todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
   nuevo con 5 minutos contados desde ese momento.
 - **Cada aviso sale una sola vez por auto.** Si un auto ya recibió el "listo" y se
   reabre un servicio, cuando se vuelva a terminar no se manda otro.
-- **Retirar el auto cancela** los avisos que tenía pendientes.
+- **Retirar el auto cancela** los avisos que tenía pendientes (y programa los de
+  [post-venta](#post-venta-por-whatsapp)).
 - **Sin celular, no sale.** El aviso queda como `sin_telefono`. Si después se le carga
   el celular, los avisos de "arrancamos" y "listo" se vuelven a programar en el
   próximo cambio de servicios; el de "entró" ya no.
@@ -478,6 +480,41 @@ todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
 - El server revisa la cola cada 30 segundos (`AVISOS_INTERVALO_SEG`), así que un
   aviso puede salir hasta medio minuto después de su hora.
 
+### Post-venta por WhatsApp
+
+Después de que el cliente **retira** el auto, el server le manda hasta dos
+mensajes más, por la misma cola y el mismo WhatsApp:
+
+| Mensaje | Cuándo sale | Texto por defecto |
+| --- | --- | --- |
+| Pedido de reseña | 3 días después del retiro (de 1 a 60). | "¡Hola! Gracias por confiar en ML Center con tu {marca} {modelo}. Si te gustó el trabajo, nos ayudás mucho dejándonos una reseña acá: {link}" |
+| Mantenimiento | 6 meses después del retiro (de 1 a 36), **solo si el auto tuvo vitrificado**. | "¡Hola! Ya pasaron unos meses desde el vitrificado de tu {marca} {modelo}. Es un buen momento para hacerle el mantenimiento y que siga protegido. Escribinos por acá y coordinamos un día." |
+
+Todo se ajusta desde `/admin` → [Configuración](#pantalla-de-configuración) →
+**Post-venta por WhatsApp**:
+
+| Ajuste | Por defecto | Qué hace |
+| --- | --- | --- |
+| Pedir reseña / Recordar el mantenimiento | prendidos | Apagado, el mensaje no sale (queda `cancelado`). |
+| Días (reseña) / Meses (mantenimiento) | 3 días / 6 meses | Se cuentan desde el retiro. La fecha se fija **al retirar**: cambiarlos vale para los próximos retiros. |
+| Textos | los de la tabla | `{marca}` y `{modelo}` se cambian por los del auto y `{link}` por el link de reseñas. Hasta 600 letras. **Nunca** se manda la matrícula. |
+| Link para dejar la reseña | vacío | El link de reseñas de Google (`https://…`). **Sin link, la reseña no sale.** |
+| Horario | de 10 a 19 h | Solo se manda dentro de ese horario (hora de la PC servidor; "hasta" no incluido). Lo que vence fuera de hora espera, sin gastar intentos. |
+| Domingos | no | Apagado, lo que vence un domingo sale el lunes. |
+| Minutos entre mensajes | 3 (de 0 a 120) | Entre dos mensajes de post-venta pasan al menos esos minutos, para no mandar muchos de golpe. Los avisos del taller no esperan. |
+
+- **Solo a quien aceptó.** El interruptor "Acepta recibir mensajes por WhatsApp"
+  del formulario del auto (prendido por defecto en el alta) decide **solo** la
+  post-venta. Los autos cargados antes de que existiera quedan en "no".
+- **Se decide al mandar.** Al retirar se programan siempre; cuando llega la fecha
+  (y estamos en horario), el server mira si el mensaje está prendido, si el
+  cliente aceptó, si hay link (para la reseña) y si hay celular. Si algo falta, no
+  sale y queda anotado por qué (`cancelado` con el motivo en `ultimo_error`, o
+  `sin_telefono`), además de la línea `[aviso]` en la consola. Prender, apagar,
+  cambiar textos, link, horario o espaciado vale al instante, también para los
+  ya programados.
+- Los reintentos ante fallas son los mismos que los de los avisos del taller.
+
 ### Cómo salen: WhatsApp real (por defecto) o `log`
 
 **Por defecto los avisos salen por WhatsApp de verdad** (`AVISOS_ENVIO=baileys`):
@@ -488,7 +525,8 @@ cd server && npm run dev      # o npm start, o docker compose up -d
 ```
 
 > ⚠️ **Le llegan los mensajes a TODOS los autos que tengan celular cargado**, sin
-> excepción. Para probar, usá autos con un celular tuyo (o de alguien que sepa que
+> excepción (los de [post-venta](#post-venta-por-whatsapp), a los que además
+> aceptaron recibirlos). Para probar, usá autos con un celular tuyo (o de alguien que sepa que
 > es una prueba). Si no hay internet, la app anda igual y los avisos esperan.
 
 Para probar **sin escribirle a nadie** se arranca con `AVISOS_ENVIO=log`: imprime
@@ -654,7 +692,11 @@ se encarga el poll. Socket.IO cubre los cambios; el poll, el tiempo.
   últimos datos, avisa "Sin conexión" y reconecta sola.
 - ✅ Vista `/admin` con login por PIN (validado en el server), alta de autos, cambio
   de estado por servicio, agregar/quitar servicios y retirar autos. Pantalla de
-  Configuración: cambiar el PIN, ver/hacer backups y las horas visibles.
+  Configuración: cambiar el PIN, ver/hacer backups, las horas visibles y la
+  post-venta.
+- ✅ Avisos automáticos por WhatsApp (entró, arrancamos, listo) y post-venta
+  (pedido de reseña y recordatorio de mantenimiento del vitrificado), con horario,
+  espaciado y consentimiento del cliente.
 - ✅ Backups automáticos de la base (al arrancar y uno por día, quedan 30) y
   límite de intentos de PIN (5 mal = 5 minutos de bloqueo).
 - ✅ Tablas + datos de ejemplo que se crean solos la primera vez; migración

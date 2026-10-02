@@ -2,10 +2,11 @@
 // cabecera queda) y se vuelve con "← Volver". Tarjetas de vidrio:
 //   - PIN de acceso (CambiarPin.tsx),
 //   - Backups: cuándo fue el último, cuántos hay y "Hacer backup ahora",
-//   - Ajustes (pantalla del showroom y cuidados del aviso de "listo"): se arman
-//     solos desde la lista que manda el server (GET /api/config), así un ajuste
-//     nuevo en server/src/ajustes.ts aparece acá sin tocar esta pantalla (salvo
-//     que sea de un tipo nuevo: ver CampoAjuste).
+//   - Ajustes, una tarjeta por grupo (showroom, cuidados del aviso de "listo",
+//     post-venta por WhatsApp): se
+//     arman solos desde la lista que manda el server (GET /api/config), así un
+//     ajuste nuevo en server/src/ajustes.ts aparece acá sin tocar esta pantalla
+//     (salvo que sea de un tipo o grupo nuevo: ver CampoAjuste y GRUPOS).
 // Si el PIN de este dispositivo deja de servir (ej. lo cambiaron desde otra
 // tablet), vuelve al login como el resto de /admin.
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -18,6 +19,7 @@ import {
 } from "../api";
 import type {
   Ajuste,
+  AjusteBooleano,
   AjusteEntero,
   AjusteTexto,
   DatosConfig,
@@ -31,6 +33,7 @@ import {
   TEXTO_VACIO,
 } from "../tema";
 import { CambiarPin } from "./CambiarPin";
+import { Interruptor } from "./Interruptor";
 import { GRUPO, TarjetaConfig } from "./TarjetaConfig";
 import { TituloSeccion } from "./TituloSeccion";
 
@@ -63,7 +66,7 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <TituloSeccion
           titulo="Configuración"
-          ayuda="El PIN, los backups de la base, los ajustes del showroom y los cuidados del aviso de listo."
+          ayuda="El PIN, los backups de la base, el showroom, los cuidados del aviso de listo y los mensajes de post-venta."
         />
         <button
           type="button"
@@ -99,11 +102,16 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
             onEstado={(backups) => setDatos((d) => d && { ...d, backups })}
             onNoAutorizado={onNoAutorizado}
           />
-          <Ajustes
-            ajustes={datos.ajustes}
-            onGuardado={setDatos}
-            onNoAutorizado={onNoAutorizado}
-          />
+          {GRUPOS.map((grupo) => (
+            <div key={grupo.id} className="lg:col-span-2">
+              <Ajustes
+                grupo={grupo}
+                ajustes={datos.ajustes.filter((a) => a.grupo === grupo.id)}
+                onGuardado={setDatos}
+                onNoAutorizado={onNoAutorizado}
+              />
+            </div>
+          ))}
         </div>
       )}
     </>
@@ -201,105 +209,111 @@ function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode })
 
 // --- Ajustes ---
 
+interface Grupo {
+  id: string;
+  titulo: string;
+  ayuda?: string;
+  // Lo que se ve después de guardar un ajuste del grupo.
+  guardado: string;
+  // Lo que se lee en un texto vacío (si en el grupo vacío vale algo).
+  vacio?: string;
+}
+
+// Una tarjeta por grupo, en este orden. Un ajuste de un grupo que este front no
+// conoce (server más nuevo) no se muestra.
+const GRUPOS: Grupo[] = [
+  {
+    id: "showroom",
+    titulo: "Pantalla del showroom",
+    guardado: "Guardado. El showroom ya se actualizó.",
+  },
+  {
+    id: "cuidados",
+    titulo: "Cuidados en el aviso de listo",
+    ayuda:
+      "Van al final del WhatsApp que avisa que el auto está listo, uno por cada servicio que se le hizo.",
+    guardado: "Guardado. Va en los próximos avisos de listo.",
+    vacio: "Sin cuidados: no se manda nada para este servicio.",
+  },
+  {
+    id: "postventa",
+    titulo: "Post-venta por WhatsApp",
+    ayuda:
+      "Mensajes automáticos después de que el cliente retira el auto. Solo les llegan a los que aceptaron recibir mensajes (casilla del alta) y tienen celular cargado.",
+    guardado: "Guardado.",
+  },
+];
+
 interface AjustesProps {
+  grupo: Grupo;
   ajustes: Ajuste[];
   onGuardado: (datos: DatosConfig) => void;
   onNoAutorizado: () => void;
 }
 
-// Dos tarjetas a lo ancho: los enteros (hoy, las horas del showroom) y los
-// textos (hoy, los cuidados que van en el WhatsApp de "listo"). Una tarjeta sin
-// ajustes no se muestra.
-function Ajustes({ ajustes, onGuardado, onNoAutorizado }: AjustesProps) {
-  const grupos = [
-    {
-      titulo: "Pantalla del showroom",
-      ayuda: undefined,
-      ajustes: ajustes.filter((ajuste) => ajuste.tipo === "entero"),
-    },
-    {
-      titulo: "Cuidados en el aviso de listo",
-      ayuda:
-        "Van al final del WhatsApp que avisa que el auto está listo, uno por cada servicio que se le hizo.",
-      ajustes: ajustes.filter((ajuste) => ajuste.tipo === "texto"),
-    },
-  ];
-  return grupos.map(
-    (grupo) =>
-      grupo.ajustes.length > 0 && (
-        <div key={grupo.titulo} className="lg:col-span-2">
-          <TarjetaConfig titulo={grupo.titulo} ayuda={grupo.ayuda}>
-            <div className="flex flex-col gap-4">
-              {grupo.ajustes.map((ajuste) => (
-                <CampoAjuste
-                  key={ajuste.clave}
-                  ajuste={ajuste}
-                  onGuardado={onGuardado}
-                  onNoAutorizado={onNoAutorizado}
-                />
-              ))}
-            </div>
-          </TarjetaConfig>
-        </div>
-      ),
+function Ajustes({ grupo, ajustes, onGuardado, onNoAutorizado }: AjustesProps) {
+  if (ajustes.length === 0) return null;
+  return (
+    <TarjetaConfig titulo={grupo.titulo} ayuda={grupo.ayuda}>
+      <div className="flex flex-col gap-4">
+        {ajustes.map((ajuste) => (
+          <CampoAjuste
+            key={ajuste.clave}
+            ajuste={ajuste}
+            textoGuardado={grupo.guardado}
+            textoVacio={grupo.vacio}
+            onGuardado={onGuardado}
+            onNoAutorizado={onNoAutorizado}
+          />
+        ))}
+      </div>
+    </TarjetaConfig>
   );
 }
 
 interface CampoProps<A extends Ajuste> {
   ajuste: A;
+  textoGuardado: string;
+  textoVacio?: string;
   onGuardado: (datos: DatosConfig) => void;
   onNoAutorizado: () => void;
 }
 
 // Un campo por tipo de ajuste. Para sumar un tipo: agregarlo a `Ajuste` en
 // types.ts y acá su caso, con su propio campo (el guardado es el mismo: PATCH
-// /api/config con { clave: valor }).
-function CampoAjuste({ ajuste, onGuardado, onNoAutorizado }: CampoProps<Ajuste>) {
+// /api/config con { clave: valor }, ver useGuardar).
+function CampoAjuste({ ajuste, ...resto }: CampoProps<Ajuste>) {
   switch (ajuste.tipo) {
     case "entero":
-      return (
-        <CampoEntero
-          ajuste={ajuste}
-          onGuardado={onGuardado}
-          onNoAutorizado={onNoAutorizado}
-        />
-      );
+      return <CampoEntero ajuste={ajuste} {...resto} />;
+    case "booleano":
+      return <CampoBooleano ajuste={ajuste} {...resto} />;
     case "texto":
-      return (
-        <CampoTexto
-          ajuste={ajuste}
-          onGuardado={onGuardado}
-          onNoAutorizado={onNoAutorizado}
-        />
-      );
+      return <CampoTexto ajuste={ajuste} {...resto} />;
     default:
       // Un tipo que este front todavía no conoce (server más nuevo): no se muestra.
       return null;
   }
 }
 
-// Ajuste entero: "−" / valor / "+" grandes, entre min y max, y "Guardar" que
-// se habilita solo si el valor cambió.
-function CampoEntero({ ajuste, onGuardado, onNoAutorizado }: CampoProps<AjusteEntero>) {
-  const [valor, setValor] = useState(ajuste.valor);
+// Guardar un ajuste: manda { clave: valor }, recibe la configuración ya
+// actualizada y lleva el "Guardando…", el error y el "Guardado".
+function useGuardar(
+  clave: string,
+  onGuardado: (datos: DatosConfig) => void,
+  onNoAutorizado: () => void,
+) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
 
-  const cambiado = valor !== ajuste.valor;
-
-  function sumar(paso: number) {
-    setValor((v) => Math.min(ajuste.max, Math.max(ajuste.min, v + paso)));
-    setError(null);
-    setListo(false);
-  }
-
-  async function guardar() {
-    if (!cambiado || guardando) return;
+  async function guardar(valor: number | boolean | string) {
+    if (guardando) return;
     setGuardando(true);
     setError(null);
+    setListo(false);
     try {
-      onGuardado(await guardarAjustes({ [ajuste.clave]: valor }));
+      onGuardado(await guardarAjustes({ [clave]: valor }));
       setListo(true);
     } catch (e) {
       if (e instanceof NoAutorizado) onNoAutorizado();
@@ -307,6 +321,52 @@ function CampoEntero({ ajuste, onGuardado, onNoAutorizado }: CampoProps<AjusteEn
     } finally {
       setGuardando(false);
     }
+  }
+
+  // Al tocar el campo, el error y el "Guardado" de antes ya no aplican.
+  function limpiar() {
+    setError(null);
+    setListo(false);
+  }
+
+  return { guardando, error, listo, guardar, limpiar };
+}
+
+// Error y "Guardado" debajo de un campo.
+function Resultado({
+  error,
+  listo,
+  textoGuardado,
+}: {
+  error: string | null;
+  listo: boolean;
+  textoGuardado: string;
+}) {
+  if (error) return <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>;
+  if (listo) return <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>{textoGuardado}</p>;
+  return null;
+}
+
+// Ajuste entero: "−" / valor / "+" grandes, entre min y max, y "Guardar" que
+// se habilita solo si el valor cambió.
+function CampoEntero({
+  ajuste,
+  textoGuardado,
+  onGuardado,
+  onNoAutorizado,
+}: CampoProps<AjusteEntero>) {
+  const [valor, setValor] = useState(ajuste.valor);
+  const { guardando, error, listo, guardar, limpiar } = useGuardar(
+    ajuste.clave,
+    onGuardado,
+    onNoAutorizado,
+  );
+
+  const cambiado = valor !== ajuste.valor;
+
+  function sumar(paso: number) {
+    setValor((v) => Math.min(ajuste.max, Math.max(ajuste.min, v + paso)));
+    limpiar();
   }
 
   const BOTON_PASO = `${BOTON_SUAVE} flex h-16 w-16 shrink-0 items-center justify-center text-4xl font-normal sm:h-[72px] sm:w-[72px]`;
@@ -343,7 +403,7 @@ function CampoEntero({ ajuste, onGuardado, onNoAutorizado }: CampoProps<AjusteEn
 
         <button
           type="button"
-          onClick={guardar}
+          onClick={() => cambiado && guardar(valor)}
           disabled={!cambiado || guardando}
           className={`${BOTON_MARCA} h-14 min-w-40 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
         >
@@ -355,103 +415,148 @@ function CampoEntero({ ajuste, onGuardado, onNoAutorizado }: CampoProps<AjusteEn
         De {ajuste.min} a {ajuste.max} (valor inicial: {ajuste.porDefecto}).
       </p>
 
-      {error && (
-        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>
-      )}
-      {listo && !cambiado && (
-        <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>
-          Guardado. El showroom ya se actualizó.
-        </p>
+      <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
+    </div>
+  );
+}
+
+// Ajuste sí/no: toda la fila es el interruptor y se guarda al tocarla (no hay
+// "Guardar": es un solo toque, como en el teléfono).
+function CampoBooleano({
+  ajuste,
+  textoGuardado,
+  onGuardado,
+  onNoAutorizado,
+}: CampoProps<AjusteBooleano>) {
+  const { guardando, error, listo, guardar } = useGuardar(
+    ajuste.clave,
+    onGuardado,
+    onNoAutorizado,
+  );
+
+  return (
+    <div className={GRUPO}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={ajuste.valor}
+        onClick={() => guardar(!ajuste.valor)}
+        disabled={guardando}
+        className="flex min-h-[72px] w-full items-center gap-4 p-4 text-left transition-colors active:bg-tinta/[0.04] disabled:opacity-60 sm:p-[18px]"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-xl font-semibold text-tinta sm:text-[22px]">
+            {ajuste.etiqueta}
+          </span>
+          <span className="mt-1 block text-base text-tinta-suave sm:text-lg">
+            {ajuste.ayuda}
+          </span>
+        </span>
+        <Interruptor prendido={ajuste.valor} />
+      </button>
+      {(error || listo) && (
+        <div className="px-4 pb-4 sm:px-[18px]">
+          <Resultado error={error} listo={listo} textoGuardado={textoGuardado} />
+        </div>
       )}
     </div>
   );
 }
 
-// Ajuste de texto: un recuadro grande para escribir, con la cuenta de
-// caracteres ("N/800") y "Guardar", que se habilita solo si el texto cambió.
-// Los espacios de las puntas no cuentan (el server los saca al guardar).
-function CampoTexto({ ajuste, onGuardado, onNoAutorizado }: CampoProps<AjusteTexto>) {
+// Ajuste de texto: un mensaje (varias líneas) o un link (una línea), con el
+// largo a la vista y "Guardar" que se habilita solo si cambió y se puede
+// guardar. Los espacios de las puntas no cuentan (el server los saca al guardar).
+// "Usar el de fábrica" vuelve a poner el texto inicial (falta guardarlo).
+function CampoTexto({
+  ajuste,
+  textoGuardado,
+  textoVacio,
+  onGuardado,
+  onNoAutorizado,
+}: CampoProps<AjusteTexto>) {
   const [valor, setValor] = useState(ajuste.valor);
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [listo, setListo] = useState(false);
+  const { guardando, error, listo, guardar, limpiar } = useGuardar(
+    ajuste.clave,
+    onGuardado,
+    onNoAutorizado,
+  );
 
-  const texto = valor.trim();
-  const cambiado = texto !== ajuste.valor;
-  const largo = texto.length;
-  const pasado = largo > ajuste.maxLargo;
+  const limpio = valor.trim();
+  const cambiado = limpio !== ajuste.valor;
+  const largoOk = limpio.length <= ajuste.maxLargo;
+  const puedeGuardar = cambiado && largoOk && (ajuste.permiteVacio || limpio !== "");
 
   function cambiar(nuevo: string) {
     setValor(nuevo);
-    setError(null);
-    setListo(false);
+    limpiar();
   }
 
-  async function guardar() {
-    if (!cambiado || pasado || guardando) return;
-    setGuardando(true);
-    setError(null);
-    try {
-      onGuardado(await guardarAjustes({ [ajuste.clave]: texto }));
-      setValor(texto);
-      setListo(true);
-    } catch (e) {
-      if (e instanceof NoAutorizado) onNoAutorizado();
-      else setError(textoDeError(e));
-    } finally {
-      setGuardando(false);
-    }
-  }
+  const CAMPO =
+    "w-full min-w-0 rounded-2xl bg-tinta/[0.05] px-4 text-xl text-tinta caret-[#be8a18] outline-none transition-colors placeholder:text-[#A89B84] focus:bg-marca/[0.12] sm:text-[22px]";
 
   return (
     <div className={`${GRUPO} p-4 sm:p-[18px]`}>
-      <label
-        htmlFor={ajuste.clave}
-        className="block text-xl font-semibold text-tinta sm:text-[22px]"
-      >
-        {ajuste.etiqueta}
-      </label>
-      <p className="mt-1 text-base text-tinta-suave sm:text-lg">{ajuste.ayuda}</p>
-
-      <textarea
-        id={ajuste.clave}
-        value={valor}
-        rows={5}
-        disabled={guardando}
-        placeholder="Sin cuidados: no se manda nada para este servicio."
-        onChange={(e) => cambiar(e.target.value)}
-        className="mt-4 block min-h-40 w-full resize-y rounded-2xl border border-tinta/[0.12] bg-white/80 px-4 py-3 text-xl leading-snug text-tinta caret-[#be8a18] outline-none placeholder:text-[#A89B84] focus:border-marca disabled:opacity-60 sm:text-[22px]"
-      />
-
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-        <span
-          className={`text-lg tabular-nums ${pasado ? "font-semibold text-peligro" : "text-tinta-suave"}`}
-        >
-          {largo}/{ajuste.maxLargo}
+      <label>
+        <span className="block text-xl font-semibold text-tinta sm:text-[22px]">
+          {ajuste.etiqueta}
         </span>
+        <span className="mt-1 block text-base text-tinta-suave sm:text-lg">{ajuste.ayuda}</span>
+        {ajuste.multilinea ? (
+          <textarea
+            value={valor}
+            rows={4}
+            placeholder={ajuste.permiteVacio ? textoVacio : undefined}
+            onChange={(e) => cambiar(e.target.value)}
+            className={`${CAMPO} mt-4 resize-y py-3 leading-snug`}
+          />
+        ) : (
+          <input
+            type={ajuste.formato === "url" ? "url" : "text"}
+            inputMode={ajuste.formato === "url" ? "url" : undefined}
+            autoComplete="off"
+            value={valor}
+            placeholder={ajuste.formato === "url" ? "https://…" : undefined}
+            onChange={(e) => cambiar(e.target.value)}
+            className={`${CAMPO} mt-4 h-14 sm:h-16`}
+          />
+        )}
+      </label>
+
+      <p
+        className={`mt-2 px-1 text-right text-base tabular-nums ${
+          largoOk ? "text-tinta-suave" : "font-semibold text-peligro"
+        }`}
+      >
+        {limpio.length} / {ajuste.maxLargo}
+      </p>
+
+      <div className="mt-3 flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={guardar}
-          disabled={!cambiado || pasado || guardando}
+          onClick={() => puedeGuardar && guardar(limpio)}
+          disabled={!puedeGuardar || guardando}
           className={`${BOTON_MARCA} h-14 min-w-40 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
+        {ajuste.porDefecto && valor !== ajuste.porDefecto && (
+          <button
+            type="button"
+            onClick={() => cambiar(ajuste.porDefecto)}
+            disabled={guardando}
+            className={`${BOTON_SUAVE} h-14 px-6 text-lg sm:h-16 sm:text-xl`}
+          >
+            Usar el de fábrica
+          </button>
+        )}
       </div>
 
-      {pasado && (
+      {!largoOk && (
         <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
           Es muy largo: puede tener hasta {ajuste.maxLargo} caracteres.
         </p>
       )}
-      {error && (
-        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>
-      )}
-      {listo && !cambiado && (
-        <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>
-          Guardado. Va en los próximos avisos de listo.
-        </p>
-      )}
+      <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
     </div>
   );
 }

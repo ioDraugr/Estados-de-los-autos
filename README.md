@@ -140,7 +140,7 @@ Es opcional (sin `.env` se usan los defaults) y **no se sube a git**. El modelo 
 | Variable | Default | Para qué sirve |
 | --- | --- | --- |
 | `PUERTO` | `3000` | Puerto de la PC donde queda la app (`http://<ip>:PUERTO`). |
-| `TZ` | `America/Montevideo` | Zona horaria de los logs. |
+| `TZ` | `America/Montevideo` | Zona horaria de los logs y del horario de los mensajes de [post-venta](#post-venta-por-whatsapp). |
 | `ADMIN_PIN`, `HORAS_VISIBLE_TERMINADO`, `AVISOS_*` | | Igual que sin Docker, ver [Configuración](#configuración). |
 
 Después de cambiar el `.env`: `docker compose up -d` (recrea el contenedor con la
@@ -335,11 +335,15 @@ Para **empezar de cero** (borra todos los datos y vuelve a sembrar):
 rm server/data/taller.db*
 ```
 
-Las columnas nuevas (por ejemplo `vehiculos.telefono`) se agregan **solas** al
-arrancar sobre una base que ya existía: no hay que borrar nada ni correr scripts.
+Las columnas nuevas (por ejemplo `vehiculos.telefono` o `vehiculos.acepta_whatsapp`)
+se agregan **solas** al arrancar sobre una base que ya existía: no hay que borrar
+nada ni correr scripts. Lo mismo con la tabla `avisos` de antes de la post-venta:
+el server la rearma sola (en una transacción, con todas sus filas y sus ids) para
+que acepte los tipos nuevos, y lo dice una vez en el log.
 
 La tabla `avisos` es la cola de los [avisos por WhatsApp](#avisos-por-whatsapp):
-una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo`), con su estado
+una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo` y los de
+post-venta, `resena` y `mantenimiento`), con su estado
 (`pendiente`, `enviado`, `cancelado`, `sin_telefono`, `fallido`), cuándo toca
 mandarlo (`enviar_en`, en UTC), los intentos y el último error. También se crea
 sola al arrancar.
@@ -404,11 +408,17 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
 - **El celular es privado.** La API solo lo manda si el pedido trae un PIN válido
   en `x-pin` (`/admin` y `/taller`). **Nunca** llega a `/display` ni a quien pida
   la lista sin PIN, y `/taller` no lo muestra.
+- **"Acepta recibir mensajes por WhatsApp".** Interruptor del formulario de alta
+  y edición (`vehiculos.acepta_whatsapp`): solo decide los mensajes de
+  **post-venta** (pedido de reseña y recordatorio de mantenimiento); los avisos de
+  "entró", "arrancamos" y "listo" salen igual. En el alta arranca **prendido**; al
+  editar muestra lo guardado. Los autos cargados antes de que existiera quedan en
+  "no". Es privado como el celular: solo viaja con PIN.
 
 ### Pantalla de Configuración
 
 El botón **Configuración** de la cabecera (en el celular, solo el ícono) cambia la
-lista de autos por cuatro tarjetas; se vuelve con "← Volver a los autos":
+lista de autos por tarjetas; se vuelve con "← Volver a los autos":
 
 - **PIN de acceso.** PIN actual, PIN nuevo (de 4 a 8 números) y repetirlo. Vale
   para `/admin` **y** `/taller`. El dispositivo desde el que se cambia sigue
@@ -419,13 +429,22 @@ lista de autos por cuatro tarjetas; se vuelve con "← Volver a los autos":
   **"Hacer backup ahora"** se hace uno en el momento (por ejemplo, antes de tocar
   algo). Ver [Respaldo de la base](#respaldo-de-la-base).
 - **Pantalla del showroom.** Cuántas horas sigue visible un auto terminado (de 1
-  a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante. Los
-  ajustes salen de la lista del server (`server/src/ajustes.ts`): uno nuevo
-  aparece solo en esta tarjeta.
+  a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante.
 - **Cuidados en el aviso de listo.** Un texto por servicio (instalación,
-  polarizado, vitrificado), de hasta 800 caracteres, con "Guardar". Van al final
-  del WhatsApp de "listo" (ver [Avisos por WhatsApp](#avisos-por-whatsapp)); vacío
-  = ese servicio no lleva cuidados.
+  polarizado, vitrificado), de hasta 800 caracteres, con "Guardar" y "Usar el de
+  fábrica". Van al final del WhatsApp de "listo" (ver
+  [Avisos por WhatsApp](#avisos-por-whatsapp)); vacío = ese servicio no lleva
+  cuidados.
+- **Post-venta por WhatsApp.** Prender o apagar el pedido de reseña y el
+  recordatorio de mantenimiento (interruptores: se guardan al tocarlos), cuántos
+  días / meses después del retiro, los dos textos (con "Usar el de fábrica"), el
+  link de reseñas, el horario, si se manda los domingos y los minutos entre un
+  mensaje y otro. Los textos y el link se escriben y se guardan con "Guardar".
+  Ver [Post-venta por WhatsApp](#post-venta-por-whatsapp).
+
+Los ajustes salen de la lista del server (`server/src/ajustes.ts`), cada uno con
+su tipo (número entero, sí/no o texto) y su grupo (la tarjeta donde aparece): uno
+nuevo aparece solo en su tarjeta.
 
 ## Avisos por WhatsApp
 
@@ -455,7 +474,8 @@ estaban esperando. Si un texto está vacío, ese servicio no lleva cuidados.
   nuevo con 5 minutos contados desde ese momento.
 - **Cada aviso sale una sola vez por auto.** Si un auto ya recibió el "listo" y se
   reabre un servicio, cuando se vuelva a terminar no se manda otro.
-- **Retirar el auto cancela** los avisos que tenía pendientes.
+- **Retirar el auto cancela** los avisos que tenía pendientes (y programa los de
+  [post-venta](#post-venta-por-whatsapp)).
 - **Sin celular, no sale.** El aviso queda como `sin_telefono`. Si después se le carga
   el celular, los avisos de "arrancamos" y "listo" se vuelven a programar en el
   próximo cambio de servicios; el de "entró" ya no.
@@ -472,6 +492,41 @@ estaban esperando. Si un texto está vacío, ese servicio no lleva cuidados.
 - El server revisa la cola cada 30 segundos (`AVISOS_INTERVALO_SEG`), así que un
   aviso puede salir hasta medio minuto después de su hora.
 
+### Post-venta por WhatsApp
+
+Después de que el cliente **retira** el auto, el server le manda hasta dos
+mensajes más, por la misma cola y el mismo WhatsApp:
+
+| Mensaje | Cuándo sale | Texto por defecto |
+| --- | --- | --- |
+| Pedido de reseña | 3 días después del retiro (de 1 a 60). | "¡Hola! Gracias por confiar en ML Center con tu {marca} {modelo}. Si te gustó el trabajo, nos ayudás mucho dejándonos una reseña acá: {link}" |
+| Mantenimiento | 6 meses después del retiro (de 1 a 36), **solo si el auto tuvo vitrificado**. | "¡Hola! Ya pasaron unos meses desde el vitrificado de tu {marca} {modelo}. Es un buen momento para hacerle el mantenimiento y que siga protegido. Escribinos por acá y coordinamos un día." |
+
+Todo se ajusta desde `/admin` → [Configuración](#pantalla-de-configuración) →
+**Post-venta por WhatsApp**:
+
+| Ajuste | Por defecto | Qué hace |
+| --- | --- | --- |
+| Pedir reseña / Recordar el mantenimiento | prendidos | Apagado, el mensaje no sale (queda `cancelado`). |
+| Días (reseña) / Meses (mantenimiento) | 3 días / 6 meses | Se cuentan desde el retiro. La fecha se fija **al retirar**: cambiarlos vale para los próximos retiros. |
+| Textos | los de la tabla | `{marca}` y `{modelo}` se cambian por los del auto y `{link}` por el link de reseñas. Hasta 600 letras. **Nunca** se manda la matrícula. |
+| Link para dejar la reseña | vacío | El link de reseñas de Google (`https://…`). **Sin link, la reseña no sale.** |
+| Horario | de 10 a 19 h | Solo se manda dentro de ese horario (hora de la PC servidor; "hasta" no incluido). Lo que vence fuera de hora espera, sin gastar intentos. |
+| Domingos | no | Apagado, lo que vence un domingo sale el lunes. |
+| Minutos entre mensajes | 3 (de 0 a 120) | Entre dos mensajes de post-venta pasan al menos esos minutos, para no mandar muchos de golpe. Los avisos del taller no esperan. |
+
+- **Solo a quien aceptó.** El interruptor "Acepta recibir mensajes por WhatsApp"
+  del formulario del auto (prendido por defecto en el alta) decide **solo** la
+  post-venta. Los autos cargados antes de que existiera quedan en "no".
+- **Se decide al mandar.** Al retirar se programan siempre; cuando llega la fecha
+  (y estamos en horario), el server mira si el mensaje está prendido, si el
+  cliente aceptó, si hay link (para la reseña) y si hay celular. Si algo falta, no
+  sale y queda anotado por qué (`cancelado` con el motivo en `ultimo_error`, o
+  `sin_telefono`), además de la línea `[aviso]` en la consola. Prender, apagar,
+  cambiar textos, link, horario o espaciado vale al instante, también para los
+  ya programados.
+- Los reintentos ante fallas son los mismos que los de los avisos del taller.
+
 ### Cómo salen: WhatsApp real (por defecto) o `log`
 
 **Por defecto los avisos salen por WhatsApp de verdad** (`AVISOS_ENVIO=baileys`):
@@ -482,7 +537,8 @@ cd server && npm run dev      # o npm start, o docker compose up -d
 ```
 
 > ⚠️ **Le llegan los mensajes a TODOS los autos que tengan celular cargado**, sin
-> excepción. Para probar, usá autos con un celular tuyo (o de alguien que sepa que
+> excepción (los de [post-venta](#post-venta-por-whatsapp), a los que además
+> aceptaron recibirlos). Para probar, usá autos con un celular tuyo (o de alguien que sepa que
 > es una prueba). Si no hay internet, la app anda igual y los avisos esperan.
 
 Para probar **sin escribirle a nadie** se arranca con `AVISOS_ENVIO=log`: imprime
@@ -614,17 +670,17 @@ para el [límite de intentos](#la-vista-admin-trabajadores): bloqueado =>
 | Endpoint | Qué hace |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }`, para saber si el server está vivo. |
-| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de las horas configuradas (`horas_visible_terminado`) ni los retirados. Sin `x-pin` es pública y sin `telefono` (la clave no aparece); **con `x-pin`** el PIN se valida: bien => incluye `telefono`, mal => `401`. |
-| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono`. |
+| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de las horas configuradas (`horas_visible_terminado`) ni los retirados. Sin `x-pin` es pública y sin `telefono` (la clave no aparece); **con `x-pin`** el PIN se valida: bien => incluye `telefono` y `acepta_whatsapp`, mal => `401`. |
+| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono` y `acepta_whatsapp`. |
 | `POST /api/login` | Valida el PIN (body `{ pin }`). `{ ok: true }`, `401` o `429` (bloqueado). |
-| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). |
-| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. |
+| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). `acepta_whatsapp` (`true`/`false`): si no viene, queda en `false`. |
+| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. Lo mismo con `acepta_whatsapp` (`true`/`false`): si no viene, no se toca. |
 | `POST /api/vehiculos/:id/retirar` | Retira el auto (soft delete). |
 | `POST /api/vehiculos/:id/servicios` | Agrega un servicio (body `{ tipo }`). |
 | `PATCH /api/servicios/:id` | Cambia el estado de un servicio (body `{ estado }`). |
 | `DELETE /api/servicios/:id` | Quita un servicio (soft delete; `400` si es el último activo del auto). |
-| `GET /api/config` | `{ ajustes, backups }`: cada ajuste editable con su definición (`clave`, `etiqueta`, `ayuda`, `tipo`, `min`, `max`, `porDefecto`) y su `valor`, y el estado de los backups (`carpeta`, `ultimo`, `ultimoError`, `cantidad`). |
-| `PATCH /api/config` | Guarda ajustes (body `{ clave: valor }`, ej. `{ "horas_visible_terminado": 6 }`). Todos o ninguno (`400` si alguno no sirve). Avisa a las pantallas para que se actualicen ya. Devuelve lo mismo que el `GET`. |
+| `GET /api/config` | `{ ajustes, backups }`: cada ajuste editable con su definición (`clave`, `grupo`, `etiqueta`, `ayuda`, `tipo` y `porDefecto`; los enteros traen `min`/`max` y los textos `maxLargo`, `permiteVacio`, `multilinea` y `formato`) y su `valor` (número, `true`/`false` o texto), y el estado de los backups (`carpeta`, `ultimo`, `ultimoError`, `cantidad`). |
+| `PATCH /api/config` | Guarda ajustes (body `{ clave: valor }`, ej. `{ "horas_visible_terminado": 6, "postventa_domingos": false }`). Todos o ninguno (`400` si alguno no sirve: fuera de rango, texto vacío o muy largo, link que no es `http(s)`, horario con "desde" ≥ "hasta"). Avisa a las pantallas para que se actualicen ya. Devuelve lo mismo que el `GET`. |
 | `POST /api/config/pin` | Cambia el PIN (body `{ actual, nuevo }`; el nuevo, de 4 a 8 números). `actual` mal => `401` y cuenta para el bloqueo. |
 | `POST /api/backups` | Hace un backup ya ("manual") y devuelve el estado de los backups; `500` con el motivo si falla. |
 
@@ -648,7 +704,11 @@ se encarga el poll. Socket.IO cubre los cambios; el poll, el tiempo.
   últimos datos, avisa "Sin conexión" y reconecta sola.
 - ✅ Vista `/admin` con login por PIN (validado en el server), alta de autos, cambio
   de estado por servicio, agregar/quitar servicios y retirar autos. Pantalla de
-  Configuración: cambiar el PIN, ver/hacer backups y las horas visibles.
+  Configuración: cambiar el PIN, ver/hacer backups, las horas visibles y la
+  post-venta.
+- ✅ Avisos automáticos por WhatsApp (entró, arrancamos, listo) y post-venta
+  (pedido de reseña y recordatorio de mantenimiento del vitrificado), con horario,
+  espaciado y consentimiento del cliente.
 - ✅ Backups automáticos de la base (al arrancar y uno por día, quedan 30) y
   límite de intentos de PIN (5 mal = 5 minutos de bloqueo).
 - ✅ Tablas + datos de ejemplo que se crean solos la primera vez; migración

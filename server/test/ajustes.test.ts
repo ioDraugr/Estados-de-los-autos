@@ -113,6 +113,113 @@ describe("ajustes", () => {
   });
 });
 
+describe("ajustes de post-venta (sí/no y texto)", () => {
+  beforeEach(borrarAjustes);
+
+  test("sin nada guardado, valen los de fábrica, cada uno con su tipo", () => {
+    assert.equal(leerAjuste("postventa_resena_activa"), true);
+    assert.equal(leerAjuste("postventa_mantenimiento_activo"), true);
+    assert.equal(leerAjuste("postventa_domingos"), false);
+    assert.equal(leerAjuste("postventa_resena_dias"), 3);
+    assert.equal(leerAjuste("postventa_mantenimiento_meses"), 6);
+    assert.equal(leerAjuste("postventa_hora_desde"), 10);
+    assert.equal(leerAjuste("postventa_hora_hasta"), 19);
+    assert.equal(leerAjuste("postventa_espaciado_min"), 3);
+    assert.equal(leerAjuste("postventa_resena_link"), "");
+    assert.match(leerAjuste("postventa_resena_texto"), /reseña acá: \{link\}/);
+    assert.match(leerAjuste("postventa_mantenimiento_texto"), /\{marca\} \{modelo\}/);
+
+    const porClave = new Map(listarAjustes().map((a) => [a.clave, a]));
+    assert.equal(porClave.get("horas_visible_terminado")?.grupo, "showroom");
+    assert.equal(porClave.get("postventa_domingos")?.tipo, "booleano");
+    assert.equal(porClave.get("postventa_resena_texto")?.tipo, "texto");
+    assert.equal(porClave.get("postventa_resena_link")?.valor, "");
+    assert.ok(
+      listarAjustes()
+        .filter((a) => a.clave.startsWith("postventa_"))
+        .every((a) => a.grupo === "postventa"),
+    );
+  });
+
+  test("sí/no: se guarda y se lee como booleano; otra cosa se rechaza", () => {
+    guardarAjustes({ postventa_resena_activa: false, postventa_domingos: true });
+    assert.equal(leerAjuste("postventa_resena_activa"), false);
+    assert.equal(leerAjuste("postventa_domingos"), true);
+    for (const valor of [1, 0, "true", null]) {
+      assert.throws(
+        () => guardarAjustes({ postventa_domingos: valor }),
+        /tiene que ser sí o no/,
+      );
+    }
+  });
+
+  test("texto: se guarda sin espacios en las puntas, con largo máximo y sin quedar vacío", () => {
+    guardarAjustes({ postventa_resena_texto: "  Hola {marca} {modelo}: {link}  " });
+    assert.equal(leerAjuste("postventa_resena_texto"), "Hola {marca} {modelo}: {link}");
+
+    assert.throws(() => guardarAjustes({ postventa_resena_texto: "   " }), /no puede quedar vacío/);
+    assert.throws(
+      () => guardarAjustes({ postventa_mantenimiento_texto: "a".repeat(601) }),
+      /hasta 600 caracteres/,
+    );
+    assert.throws(() => guardarAjustes({ postventa_resena_texto: 5 }), /tiene que ser un texto/);
+    assert.equal(leerAjuste("postventa_resena_texto"), "Hola {marca} {modelo}: {link}");
+  });
+
+  test("link: vacío está permitido; si no, tiene que ser http(s)", () => {
+    guardarAjustes({ postventa_resena_link: "https://g.page/r/ml-center/review" });
+    assert.equal(leerAjuste("postventa_resena_link"), "https://g.page/r/ml-center/review");
+    guardarAjustes({ postventa_resena_link: "" });
+    assert.equal(leerAjuste("postventa_resena_link"), "");
+
+    for (const valor of ["g.page/r/ml-center", "ftp://algo.com", "javascript:alert(1)", "https://"]) {
+      assert.throws(
+        () => guardarAjustes({ postventa_resena_link: valor }),
+        /tiene que ser un link/,
+        valor,
+      );
+    }
+  });
+
+  test("rangos de los enteros de post-venta", () => {
+    assert.throws(() => guardarAjustes({ postventa_resena_dias: 0 }), /entre 1 y 60/);
+    assert.throws(() => guardarAjustes({ postventa_resena_dias: 61 }), /entre 1 y 60/);
+    assert.throws(() => guardarAjustes({ postventa_mantenimiento_meses: 37 }), /entre 1 y 36/);
+    assert.throws(() => guardarAjustes({ postventa_hora_desde: 24 }), /entre 0 y 23/);
+    assert.throws(() => guardarAjustes({ postventa_hora_hasta: 0 }), /entre 1 y 24/);
+    assert.throws(() => guardarAjustes({ postventa_espaciado_min: 121 }), /entre 0 y 120/);
+    guardarAjustes({ postventa_espaciado_min: 0, postventa_mantenimiento_meses: 36 });
+    assert.equal(leerAjuste("postventa_espaciado_min"), 0);
+  });
+
+  test("horario: 'desde' tiene que ser antes que 'hasta', juntos o contra lo guardado", () => {
+    assert.throws(
+      () => guardarAjustes({ postventa_hora_desde: 15, postventa_hora_hasta: 15 }),
+      /desde.*antes que.*hasta/,
+    );
+    // Solo "desde", contra el "hasta" de fábrica (19).
+    assert.throws(() => guardarAjustes({ postventa_hora_desde: 19 }), /no cierra/);
+    guardarAjustes({ postventa_hora_desde: 8 });
+    // Solo "hasta", contra el "desde" ya guardado (8).
+    assert.throws(() => guardarAjustes({ postventa_hora_hasta: 8 }), /no cierra/);
+    guardarAjustes({ postventa_hora_hasta: 24 });
+    // Los dos juntos pueden moverse a la vez aunque uno solo no cerraría.
+    guardarAjustes({ postventa_hora_desde: 20, postventa_hora_hasta: 22 });
+    assert.equal(leerAjuste("postventa_hora_desde"), 20);
+    assert.equal(leerAjuste("postventa_hora_hasta"), 22);
+  });
+
+  test("lo guardado a mano que no sirve cae en el de por defecto", () => {
+    const guardar = db.prepare("INSERT INTO config (clave, valor) VALUES (?, ?)");
+    guardar.run("postventa_domingos", "quizás");
+    guardar.run("postventa_resena_link", "no es un link");
+    guardar.run("postventa_hora_desde", "");
+    assert.equal(leerAjuste("postventa_domingos"), false);
+    assert.equal(leerAjuste("postventa_resena_link"), "");
+    assert.equal(leerAjuste("postventa_hora_desde"), 10);
+  });
+});
+
 describe("ajustes de texto (cuidados del aviso de listo)", () => {
   beforeEach(borrarAjustes);
 
@@ -142,6 +249,7 @@ describe("ajustes de texto (cuidados del aviso de listo)", () => {
     const vitrificado = listarAjustes().find((a) => a.clave === "cuidados_vitrificado");
     assert.ok(vitrificado);
     assert.equal(vitrificado.tipo, "texto");
+    assert.equal(vitrificado.grupo, "cuidados");
     assert.equal(vitrificado.valor, "No lo laves por 7 días.");
     assert.ok(vitrificado.etiqueta.length > 0);
     assert.ok(vitrificado.ayuda.length > 0);
@@ -152,6 +260,17 @@ describe("ajustes de texto (cuidados del aviso de listo)", () => {
         "cuidados_instalacion",
         "cuidados_polarizado",
         "cuidados_vitrificado",
+        "postventa_resena_activa",
+        "postventa_resena_dias",
+        "postventa_resena_link",
+        "postventa_resena_texto",
+        "postventa_mantenimiento_activo",
+        "postventa_mantenimiento_meses",
+        "postventa_mantenimiento_texto",
+        "postventa_hora_desde",
+        "postventa_hora_hasta",
+        "postventa_domingos",
+        "postventa_espaciado_min",
       ],
     );
     const { maxLargo } = definicion("cuidados_vitrificado") as { maxLargo: number };

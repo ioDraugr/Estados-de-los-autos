@@ -81,6 +81,8 @@ export interface DatosVehiculo {
   // Celular tal como lo escribió el trabajador ("" = sin celular). El server
   // lo valida y lo guarda normalizado; vacío en una edición lo borra.
   telefono: string;
+  // Casilla "Acepta recibir mensajes por WhatsApp" (post-venta).
+  acepta_whatsapp: boolean;
 }
 
 export async function crearVehiculo(
@@ -132,7 +134,7 @@ export async function obtenerConfig(): Promise<DatosConfig> {
 
 // Guarda ajustes ({ clave: valor }). Devuelve la configuración ya actualizada.
 export async function guardarAjustes(
-  cambios: Record<string, number | string>,
+  cambios: Record<string, number | boolean | string>,
 ): Promise<DatosConfig> {
   const res = await escribir("/api/config", "PATCH", cambios);
   return res.json();

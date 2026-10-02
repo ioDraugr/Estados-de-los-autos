@@ -30,6 +30,7 @@ export const { agregarServicio, cambiarEstado, quitarServicio } = await import(
 export const {
   crearVehiculo,
   editarVehiculo,
+  listarTodos,
   listarVehiculosVisibles,
   retirarVehiculo,
 } = await import("../src/vehiculos.js");
@@ -81,14 +82,16 @@ export const DATOS_AUTO = {
 
 /**
  * Da de alta un auto por el camino real (crearVehiculo: también programa el
- * aviso "entró"), con celular salvo que se pase null. Devuelve su id y cómo
- * encontrar el id de cada uno de sus servicios.
+ * aviso "entró"), con celular salvo que se pase null y aceptando los mensajes
+ * de post-venta salvo que se pase false (como el formulario del alta). Devuelve
+ * su id y cómo encontrar el id de cada uno de sus servicios.
  */
 export function crearAuto(
   servicios: TipoServicio[],
   telefono: string | null = "099 123 456",
+  aceptaWhatsapp = true,
 ): { id: number; servicio: (tipo: TipoServicio) => number } {
-  const id = crearVehiculo({ ...DATOS_AUTO, telefono }, servicios);
+  const id = crearVehiculo({ ...DATOS_AUTO, telefono, acepta_whatsapp: aceptaWhatsapp }, servicios);
   const servicio = (tipo: TipoServicio): number => {
     const fila = db
       .prepare(

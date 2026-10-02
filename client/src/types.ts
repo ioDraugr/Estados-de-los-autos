@@ -21,18 +21,26 @@ export interface Vehiculo {
   // Celular del cliente ("+5989XXXXXXX") o null si no se cargó. Opcional porque
   // la API solo lo manda con un PIN válido: NUNCA llega a /display (privacidad).
   telefono?: string | null;
+  // Si el cliente aceptó los mensajes de post-venta (reseña, mantenimiento).
+  // Igual que el teléfono: solo viene con un PIN válido.
+  acepta_whatsapp?: boolean;
   servicios: Servicio[];
 }
 
 // --- Configuración (/admin → Configuración), tal como la manda GET /api/config ---
 
 // Un ajuste editable: su definición (qué es, qué valores acepta) y su valor
-// actual. Hay enteros y textos; si el server suma otro tipo, se agrega acá a la
-// unión `Ajuste` y su campo en CampoAjuste (components/Configuracion.tsx).
-export interface AjusteEntero {
+// actual. Hay enteros, sí/no y textos; si el server suma otro tipo, se agrega
+// acá a la unión `Ajuste` y su campo en CampoAjuste (components/Configuracion.tsx).
+// `grupo` dice en qué tarjeta va (ver GRUPOS en Configuracion.tsx).
+interface AjusteBase {
   clave: string;
+  grupo: string;
   etiqueta: string;
   ayuda: string;
+}
+
+export interface AjusteEntero extends AjusteBase {
   tipo: "entero";
   min: number;
   max: number;
@@ -40,19 +48,26 @@ export interface AjusteEntero {
   valor: number;
 }
 
-// Texto libre (ej. los cuidados del aviso de "listo"). El server lo guarda sin
-// los espacios de las puntas; vacío vale.
-export interface AjusteTexto {
-  clave: string;
-  etiqueta: string;
-  ayuda: string;
+export interface AjusteBooleano extends AjusteBase {
+  tipo: "booleano";
+  porDefecto: boolean;
+  valor: boolean;
+}
+
+// Texto libre (los cuidados del aviso de "listo", los mensajes de post-venta, el
+// link de reseñas). El server lo guarda sin los espacios de las puntas; vacío
+// vale solo si `permiteVacio`.
+export interface AjusteTexto extends AjusteBase {
   tipo: "texto";
   maxLargo: number;
+  permiteVacio: boolean;
+  formato?: "url";
+  multilinea: boolean;
   porDefecto: string;
   valor: string;
 }
 
-export type Ajuste = AjusteEntero | AjusteTexto;
+export type Ajuste = AjusteEntero | AjusteBooleano | AjusteTexto;
 
 export interface InfoBackup {
   archivo: string; // solo el nombre, dentro de la carpeta de backups

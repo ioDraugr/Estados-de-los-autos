@@ -3,14 +3,26 @@
 // despachador los manda cuando vencen. La demora de seguridad existe para que un
 // toque sin querer en /admin no le escriba al cliente: al momento de enviar se
 // vuelve a revisar que la condición siga siendo cierta.
-// Solo importa la base, los ajustes (los cuidados del "listo") y los envíos:
-// vehiculos.ts y servicios.ts lo llaman a él.
+// El mismo despachador manda los mensajes de post-venta (reseña, mantenimiento),
+// con sus propias reglas de horario, espaciado y consentimiento: ver postventa.ts.
+// Solo importa la base, los ajustes (los cuidados del "listo"), los envíos y la
+// post-venta: vehiculos.ts y servicios.ts lo llaman a él.
 import { leerAjuste } from "./ajustes.js";
 import { db } from "./db.js";
 import { ErrorDefinitivo, type Enviador } from "./enviadores.js";
+import {
+  esPostventa,
+  espaciadoCumplido,
+  horarioAbierto,
+  mensajePostventa,
+  motivoPostventa,
+  type TipoPostventa,
+} from "./postventa.js";
 import type { TipoServicio } from "./tipos.js";
 
-export type TipoAviso = "ingreso" | "en_proceso" | "listo";
+// Los avisos del taller (mientras el auto está adentro).
+export type TipoAvisoTaller = "ingreso" | "en_proceso" | "listo";
+export type TipoAviso = TipoAvisoTaller | TipoPostventa;
 
 // Minutos entre el cambio y el envío. Acepta decimales (0.1 = 6 s, para probar).
 export const DEMORA_MIN = leerNumero("AVISOS_DEMORA_MIN", 5);
@@ -22,7 +34,8 @@ export const INTERVALO_SEG = leerNumero("AVISOS_INTERVALO_SEG", 30, 1);
 const MAX_INTENTOS = 5;
 
 // Lo que se le manda al cliente. Sin matrícula (privacidad): marca y modelo alcanzan.
-const MENSAJES: Record<TipoAviso, (auto: { marca: string; modelo: string }) => string> = {
+// Los de post-venta se arman con el texto configurado (mensajePostventa).
+const MENSAJES: Record<TipoAvisoTaller, (auto: { marca: string; modelo: string }) => string> = {
   ingreso: ({ marca, modelo }) =>
     `¡Hola! Tu ${marca} ${modelo} ya ingresó al taller de ML Center. Te vamos a ir avisando por acá cómo va.`,
   en_proceso: ({ marca, modelo }) =>
@@ -98,10 +111,13 @@ export function evaluarAvisos(vehiculoId: number): void {
   }
 }
 
-// Cancela todo lo que el auto tenga pendiente. Se llama al retirarlo.
+// Cancela los avisos del taller que el auto tenga pendientes. Se llama al
+// retirarlo. Los de post-venta no se tocan: justamente son para después.
 export function cancelarAvisos(vehiculoId: number): void {
   db.prepare(
-    "UPDATE avisos SET estado = 'cancelado' WHERE vehiculo_id = ? AND estado = 'pendiente'",
+    `UPDATE avisos SET estado = 'cancelado'
+     WHERE vehiculo_id = ? AND estado = 'pendiente'
+       AND tipo IN ('ingreso', 'en_proceso', 'listo')`,
   ).run(vehiculoId);
 }
 
@@ -116,14 +132,20 @@ interface AvisoAEnviar {
   modelo: string;
   telefono: string | null;
   retirado_en: string | null;
+  acepta_whatsapp: number;
 }
 
 /**
  * Manda los avisos pendientes que ya vencieron (el más viejo primero). Antes de
  * cada uno revisa que siga teniendo sentido; si el envío falla, lo reprograma
  * con una espera cada vez más larga. Un aviso que falla no frena a los demás.
+ * `reloj` da la hora local para el horario de la post-venta (los tests le pasan
+ * una fija).
  */
-export async function despacharPendientes(enviador: Enviador): Promise<void> {
+export async function despacharPendientes(
+  enviador: Enviador,
+  reloj: () => Date = () => new Date(),
+): Promise<void> {
   // Si el envío no está listo (WhatsApp desconectado, QR sin escanear), no se
   // toca la cola: los avisos esperan sin gastar intentos.
   if (!enviadorListo(enviador)) return;
@@ -140,7 +162,7 @@ export async function despacharPendientes(enviador: Enviador): Promise<void> {
     // Si se cortó en medio de la pasada, el resto espera a la próxima.
     if (!enviadorListo(enviador)) return;
     try {
-      await despacharUno(id, enviador);
+      await despacharUno(id, enviador, reloj);
     } catch (error) {
       // Un error inesperado (de la base, por ejemplo) no corta el resto.
       console.error(`[aviso] Error inesperado con el aviso ${id}:`, error);
@@ -171,22 +193,33 @@ export function iniciarAvisos(enviador: Enviador): void {
   setInterval(pasada, INTERVALO_SEG * 1000);
 }
 
-async function despacharUno(id: number, enviador: Enviador): Promise<void> {
+async function despacharUno(
+  id: number,
+  enviador: Enviador,
+  reloj: () => Date,
+): Promise<void> {
   // Se vuelve a leer justo antes de mandar: mientras se mandaban los anteriores
   // pudo haber cambiado algo (lo cancelaron, retiraron el auto, etc.).
   const aviso = db
     .prepare(
       `SELECT a.id, a.vehiculo_id, a.tipo, a.intentos,
-              v.marca, v.modelo, v.telefono, v.retirado_en
+              v.marca, v.modelo, v.telefono, v.retirado_en, v.acepta_whatsapp
        FROM avisos a JOIN vehiculos v ON v.id = a.vehiculo_id
        WHERE a.id = ? AND a.estado = 'pendiente' AND a.enviar_en <= datetime('now')`,
     )
     .get(id) as AvisoAEnviar | undefined;
   if (!aviso) return;
+  const postventa = esPostventa(aviso.tipo);
+
+  // Post-venta fuera de horario (o domingo): espera, sin gastar intentos. Recién
+  // dentro del horario se decide si sale o no.
+  if (postventa && !horarioAbierto(reloj())) return;
 
   const motivo = motivoParaNoMandar(aviso);
   if (motivo) {
-    marcar(id, "cancelado");
+    // En la post-venta el motivo también queda en la fila (ultimo_error): el
+    // mensaje se programó semanas antes y ahí se ve por qué no salió.
+    marcar(id, "cancelado", postventa ? motivo : null);
     console.log(`[aviso] "${aviso.tipo}" del auto ${aviso.vehiculo_id} cancelado: ${motivo}.`);
     return;
   }
@@ -195,6 +228,8 @@ async function despacharUno(id: number, enviador: Enviador): Promise<void> {
     console.log(`[aviso] "${aviso.tipo}" del auto ${aviso.vehiculo_id} no sale: no tiene celular.`);
     return;
   }
+  // Hace poco salió otro de post-venta: este espera a una próxima pasada.
+  if (postventa && !espaciadoCumplido()) return;
 
   try {
     await enviador.enviar(aviso.telefono, armarMensaje(aviso));
@@ -210,9 +245,11 @@ async function despacharUno(id: number, enviador: Enviador): Promise<void> {
 }
 
 // El texto que se manda. Se arma recién al enviar: un cambio en los cuidados
-// vale también para los avisos que ya estaban esperando. Todo va en un solo
-// mensaje, con una línea en blanco entre el saludo y cada bloque de cuidados.
+// (o en los textos de post-venta) vale también para los avisos que ya estaban
+// esperando. El "listo" va en un solo mensaje, con una línea en blanco entre el
+// saludo y cada bloque de cuidados.
 function armarMensaje(aviso: AvisoAEnviar): string {
+  if (esPostventa(aviso.tipo)) return mensajePostventa(aviso.tipo, aviso);
   const base = MENSAJES[aviso.tipo](aviso);
   if (aviso.tipo !== "listo") return base;
   return [base, ...cuidadosDe(aviso.vehiculo_id)].join("\n\n");
@@ -234,8 +271,10 @@ function cuidadosDe(vehiculoId: number): string[] {
   return bloques;
 }
 
-// Por qué el aviso ya no tiene sentido (o null si hay que mandarlo).
+// Por qué el aviso ya no tiene sentido (o null si hay que mandarlo). Los de
+// post-venta tienen sus propias reglas (y el auto, claro, ya se retiró).
 function motivoParaNoMandar(aviso: AvisoAEnviar): string | null {
+  if (esPostventa(aviso.tipo)) return motivoPostventa(aviso.tipo, aviso.acepta_whatsapp);
   if (aviso.retirado_en) return "el auto ya se retiró";
   if (aviso.tipo === "ingreso") return null;
   const condiciones = condicionesActuales(aviso.vehiculo_id);
@@ -305,8 +344,21 @@ function autoActivo(vehiculoId: number): boolean {
   );
 }
 
-function marcar(id: number, estado: "cancelado" | "sin_telefono"): void {
-  db.prepare("UPDATE avisos SET estado = ? WHERE id = ?").run(estado, id);
+// Con `motivo`, queda anotado en ultimo_error (solo lo usa la post-venta).
+function marcar(
+  id: number,
+  estado: "cancelado" | "sin_telefono",
+  motivo: string | null = null,
+): void {
+  if (motivo === null) {
+    db.prepare("UPDATE avisos SET estado = ? WHERE id = ?").run(estado, id);
+  } else {
+    db.prepare("UPDATE avisos SET estado = ?, ultimo_error = ? WHERE id = ?").run(
+      estado,
+      motivo,
+      id,
+    );
+  }
 }
 
 // Cómo estaba el envío en la última consulta. Arranca en true: si ya está listo

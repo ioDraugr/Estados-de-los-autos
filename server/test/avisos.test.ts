@@ -13,6 +13,7 @@ import {
   editarVehiculo,
   enviadorFalso,
   ErrorDefinitivo,
+  guardarAjustes,
   leerAviso,
   leerAvisos,
   limpiarBase,
@@ -20,6 +21,7 @@ import {
   retirarVehiculo,
   vencerPendientes,
 } from "./ayudas.js";
+import type { TipoServicio } from "../src/tipos.js";
 
 // Los campos que dicen si un aviso quedó listo para otra ronda de intentos.
 function resumen(vehiculoId: number, tipo: "ingreso" | "en_proceso" | "listo") {
@@ -353,5 +355,106 @@ describe("envío no listo", () => {
     assert.equal(cambios.length, 2);
     assert.match(cambios[0], /no está listo/);
     assert.match(cambios[1], /está listo: se retoman/);
+  });
+});
+
+describe("cuidados en el aviso de listo", () => {
+  // Textos cortos y conocidos, para comparar el mensaje entero.
+  beforeEach(() => {
+    limpiarBase();
+    guardarAjustes({
+      cuidados_instalacion: "Probá que todo ande.",
+      cuidados_polarizado: "No bajes las ventanillas.",
+      cuidados_vitrificado: "No lo laves por 7 días.",
+    });
+  });
+
+  const SALUDO = "¡Tu Toyota Corolla está listo! Ya podés pasar a buscarlo por ML Center.";
+
+  // Termina todos los servicios del auto y manda lo vencido; devuelve los
+  // textos que salieron con "está listo".
+  async function mandarListo(auto: ReturnType<typeof crearAuto>, tipos: TipoServicio[]) {
+    for (const tipo of tipos) cambiarEstado(auto.servicio(tipo), "terminado");
+    const envio = enviadorFalso();
+    await despacharPendientes(envio);
+    return envio.enviados.map((e) => e.texto).filter((texto) => /está listo/.test(texto));
+  }
+
+  test("con un servicio, el listo lleva sus cuidados después de una línea en blanco", async () => {
+    const auto = crearAuto(["polarizado"]);
+    assert.deepEqual(await mandarListo(auto, ["polarizado"]), [
+      `${SALUDO}\n\nCuidados del polarizado:\nNo bajes las ventanillas.`,
+    ]);
+  });
+
+  test("con los tres, sale UN solo mensaje con los tres bloques en orden fijo", async () => {
+    // Cargados en otro orden a propósito: el mensaje sigue instalación,
+    // polarizado, vitrificado.
+    const tipos: TipoServicio[] = ["vitrificado", "instalacion", "polarizado"];
+    const auto = crearAuto(tipos);
+    assert.deepEqual(await mandarListo(auto, tipos), [
+      [
+        SALUDO,
+        "Cuidados de la instalación:\nProbá que todo ande.",
+        "Cuidados del polarizado:\nNo bajes las ventanillas.",
+        "Cuidados del vitrificado:\nNo lo laves por 7 días.",
+      ].join("\n\n"),
+    ]);
+    assert.equal(leerAviso(auto.id, "listo")?.estado, "enviado");
+  });
+
+  test("un servicio repetido en la base suma sus cuidados una sola vez", async () => {
+    const auto = crearAuto(["polarizado"]);
+    db.prepare(
+      "INSERT INTO servicios (vehiculo_id, tipo, estado) VALUES (?, 'polarizado', 'terminado')",
+    ).run(auto.id);
+    assert.deepEqual(await mandarListo(auto, ["polarizado"]), [
+      `${SALUDO}\n\nCuidados del polarizado:\nNo bajes las ventanillas.`,
+    ]);
+  });
+
+  test("con el texto vacío, ese bloque no va", async () => {
+    guardarAjustes({ cuidados_instalacion: "" });
+    const auto = crearAuto(["instalacion", "vitrificado"]);
+    assert.deepEqual(await mandarListo(auto, ["instalacion", "vitrificado"]), [
+      `${SALUDO}\n\nCuidados del vitrificado:\nNo lo laves por 7 días.`,
+    ]);
+
+    // Todos vacíos: queda el saludo solo, sin líneas en blanco al final.
+    guardarAjustes({ cuidados_vitrificado: "" });
+    const otro = crearAuto(["instalacion", "vitrificado"]);
+    assert.deepEqual(await mandarListo(otro, ["instalacion", "vitrificado"]), [SALUDO]);
+  });
+
+  test("un servicio quitado no suma sus cuidados", async () => {
+    const auto = crearAuto(["instalacion", "polarizado"]);
+    cambiarEstado(auto.servicio("instalacion"), "terminado");
+    quitarServicio(auto.servicio("polarizado"));
+    assert.deepEqual(await mandarListo(auto, []), [
+      `${SALUDO}\n\nCuidados de la instalación:\nProbá que todo ande.`,
+    ]);
+  });
+
+  test("el texto se lee al enviar: un cambio vale para el aviso que ya esperaba", async () => {
+    const auto = crearAuto(["vitrificado"]);
+    cambiarEstado(auto.servicio("vitrificado"), "terminado");
+    assert.equal(leerAviso(auto.id, "listo")?.estado, "pendiente");
+
+    guardarAjustes({ cuidados_vitrificado: "Texto nuevo." });
+    assert.deepEqual(await mandarListo(auto, []), [
+      `${SALUDO}\n\nCuidados del vitrificado:\nTexto nuevo.`,
+    ]);
+  });
+
+  test("'entró' y 'ya arrancamos' no llevan cuidados", async () => {
+    const auto = crearAuto(["polarizado", "vitrificado"]);
+    cambiarEstado(auto.servicio("polarizado"), "en_proceso");
+    const envio = enviadorFalso();
+    await despacharPendientes(envio);
+
+    assert.equal(envio.enviados.length, 2);
+    assert.ok(envio.enviados.every((e) => !/Cuidados/.test(e.texto)));
+    assert.match(envio.enviados[0].texto, /ya ingresó/);
+    assert.match(envio.enviados[1].texto, /Ya arrancamos/);
   });
 });

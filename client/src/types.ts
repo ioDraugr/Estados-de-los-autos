@@ -54,6 +54,9 @@ export interface AjusteBooleano extends AjusteBase {
   valor: boolean;
 }
 
+// Texto libre (los cuidados del aviso de "listo", los mensajes de post-venta, el
+// link de reseñas). El server lo guarda sin los espacios de las puntas; vacío
+// vale solo si `permiteVacio`.
 export interface AjusteTexto extends AjusteBase {
   tipo: "texto";
   maxLargo: number;

@@ -2,7 +2,8 @@
 // cabecera queda) y se vuelve con "← Volver". Tarjetas de vidrio:
 //   - PIN de acceso (CambiarPin.tsx),
 //   - Backups: cuándo fue el último, cuántos hay y "Hacer backup ahora",
-//   - Ajustes, una tarjeta por grupo (showroom, post-venta por WhatsApp): se
+//   - Ajustes, una tarjeta por grupo (showroom, cuidados del aviso de "listo",
+//     post-venta por WhatsApp): se
 //     arman solos desde la lista que manda el server (GET /api/config), así un
 //     ajuste nuevo en server/src/ajustes.ts aparece acá sin tocar esta pantalla
 //     (salvo que sea de un tipo o grupo nuevo: ver CampoAjuste y GRUPOS).
@@ -65,7 +66,7 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <TituloSeccion
           titulo="Configuración"
-          ayuda="El PIN, los backups de la base, el showroom y los mensajes de post-venta."
+          ayuda="El PIN, los backups de la base, el showroom, los cuidados del aviso de listo y los mensajes de post-venta."
         />
         <button
           type="button"
@@ -214,6 +215,8 @@ interface Grupo {
   ayuda?: string;
   // Lo que se ve después de guardar un ajuste del grupo.
   guardado: string;
+  // Lo que se lee en un texto vacío (si en el grupo vacío vale algo).
+  vacio?: string;
 }
 
 // Una tarjeta por grupo, en este orden. Un ajuste de un grupo que este front no
@@ -223,6 +226,14 @@ const GRUPOS: Grupo[] = [
     id: "showroom",
     titulo: "Pantalla del showroom",
     guardado: "Guardado. El showroom ya se actualizó.",
+  },
+  {
+    id: "cuidados",
+    titulo: "Cuidados en el aviso de listo",
+    ayuda:
+      "Van al final del WhatsApp que avisa que el auto está listo, uno por cada servicio que se le hizo.",
+    guardado: "Guardado. Va en los próximos avisos de listo.",
+    vacio: "Sin cuidados: no se manda nada para este servicio.",
   },
   {
     id: "postventa",
@@ -250,6 +261,7 @@ function Ajustes({ grupo, ajustes, onGuardado, onNoAutorizado }: AjustesProps) {
             key={ajuste.clave}
             ajuste={ajuste}
             textoGuardado={grupo.guardado}
+            textoVacio={grupo.vacio}
             onGuardado={onGuardado}
             onNoAutorizado={onNoAutorizado}
           />
@@ -262,6 +274,7 @@ function Ajustes({ grupo, ajustes, onGuardado, onNoAutorizado }: AjustesProps) {
 interface CampoProps<A extends Ajuste> {
   ajuste: A;
   textoGuardado: string;
+  textoVacio?: string;
   onGuardado: (datos: DatosConfig) => void;
   onNoAutorizado: () => void;
 }
@@ -452,10 +465,12 @@ function CampoBooleano({
 
 // Ajuste de texto: un mensaje (varias líneas) o un link (una línea), con el
 // largo a la vista y "Guardar" que se habilita solo si cambió y se puede
-// guardar. "Usar el de fábrica" vuelve a poner el texto inicial (falta guardarlo).
+// guardar. Los espacios de las puntas no cuentan (el server los saca al guardar).
+// "Usar el de fábrica" vuelve a poner el texto inicial (falta guardarlo).
 function CampoTexto({
   ajuste,
   textoGuardado,
+  textoVacio,
   onGuardado,
   onNoAutorizado,
 }: CampoProps<AjusteTexto>) {
@@ -490,6 +505,7 @@ function CampoTexto({
           <textarea
             value={valor}
             rows={4}
+            placeholder={ajuste.permiteVacio ? textoVacio : undefined}
             onChange={(e) => cambiar(e.target.value)}
             className={`${CAMPO} mt-4 resize-y py-3 leading-snug`}
           />
@@ -535,6 +551,11 @@ function CampoTexto({
         )}
       </div>
 
+      {!largoOk && (
+        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
+          Es muy largo: puede tener hasta {ajuste.maxLargo} caracteres.
+        </p>
+      )}
       <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
     </div>
   );

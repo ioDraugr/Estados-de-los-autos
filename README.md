@@ -430,6 +430,11 @@ lista de autos por tarjetas; se vuelve con "← Volver a los autos":
   algo). Ver [Respaldo de la base](#respaldo-de-la-base).
 - **Pantalla del showroom.** Cuántas horas sigue visible un auto terminado (de 1
   a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante.
+- **Cuidados en el aviso de listo.** Un texto por servicio (instalación,
+  polarizado, vitrificado), de hasta 800 caracteres, con "Guardar" y "Usar el de
+  fábrica". Van al final del WhatsApp de "listo" (ver
+  [Avisos por WhatsApp](#avisos-por-whatsapp)); vacío = ese servicio no lleva
+  cuidados.
 - **Post-venta por WhatsApp.** Prender o apagar el pedido de reseña y el
   recordatorio de mantenimiento (interruptores: se guardan al tocarlos), cuántos
   días / meses después del retiro, los dos textos (con "Usar el de fábrica"), el
@@ -454,6 +459,13 @@ mensajes automáticos:
 
 Los mensajes solo llevan marca y modelo (nunca la matrícula). Los textos están
 todos juntos en `MENSAJES`, en `server/src/avisos.ts`, para cambiarlos fácil.
+
+El de **"listo"** suma, en el mismo mensaje, los **cuidados** de cada servicio que
+se le hizo al auto (instalación, polarizado y vitrificado, en ese orden), cada uno
+en su párrafo ("Cuidados del polarizado:" y el texto). Esos textos se editan desde
+`/admin` → **Configuración** → "Cuidados en el aviso de listo", sin tocar código; se
+leen al momento de mandar, así que un cambio vale también para los avisos que ya
+estaban esperando. Si un texto está vacío, ese servicio no lleva cuidados.
 
 - **Los 5 minutos son de seguridad.** Al llegar la hora, el server vuelve a mirar
   cómo está el auto antes de mandar. Si alguien tocó "en proceso" sin querer y lo

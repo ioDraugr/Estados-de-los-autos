@@ -10,11 +10,11 @@ import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 
 // Tipos de ajuste: número entero (con "−" / "+"), sí/no (interruptor) y texto
-// (los mensajes de post-venta, el link de reseñas).
+// (los cuidados del aviso de listo, los mensajes de post-venta, el link de reseñas).
 export type TipoAjuste = "entero" | "booleano" | "texto";
 
 // En qué tarjeta de Configuración aparece cada ajuste.
-export type GrupoAjuste = "showroom" | "postventa";
+export type GrupoAjuste = "showroom" | "cuidados" | "postventa";
 
 interface AjusteBase {
   clave: string;
@@ -35,11 +35,13 @@ interface AjusteBooleano extends AjusteBase {
   porDefecto: boolean;
 }
 
+// Texto libre. Se guarda sin los espacios de las puntas.
 interface AjusteTexto extends AjusteBase {
   tipo: "texto";
   // Largo máximo (ya sin espacios de las puntas).
   maxLargo: number;
-  // Si se puede dejar vacío (el link sí: sin link la reseña no sale).
+  // Si se puede dejar vacío y qué significa lo decide el que lo usa (un cuidado
+  // vacío no se manda; sin link la reseña no sale).
   permiteVacio: boolean;
   // "url": si no está vacío, tiene que ser un link http(s).
   formato?: "url";
@@ -51,6 +53,9 @@ interface AjusteTexto extends AjusteBase {
 export type DefinicionAjuste = AjusteEntero | AjusteBooleano | AjusteTexto;
 export type ValorAjuste = number | boolean | string;
 export type AjusteConValor = DefinicionAjuste & { valor: ValorAjuste };
+
+// Largo máximo de los cuidados (van dentro del WhatsApp de "listo").
+const MAX_LARGO_CUIDADOS = 800;
 
 // Ayuda común a los dos mensajes de post-venta.
 const AYUDA_MARCADORES =
@@ -67,6 +72,48 @@ export const AJUSTES = [
     min: 1,
     max: 72,
     porDefecto: enteroDeEntorno("HORAS_VISIBLE_TERMINADO", 4, 1, 72),
+  },
+
+  // --- Cuidados que se suman al WhatsApp de "listo", uno por servicio que se le
+  // hizo al auto (ver avisos.ts). Los textos iniciales los aprobó el taller. ---
+  {
+    clave: "cuidados_instalacion",
+    grupo: "cuidados",
+    etiqueta: "Cuidados de la instalación (aviso de listo)",
+    ayuda:
+      'Va al final del WhatsApp de "listo" si el auto tuvo instalación. Vacío = no se manda nada.',
+    tipo: "texto",
+    maxLargo: MAX_LARGO_CUIDADOS,
+    permiteVacio: true,
+    multilinea: true,
+    porDefecto:
+      "Antes de irte probá que todo funcione como esperabas. No desconectes la batería ni toques el cableado de lo que instalamos sin consultarnos. Si notás cualquier falla o tenés una duda, escribinos por acá.",
+  },
+  {
+    clave: "cuidados_polarizado",
+    grupo: "cuidados",
+    etiqueta: "Cuidados del polarizado (aviso de listo)",
+    ayuda:
+      'Va al final del WhatsApp de "listo" si el auto tuvo polarizado. Vacío = no se manda nada.',
+    tipo: "texto",
+    maxLargo: MAX_LARGO_CUIDADOS,
+    permiteVacio: true,
+    multilinea: true,
+    porDefecto:
+      "No bajes las ventanillas durante 2 días para que la lámina se asiente bien. Es normal ver alguna burbuja o zona empañada los primeros días: desaparece sola a medida que se seca. Para limpiar los vidrios usá un paño suave con agua o un limpiador sin amoníaco.",
+  },
+  {
+    clave: "cuidados_vitrificado",
+    grupo: "cuidados",
+    etiqueta: "Cuidados del vitrificado (aviso de listo)",
+    ayuda:
+      'Va al final del WhatsApp de "listo" si el auto tuvo vitrificado. Vacío = no se manda nada.',
+    tipo: "texto",
+    maxLargo: MAX_LARGO_CUIDADOS,
+    permiteVacio: true,
+    multilinea: true,
+    porDefecto:
+      "Durante los primeros 7 días no lo laves y, si podés, evitá dejarlo bajo la lluvia. Después lavalo a mano con shampoo neutro y paño de microfibra; evitá los lavaderos con cepillos y los productos con cera o abrasivos. Si le cae caca de pájaro o resina, sacala cuanto antes con agua.",
   },
 
   // --- Post-venta por WhatsApp (ver postventa.ts) ---
@@ -191,13 +238,15 @@ export const AJUSTES = [
 
 export type ClaveAjuste = (typeof AJUSTES)[number]["clave"];
 
-// Qué devuelve leerAjuste según el tipo del ajuste pedido.
+// Qué devuelve leerAjuste según el tipo del ajuste pedido: number para los
+// enteros, boolean para los sí/no y string para los de texto (así vehiculos.ts
+// hace cuentas y avisos.ts arma mensajes sin convertir nada).
 interface ValorPorTipo {
   entero: number;
   booleano: boolean;
   texto: string;
 }
-type ValorDe<C extends ClaveAjuste> =
+export type ValorDe<C extends ClaveAjuste> =
   ValorPorTipo[Extract<(typeof AJUSTES)[number], { clave: C }>["tipo"]];
 
 // Valor actual del ajuste: el guardado en config o, si no hay (o no sirve), el
@@ -286,7 +335,7 @@ function validar(definicion: DefinicionAjuste, valor: unknown): ValorAjuste {
       }
       if (texto.length > definicion.maxLargo) {
         throw new ErrorValidacion(
-          `"${etiqueta}" puede tener hasta ${definicion.maxLargo} letras.`,
+          `"${etiqueta}" puede tener hasta ${definicion.maxLargo} caracteres (tiene ${texto.length}).`,
         );
       }
       if (texto && definicion.formato === "url" && !esLink(texto)) {

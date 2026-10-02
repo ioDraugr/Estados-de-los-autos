@@ -344,6 +344,16 @@ una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo`), con su estado
 mandarlo (`enviar_en`, en UTC), los intentos y el último error. También se crea
 sola al arrancar.
 
+La tabla `historial` guarda, para los **reportes** que vienen más adelante, cada
+cosa que pasa en el taller: el alta del auto (`ingreso`), cada cambio de estado de
+un servicio (`cambio_estado`, con el estado anterior y el nuevo), servicios
+agregados o quitados sobre la marcha (`servicio_agregado` / `servicio_quitado`) y
+el `retiro`, cada uno con su fecha y hora (en UTC). Solo se agregan filas: nunca se
+editan ni se borran. Cambiar un servicio al mismo estado que ya tenía no anota
+nada. Por ahora no se ve en ninguna pantalla, y el precio de cada servicio se va a
+sumar recién con los reportes. Los autos de ejemplo del *seed* no tienen
+historial. También se crea sola al arrancar.
+
 Al arrancar y una vez por día el server deja un **backup** en
 `server/data/backups` (quedan los últimos 30; ver
 [Respaldo de la base](#respaldo-de-la-base)).

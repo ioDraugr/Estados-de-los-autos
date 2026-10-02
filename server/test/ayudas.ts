@@ -62,10 +62,13 @@ after(() => {
   rmSync(carpeta, { recursive: true, force: true });
 });
 
-// Deja la base vacía (sin autos, servicios ni avisos) para que cada test arranque
-// de cero: el despachador manda TODO lo vencido, no solo lo del test.
+// Deja la base vacía (sin historial, autos, servicios ni avisos) para que cada
+// test arranque de cero: el despachador manda TODO lo vencido, no solo lo del
+// test. El historial va primero porque apunta a autos y servicios.
 export function limpiarBase(): void {
-  db.exec("DELETE FROM avisos; DELETE FROM servicios; DELETE FROM vehiculos;");
+  db.exec(
+    "DELETE FROM historial; DELETE FROM avisos; DELETE FROM servicios; DELETE FROM vehiculos;",
+  );
 }
 
 // Datos de auto de ejemplo (sin teléfono), para el alta y para editar.

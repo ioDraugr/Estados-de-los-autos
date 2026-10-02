@@ -64,6 +64,27 @@ db.exec(`
 
   -- El despachador busca siempre "pendientes que ya vencieron".
   CREATE INDEX IF NOT EXISTS avisos_por_vencer ON avisos (estado, enviar_en);
+
+  -- Historial de cambios para los reportes que vienen (ver historial.ts). Solo se
+  -- agregan filas, nunca se editan ni se borran. En ingreso/retiro no hay servicio
+  -- (servicio_id y tipo_servicio quedan NULL); el tipo se copia para que los
+  -- reportes no necesiten joins. La fecha va en UTC con el formato de datetime('now').
+  CREATE TABLE IF NOT EXISTS historial (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    vehiculo_id     INTEGER NOT NULL REFERENCES vehiculos(id) ON DELETE CASCADE,
+    servicio_id     INTEGER REFERENCES servicios(id) ON DELETE CASCADE,
+    tipo_servicio   TEXT CHECK (tipo_servicio IN ('instalacion','polarizado','vitrificado')),
+    evento          TEXT NOT NULL
+                    CHECK (evento IN ('ingreso','cambio_estado','retiro',
+                                      'servicio_agregado','servicio_quitado')),
+    estado_anterior TEXT CHECK (estado_anterior IN ('esperando','en_proceso','terminado')),
+    estado_nuevo    TEXT CHECK (estado_nuevo IN ('esperando','en_proceso','terminado')),
+    fecha           TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- Los reportes van a pedir "lo que pasó entre tal y tal fecha" o "lo de este auto".
+  CREATE INDEX IF NOT EXISTS historial_por_fecha ON historial (fecha);
+  CREATE INDEX IF NOT EXISTS historial_por_vehiculo ON historial (vehiculo_id);
 `);
 
 // --- Migraciones sobre bases que ya existían ---

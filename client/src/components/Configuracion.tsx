@@ -21,6 +21,7 @@ import type {
   Ajuste,
   AjusteBooleano,
   AjusteEntero,
+  AjusteLista,
   AjusteTexto,
   DatosConfig,
   EstadoBackups,
@@ -290,6 +291,8 @@ function CampoAjuste({ ajuste, ...resto }: CampoProps<Ajuste>) {
       return <CampoBooleano ajuste={ajuste} {...resto} />;
     case "texto":
       return <CampoTexto ajuste={ajuste} {...resto} />;
+    case "lista":
+      return <CampoLista ajuste={ajuste} {...resto} />;
     default:
       // Un tipo que este front todavía no conoce (server más nuevo): no se muestra.
       return null;
@@ -307,7 +310,7 @@ function useGuardar(
   const [error, setError] = useState<string | null>(null);
   const [listo, setListo] = useState(false);
 
-  async function guardar(valor: number | boolean | string) {
+  async function guardar(valor: number | boolean | string | string[]) {
     if (guardando) return;
     setGuardando(true);
     setError(null);
@@ -559,6 +562,144 @@ function CampoTexto({
       <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
     </div>
   );
+}
+
+// Ajuste lista (las frases de la bienvenida): una fila por frase con su
+// "Quitar", y abajo un campo + "Agregar". Los cambios quedan acá hasta tocar
+// "Guardar" (que se habilita solo si la lista cambió), como en los otros campos.
+function CampoLista({
+  ajuste,
+  textoGuardado,
+  onGuardado,
+  onNoAutorizado,
+}: CampoProps<AjusteLista>) {
+  const [frases, setFrases] = useState(ajuste.valor);
+  const [nueva, setNueva] = useState("");
+  const { guardando, error, listo, guardar, limpiar } = useGuardar(
+    ajuste.clave,
+    onGuardado,
+    onNoAutorizado,
+  );
+
+  // Como la guarda el server: una sola línea, sin espacios de más.
+  const limpia = nueva.replace(/\s+/g, " ").trim();
+  const largoOk = limpia.length <= ajuste.maxLargo;
+  const hayLugar = frases.length < ajuste.maxCantidad;
+  const puedeAgregar = limpia !== "" && largoOk && hayLugar && !guardando;
+  const cambiado = !mismasFrases(frases, ajuste.valor);
+  const esLaDeFabrica = mismasFrases(frases, ajuste.porDefecto);
+
+  function cambiar(nuevas: string[]) {
+    setFrases(nuevas);
+    limpiar();
+  }
+
+  function agregar() {
+    if (!puedeAgregar) return;
+    cambiar([...frases, limpia]);
+    setNueva("");
+  }
+
+  return (
+    <div className={`${GRUPO} p-4 sm:p-[18px]`}>
+      <p className="text-xl font-semibold text-tinta sm:text-[22px]">{ajuste.etiqueta}</p>
+      <p className="mt-1 text-base text-tinta-suave sm:text-lg">{ajuste.ayuda}</p>
+
+      {frases.length === 0 ? (
+        <p className={`${TEXTO_VACIO} mt-4 rounded-2xl bg-tinta/[0.04] px-4 py-5 text-lg`}>
+          Sin frases: en el showroom no se muestra ninguna.
+        </p>
+      ) : (
+        <ul className="mt-4 flex flex-col gap-2">
+          {frases.map((frase, i) => (
+            <li
+              key={`${i}-${frase}`}
+              className="flex min-h-16 items-center gap-3 rounded-2xl bg-tinta/[0.05] py-2 pr-2 pl-4"
+            >
+              <span className="min-w-0 flex-1 text-xl break-words text-tinta sm:text-[22px]">
+                {frase}
+              </span>
+              <button
+                type="button"
+                onClick={() => cambiar(frases.filter((_, j) => j !== i))}
+                disabled={guardando}
+                className={`${BOTON_SUAVE} h-14 shrink-0 px-5 text-lg sm:text-xl`}
+              >
+                Quitar
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <input
+          type="text"
+          autoComplete="off"
+          value={nueva}
+          placeholder={hayLugar ? "Escribí una frase nueva" : "Ya hay el máximo de frases"}
+          disabled={!hayLugar}
+          onChange={(e) => {
+            setNueva(e.target.value);
+            limpiar();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") agregar();
+          }}
+          className="h-14 min-w-0 flex-[1_1_16rem] rounded-2xl bg-tinta/[0.05] px-4 text-xl text-tinta caret-[#be8a18] outline-none transition-colors placeholder:text-[#A89B84] focus:bg-marca/[0.12] disabled:opacity-60 sm:h-16 sm:text-[22px]"
+        />
+        <button
+          type="button"
+          onClick={agregar}
+          disabled={!puedeAgregar}
+          className={`${BOTON_SUAVE} h-14 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
+        >
+          Agregar
+        </button>
+      </div>
+
+      <p
+        className={`mt-2 px-1 text-right text-base tabular-nums ${
+          largoOk ? "text-tinta-suave" : "font-semibold text-peligro"
+        }`}
+      >
+        {frases.length} de {ajuste.maxCantidad} frases · {limpia.length} / {ajuste.maxLargo}
+      </p>
+      {!largoOk && (
+        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
+          Es muy larga: cada frase puede tener hasta {ajuste.maxLargo} caracteres.
+        </p>
+      )}
+
+      <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={() => cambiado && guardar(frases)}
+          disabled={!cambiado || guardando}
+          className={`${BOTON_MARCA} h-14 min-w-40 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
+        >
+          {guardando ? "Guardando…" : "Guardar"}
+        </button>
+        {!esLaDeFabrica && (
+          <button
+            type="button"
+            onClick={() => cambiar(ajuste.porDefecto)}
+            disabled={guardando}
+            className={`${BOTON_SUAVE} h-14 px-6 text-lg sm:h-16 sm:text-xl`}
+          >
+            Usar las de fábrica
+          </button>
+        )}
+      </div>
+
+      <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
+    </div>
+  );
+}
+
+// ¿Las dos listas tienen las mismas frases, en el mismo orden?
+function mismasFrases(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((frase, i) => frase === b[i]);
 }
 
 // --- Formatos ---

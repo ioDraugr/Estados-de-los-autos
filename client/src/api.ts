@@ -32,6 +32,17 @@ export async function obtenerVehiculos(): Promise<Vehiculo[]> {
   return res.json();
 }
 
+// Frases de la bienvenida del showroom (públicas, sin PIN). Lo único de la
+// configuración que ve /display.
+export async function obtenerFrases(): Promise<string[]> {
+  const res = await fetch("/api/frases");
+  if (!res.ok) {
+    throw new Error(`La API respondió ${res.status}`);
+  }
+  const { frases } = (await res.json()) as { frases: string[] };
+  return frases;
+}
+
 // Lista para /admin y /taller: incluye también los terminados que /display
 // esconde. Manda el PIN para que el server incluya el celular del cliente. Si
 // el PIN ya no sirve (ej. lo cambiaron desde otra tablet) es 401 como en las
@@ -134,7 +145,7 @@ export async function obtenerConfig(): Promise<DatosConfig> {
 
 // Guarda ajustes ({ clave: valor }). Devuelve la configuración ya actualizada.
 export async function guardarAjustes(
-  cambios: Record<string, number | boolean | string>,
+  cambios: Record<string, number | boolean | string | string[]>,
 ): Promise<DatosConfig> {
   const res = await escribir("/api/config", "PATCH", cambios);
   return res.json();

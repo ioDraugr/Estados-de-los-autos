@@ -60,8 +60,11 @@ Pedido del usuario (2026-10-01): hoy solo se guarda el estado actual (`servicios
 
 ## Progreso
 - 2026-10-01: worktree creado, línea base `npm test` 43/43 verde.
-- 2026-10-01: T1 hecha y commiteada en `feat/historial-cambios` (commit de trabajo
-  `feat(historial): ...`; el hash queda en `git log` de la rama).
+- 2026-10-01: T1 hecha y commiteada en `feat/historial-cambios` (`d3dd447`).
+- 2026-10-01: RDD `review assess` sobre `8814901..d3dd447`: riesgo **medio**
+  (`executable_change` en `db.ts`), `review_due` por `slice_budget_reached` (443 líneas). Se
+  pidió consentimiento al usuario: **declinado** → sigue la política normal del repo (sin
+  recibo de revisión; entrega `disabled/unmanaged` para este slice).
 
 ## Próximo paso
-Evaluación RDD del commit; después, push + PR cuando el usuario lo decida.
+Push de la rama + PR, cuando el usuario lo decida (él mergea con squash).

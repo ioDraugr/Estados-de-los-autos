@@ -90,5 +90,7 @@ Fuera de alcance: cambios en avisos WhatsApp, /taller, lista de /display.
   largo); título nunca pisado. Efecto visible: a 1280×720 el pie queda sobre la línea del horizonte.
   Orquestador: server 111/111, client build + lint OK.
 
+- RDD assess rango 42145b0..39d0360 (committed-only): medium, `under_budget` → queda pendiente en el slice (sin review).
+
 ## Siguiente paso
 Push y PR a decisión del usuario (single-pr).

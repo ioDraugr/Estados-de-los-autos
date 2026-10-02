@@ -79,11 +79,11 @@ Pedido del usuario (2026-10-01). Plan aprobado y textos iniciales ajustados por 
   - Commit: `d76e879` feat(avisos): cuidados por servicio en el WhatsApp de "listo".
   - RDD: assess sobre `6688a2e..d76e879` => riesgo medium, `review_due` true
     (`slice_budget_reached`, 705 líneas). Preflight STATUS => `review.start` con
-    `--consent=relay`: consentimiento del usuario pendiente.
+    `--consent=relay`: el usuario declinó la revisión (2026-10-01); sigue con política normal.
 
 ## Progreso
 - 2026-10-01: plan y textos aprobados; worktree creado; base 52/52 en verde.
 - 2026-10-01: T1 implementada y verificada.
 
 ## Próximo paso
-Consentimiento de revisión RDD, prueba manual del usuario, push/PR cuando el usuario decida.
+Prueba manual del usuario, push/PR cuando el usuario decida.

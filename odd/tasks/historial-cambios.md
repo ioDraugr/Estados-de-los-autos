@@ -66,5 +66,11 @@ Pedido del usuario (2026-10-01): hoy solo se guarda el estado actual (`servicios
   pidió consentimiento al usuario: **declinado** → sigue la política normal del repo (sin
   recibo de revisión; entrega `disabled/unmanaged` para este slice).
 
+- 2026-10-01: prueba manual de punta a punta (server de la rama, base descartable en /tmp,
+  avisos en `log`): 11 acciones por la API → las 10 filas esperadas; doble toque, estado
+  inválido y segundo retiro no anotaron nada. Base de prueba borrada.
+- 2026-10-01: push de `feat/historial-cambios` y PR #12 abierto
+  (https://github.com/ioDraugr/Estados-de-los-autos/pull/12), autorizado por el usuario.
+
 ## Próximo paso
-Push de la rama + PR, cuando el usuario lo decida (él mergea con squash).
+El usuario mergea el PR #12 (squash). Después: limpiar el worktree y la rama local.

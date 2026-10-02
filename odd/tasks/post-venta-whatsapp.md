@@ -89,5 +89,8 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
     `avisos.ultimo_error` (los del taller siguen igual, solo log). Un post-venta desactivado se decide
     recién dentro del horario (si lo reactivan antes, sale). El espaciado se mide con `enviado_en` (reloj de
     SQLite). Se documentó `TZ` como zona del horario (README, `.env.example`, `docker-compose.yml`).
-- RDD assess por commit: no corrido por el writer (queda para el orquestador).
-- Próximo: revisión del usuario y PR único (`single-pr`).
+- Verificación del orquestador (2026-10-02): server `npm test` 89/89 pass; client `npm run build` OK.
+- RDD assess (base `6688a2e`, committed-only, rango e73e11f..b0085a8): risk medium, 1941 líneas,
+  `review_due=true` / `slice_budget_reached` → STATUS → `review.start` con `consent=relay`
+  (linaje `review-a9b857946fd730a3`). El usuario **declinó** la revisión (2026-10-02): entrega `disabled/unmanaged` para este rango, sigue la política normal del repo.
+- Próximo: push y PR único (`single-pr`) cuando el usuario lo pida; cargar el link de reseñas en Configuración.

@@ -3,6 +3,7 @@ import { leerAjuste } from "./ajustes.js";
 import { cancelarAvisos, programarIngreso } from "./avisos.js";
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
+import { registrarEvento } from "./historial.js";
 import { TIPOS_SERVICIO } from "./servicios.js";
 import { normalizarTelefono } from "./telefono.js";
 import type { Servicio, TipoServicio, Vehiculo } from "./tipos.js";
@@ -132,11 +133,21 @@ export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): 
     VALUES (?, ?, 'esperando')
   `);
 
-  // Todo o nada: si algo falla, no queda un auto a medio crear.
+  // Todo o nada: si algo falla, no queda un auto a medio crear (ni su historial).
   const crear = db.transaction((): number => {
     const { lastInsertRowid } = insertarVehiculo.run(limpio);
     const id = Number(lastInsertRowid);
-    for (const tipo of tipos) insertarServicio.run(id, tipo);
+    registrarEvento({ vehiculoId: id, evento: "ingreso" });
+    for (const tipo of tipos) {
+      const servicio = insertarServicio.run(id, tipo);
+      registrarEvento({
+        vehiculoId: id,
+        evento: "servicio_agregado",
+        servicioId: Number(servicio.lastInsertRowid),
+        tipoServicio: tipo,
+        estadoNuevo: "esperando",
+      });
+    }
     programarIngreso(id);
     return id;
   });
@@ -166,6 +177,7 @@ export function editarVehiculo(id: number, datos: DatosVehiculo): boolean {
 
 // Retirar = soft delete: el auto no se borra, se marca con fecha y desaparece
 // de /display y de /admin al instante. Los avisos pendientes se cancelan.
+// Retirar dos veces no anota un segundo retiro en el historial.
 export function retirarVehiculo(id: number): boolean {
   const retirar = db.transaction((): boolean => {
     const { changes } = db
@@ -174,6 +186,7 @@ export function retirarVehiculo(id: number): boolean {
       )
       .run(id);
     if (changes === 0) return false;
+    registrarEvento({ vehiculoId: id, evento: "retiro" });
     cancelarAvisos(id);
     return true;
   });

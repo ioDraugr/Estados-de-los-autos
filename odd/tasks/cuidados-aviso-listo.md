@@ -84,6 +84,10 @@ Pedido del usuario (2026-10-01). Plan aprobado y textos iniciales ajustados por 
 ## Progreso
 - 2026-10-01: plan y textos aprobados; worktree creado; base 52/52 en verde.
 - 2026-10-01: T1 implementada y verificada.
+- 2026-10-01: prueba manual del server (base en /tmp, `AVISOS_ENVIO=log`): "listo" con 1
+  servicio (polarizado) y con 3 (un solo mensaje, orden instalación → polarizado → vitrificado);
+  texto editado por `PATCH /api/config` (recortado) y texto vacío omitido. Un aviso "listo"
+  enviado por auto. Falta mirar la pantalla de Configuración.
 
 ## Próximo paso
 Prueba manual del usuario, push/PR cuando el usuario decida.

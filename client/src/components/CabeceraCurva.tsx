@@ -116,9 +116,20 @@ export function CabeceraCurva({
             .cabecera-horizonte en index.css), así que abajo se deja un poco
             más que ese resto. */}
         {pie && (
-          <div className="relative z-10 flex justify-center pb-[24dvh] bajo:pb-[9dvh]">
-            {pie}
-          </div>
+          <div className="relative z-10 flex justify-center">{pie}</div>
+        )}
+
+        {/* El aire de abajo del pie es un separador que cede: se lleva primero
+            el espacio libre (grow enorme) hasta 24dvh, y si no sobra se achica
+            hasta casi nada. Con un padding fijo, en pantallas medianas
+            (1280×720) o con un pie más alto (el anuncio de "listo") la página
+            crecía y aparecía scroll; así el pie baja un poco sobre el
+            horizonte en vez de agrandar la pantalla. */}
+        {pie && (
+          <div
+            aria-hidden="true"
+            className="min-h-2 shrink-0 grow-[1000] basis-0 max-h-[24dvh] bajo:max-h-[9dvh]"
+          />
         )}
       </div>
     );

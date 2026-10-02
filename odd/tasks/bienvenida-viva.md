@@ -47,7 +47,7 @@ Fuera de alcance: cambios en avisos WhatsApp, /taller, lista de /display.
   Ruta: delegated direct (writer trigger: server + client, 2+ archivos no triviales).
 - [x] T2 Bienvenida: frase rotativa + cápsula en vivo (Display pasa vehículos y frases a Bienvenida).
   Ruta: delegated direct (writer trigger: Display, Bienvenida, componentes nuevos, CSS).
-- [ ] T3 Anuncio dorado de "listo" con cola, diff en Display, README.
+- [x] T3 Anuncio dorado de "listo" con cola, diff en Display, README.
   Ruta: delegated direct (writer trigger: Display, componente nuevo, CSS, README).
 
 ## Criterios de aceptación
@@ -74,5 +74,21 @@ Fuera de alcance: cambios en avisos WhatsApp, /taller, lista de /display.
   descartable. Pendiente: reducir movimiento verificado solo por código. RDD assess (base 175ba89):
   medium, `slice_budget_reached` → review due.
 
+- Docs `42145b0`: documento + mockup commiteados (evita untracked en el preflight RDD).
+- RDD preflight rango 175ba89..42145b0: medium (17 archivos, 889 líneas), consentimiento relayado →
+  **declinado** por el usuario. Boundary siguiente: `42145b0`.
+- T3 commit `bb3b886`: `useAnunciosListo.ts` (snapshot en ref, primera carga no anuncia, cola sin
+  duplicados, descarta los que dejan de estar listos, timer JS 10 s, no encola con la lista abierta y
+  vacía la cola al tocar), `AnuncioListo.tsx` (vidrio-oro, role=status, barra de tiempo oculta con
+  reducir movimiento), README. Evidencia: build + lint OK, server 111/111, browser: cola de 2 autos en
+  orden, drop de un auto que vuelve a en_proceso, nombre largo envuelve. Hallazgo propio: scrollbar
+  visible con el anuncio a 1920×1080 y +27 px a 800×400 con nombre largo → T3a.
+- [x] T3a Fix commit `346eea9`: causa = `pb-[24dvh]` fijo bajo el pie en un hero `min-h-dvh`; ahora es un
+  espaciador que cede (máx 24dvh, mín 8 px). Desde sm el nombre se trunca con "…" y "••XXXX está listo para
+  retirar" queda entero; 2.ª línea oculta en `bajo:`. Corrige también un scroll de T2 a 1280×720.
+  Evidencia: scrollHeight = innerHeight en 1920×1081, 1280×720, 800×400, 390×844 (cápsula, anuncio normal y
+  largo); título nunca pisado. Efecto visible: a 1280×720 el pie queda sobre la línea del horizonte.
+  Orquestador: server 111/111, client build + lint OK.
+
 ## Siguiente paso
-Preflight RDD del rango 175ba89..HEAD, luego T3.
+Push y PR a decisión del usuario (single-pr).

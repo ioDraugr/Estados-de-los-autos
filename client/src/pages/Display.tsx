@@ -8,6 +8,10 @@
 // recién al tocar aparece la lista. Los datos cargan de fondo igual (poll +
 // socket siempre vivos), así al tocar la lista ya está fresca. Tras un rato sin
 // tocar, vuelve sola a la bienvenida para el próximo cliente.
+//
+// Cuando un auto queda listo (todos sus servicios terminados) la bienvenida lo
+// anuncia en dorado unos segundos: la cola y la comparación entre una carga y
+// la siguiente viven en useAnunciosListo.
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 import type { Vehiculo } from "../types";
@@ -17,6 +21,8 @@ import { TarjetaVehiculo } from "../components/TarjetaVehiculo";
 import { DetalleVehiculo } from "../components/DetalleVehiculo";
 import { Bienvenida } from "../components/Bienvenida";
 import { CabeceraCurva } from "../components/CabeceraCurva";
+import { AnuncioListo } from "../components/AnuncioListo";
+import { useAnunciosListo } from "../useAnunciosListo";
 import { TituloSeccion } from "../components/TituloSeccion";
 
 // Cada cuánto vuelve a pedir los datos. Hace falta para que un auto terminado
@@ -41,6 +47,9 @@ export function Display() {
   const [frases, setFrases] = useState<string[]>([]);
   // Si ya llegaron datos alguna vez. En un ref para no re-disparar el efecto.
   const huboDatos = useRef(false);
+  // Anuncios de "listo para retirar": solo se encolan mientras se ve la
+  // bienvenida (es el único lugar donde se muestran).
+  const { anuncio, registrar, descartar } = useAnunciosListo(bienvenida);
 
   function volverAInicio() {
     setSeleccionado(null);
@@ -54,6 +63,9 @@ export function Display() {
       try {
         const datos = await obtenerVehiculos();
         if (!vigente) return;
+        // Antes de guardarla, se compara con la anterior para ver si algún
+        // auto acaba de quedar listo (la primera carga no anuncia nada).
+        registrar(datos);
         setVehiculos(datos);
         setSinConexion(false);
         huboDatos.current = true;
@@ -98,7 +110,8 @@ export function Display() {
       clearInterval(id);
       socket.disconnect();
     };
-  }, []);
+    // registrar es estable (useCallback sin dependencias): el efecto corre una vez.
+  }, [registrar]);
 
   // Vuelta automática a la bienvenida por inactividad. Solo corre cuando se está
   // viendo la lista; cada toque real (pointerdown/keydown) reinicia la cuenta.
@@ -125,13 +138,22 @@ export function Display() {
   if (bienvenida) {
     return (
       <Bienvenida
-        onTocar={() => setBienvenida(false)}
+        onTocar={() => {
+          // Al pasar a la lista se descarta la cola de anuncios: al volver no
+          // se muestran avisos viejos.
+          descartar();
+          setBienvenida(false);
+        }}
         // Sin cápsula hasta tener datos (o si nunca llegaron por un corte),
         // para no anunciar "sin autos" sin saberlo.
         vehiculos={
           cargando || (sinConexion && vehiculos.length === 0) ? null : vehiculos
         }
         frases={frases}
+        // El key reinicia la entrada y la barrita con cada auto de la cola.
+        anuncio={
+          anuncio ? <AnuncioListo key={anuncio.id} vehiculo={anuncio} /> : undefined
+        }
       />
     );
   }

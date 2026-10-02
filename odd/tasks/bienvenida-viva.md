@@ -93,4 +93,4 @@ Fuera de alcance: cambios en avisos WhatsApp, /taller, lista de /display.
 - RDD assess rango 42145b0..39d0360 (committed-only): medium, `under_budget` → queda pendiente en el slice (sin review).
 
 ## Siguiente paso
-Push y PR a decisión del usuario (single-pr).
+PR #15 abierto (single-pr), commits d584c2e..7b3b2ad. Queda el merge (squash) a decisión del usuario.

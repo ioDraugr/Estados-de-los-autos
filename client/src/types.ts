@@ -21,6 +21,9 @@ export interface Vehiculo {
   // Celular del cliente ("+5989XXXXXXX") o null si no se cargó. Opcional porque
   // la API solo lo manda con un PIN válido: NUNCA llega a /display (privacidad).
   telefono?: string | null;
+  // Si el cliente aceptó los mensajes de post-venta (reseña, mantenimiento).
+  // Igual que el teléfono: solo viene con un PIN válido.
+  acepta_whatsapp?: boolean;
   servicios: Servicio[];
 }
 

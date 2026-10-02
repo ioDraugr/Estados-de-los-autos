@@ -335,11 +335,15 @@ Para **empezar de cero** (borra todos los datos y vuelve a sembrar):
 rm server/data/taller.db*
 ```
 
-Las columnas nuevas (por ejemplo `vehiculos.telefono`) se agregan **solas** al
-arrancar sobre una base que ya existía: no hay que borrar nada ni correr scripts.
+Las columnas nuevas (por ejemplo `vehiculos.telefono` o `vehiculos.acepta_whatsapp`)
+se agregan **solas** al arrancar sobre una base que ya existía: no hay que borrar
+nada ni correr scripts. Lo mismo con la tabla `avisos` de antes de la post-venta:
+el server la rearma sola (en una transacción, con todas sus filas y sus ids) para
+que acepte los tipos nuevos, y lo dice una vez en el log.
 
 La tabla `avisos` es la cola de los [avisos por WhatsApp](#avisos-por-whatsapp):
-una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo`), con su estado
+una fila por aviso y por auto (`ingreso`, `en_proceso`, `listo` y los de
+post-venta, `resena` y `mantenimiento`), con su estado
 (`pendiente`, `enviado`, `cancelado`, `sin_telefono`, `fallido`), cuándo toca
 mandarlo (`enviar_en`, en UTC), los intentos y el último error. También se crea
 sola al arrancar.
@@ -404,6 +408,12 @@ lleva. Se entra con un **PIN** (uno solo, compartido).
 - **El celular es privado.** La API solo lo manda si el pedido trae un PIN válido
   en `x-pin` (`/admin` y `/taller`). **Nunca** llega a `/display` ni a quien pida
   la lista sin PIN, y `/taller` no lo muestra.
+- **"Acepta recibir mensajes por WhatsApp".** Interruptor del formulario de alta
+  y edición (`vehiculos.acepta_whatsapp`): solo decide los mensajes de
+  **post-venta** (pedido de reseña y recordatorio de mantenimiento); los avisos de
+  "entró", "arrancamos" y "listo" salen igual. En el alta arranca **prendido**; al
+  editar muestra lo guardado. Los autos cargados antes de que existiera quedan en
+  "no". Es privado como el celular: solo viaja con PIN.
 
 ### Pantalla de Configuración
 
@@ -610,11 +620,11 @@ para el [límite de intentos](#la-vista-admin-trabajadores): bloqueado =>
 | Endpoint | Qué hace |
 | --- | --- |
 | `GET /api/health` | `{ ok: true }`, para saber si el server está vivo. |
-| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de las horas configuradas (`horas_visible_terminado`) ni los retirados. Sin `x-pin` es pública y sin `telefono` (la clave no aparece); **con `x-pin`** el PIN se valida: bien => incluye `telefono`, mal => `401`. |
-| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono`. |
+| `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de las horas configuradas (`horas_visible_terminado`) ni los retirados. Sin `x-pin` es pública y sin `telefono` (la clave no aparece); **con `x-pin`** el PIN se valida: bien => incluye `telefono` y `acepta_whatsapp`, mal => `401`. |
+| `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono` y `acepta_whatsapp`. |
 | `POST /api/login` | Valida el PIN (body `{ pin }`). `{ ok: true }`, `401` o `429` (bloqueado). |
-| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). |
-| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. |
+| `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). `acepta_whatsapp` (`true`/`false`): si no viene, queda en `false`. |
+| `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. Lo mismo con `acepta_whatsapp` (`true`/`false`): si no viene, no se toca. |
 | `POST /api/vehiculos/:id/retirar` | Retira el auto (soft delete). |
 | `POST /api/vehiculos/:id/servicios` | Agrega un servicio (body `{ tipo }`). |
 | `PATCH /api/servicios/:id` | Cambia el estado de un servicio (body `{ estado }`). |

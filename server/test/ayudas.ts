@@ -30,6 +30,7 @@ export const { agregarServicio, cambiarEstado, quitarServicio } = await import(
 export const {
   crearVehiculo,
   editarVehiculo,
+  listarTodos,
   listarVehiculosVisibles,
   retirarVehiculo,
 } = await import("../src/vehiculos.js");

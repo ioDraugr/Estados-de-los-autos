@@ -107,10 +107,10 @@ app.get("/api/vehiculos", (req, res) => {
 // Alta de un auto con sus servicios iniciales.
 app.post("/api/vehiculos", exigirPin, (req, res) => {
   manejar(res, "crear vehículo", () => {
-    const { marca, modelo, color, matricula, telefono, servicios } =
+    const { marca, modelo, color, matricula, telefono, acepta_whatsapp, servicios } =
       req.body ?? {};
     const id = crearVehiculo(
-      { marca, modelo, color, matricula, telefono },
+      { marca, modelo, color, matricula, telefono, acepta_whatsapp },
       servicios,
     );
     emitirCambio();
@@ -119,16 +119,17 @@ app.post("/api/vehiculos", exigirPin, (req, res) => {
 });
 
 // Editar los datos de un auto (no toca fecha_ingreso ni servicios). El
-// teléfono vacío lo borra; si no viene, queda el que estaba.
+// teléfono vacío lo borra; si no viene (él o acepta_whatsapp), queda el que estaba.
 app.patch("/api/vehiculos/:id", exigirPin, (req, res) => {
   manejar(res, "editar vehículo", () => {
-    const { marca, modelo, color, matricula, telefono } = req.body ?? {};
+    const { marca, modelo, color, matricula, telefono, acepta_whatsapp } = req.body ?? {};
     const ok = editarVehiculo(Number(req.params.id), {
       marca,
       modelo,
       color,
       matricula,
       telefono,
+      acepta_whatsapp,
     });
     if (!ok) {
       res.status(404).json({ error: "Auto no encontrado" });

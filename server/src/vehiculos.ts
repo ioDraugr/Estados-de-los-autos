@@ -8,7 +8,10 @@ import { TIPOS_SERVICIO } from "./servicios.js";
 import { normalizarTelefono } from "./telefono.js";
 import type { Servicio, TipoServicio, Vehiculo } from "./tipos.js";
 
-type FilaVehiculo = Omit<Vehiculo, "servicios">;
+// En la base el consentimiento es 0/1; la API lo devuelve como booleano.
+type FilaVehiculo = Omit<Vehiculo, "servicios" | "acepta_whatsapp"> & {
+  acepta_whatsapp: number;
+};
 type FilaServicio = Servicio & { actualizado_en: string };
 
 interface DatosVehiculo {
@@ -18,6 +21,9 @@ interface DatosVehiculo {
   matricula: string;
   // Celular opcional tal como lo escribió el trabajador; se normaliza al guardar.
   telefono?: unknown;
+  // Si el cliente acepta los mensajes de post-venta (true/false). Si no viene:
+  // en el alta queda en "no"; al editar, como estaba.
+  acepta_whatsapp?: unknown;
 }
 
 // Datos ya validados, listos para la base (telefono normalizado o null).
@@ -27,11 +33,13 @@ interface DatosLimpios {
   color: string;
   matricula: string;
   telefono: string | null;
+  acepta_whatsapp: 0 | 1 | undefined;
 }
 
 interface OpcionesListado {
-  // El celular del cliente es un dato privado: solo sale si quien pide trae un
-  // PIN válido (/admin, /taller). Sin esto la clave ni siquiera aparece.
+  // El celular del cliente y si acepta mensajes son datos privados: solo salen
+  // si quien pide trae un PIN válido (/admin, /taller). Sin esto las claves ni
+  // siquiera aparecen.
   incluirTelefono?: boolean;
 }
 
@@ -44,7 +52,7 @@ function cargarVehiculos(condicionExtra = ""): {
 } {
   const vehiculos = db
     .prepare(
-      `SELECT id, marca, modelo, color, matricula, fecha_ingreso, telefono
+      `SELECT id, marca, modelo, color, matricula, fecha_ingreso, telefono, acepta_whatsapp
        FROM vehiculos
        WHERE retirado_en IS NULL ${condicionExtra}
        ORDER BY fecha_ingreso ASC, id ASC`,
@@ -72,16 +80,18 @@ function cargarVehiculos(condicionExtra = ""): {
 }
 
 // Arma el Vehiculo que espera el front: sin actualizado_en, que no le sirve, y
-// sin el teléfono salvo que se pida explícitamente (ver OpcionesListado).
+// sin el teléfono ni el consentimiento salvo que se pida (ver OpcionesListado).
 function anidar(
   v: FilaVehiculo,
   servicios: FilaServicio[],
   { incluirTelefono = false }: OpcionesListado,
 ): Vehiculo {
-  const { telefono, ...datos } = v;
+  const { telefono, acepta_whatsapp, ...datos } = v;
   return {
     ...datos,
-    ...(incluirTelefono ? { telefono: telefono ?? null } : {}),
+    ...(incluirTelefono
+      ? { telefono: telefono ?? null, acepta_whatsapp: acepta_whatsapp === 1 }
+      : {}),
     servicios: servicios.map(
       ({ actualizado_en: _omitido, ...servicio }) => servicio,
     ),
@@ -119,14 +129,16 @@ export function listarTodos(opciones: OpcionesListado = {}): Vehiculo[] {
  * Alta de un auto con sus servicios iniciales (todos en "esperando").
  * La fecha de ingreso queda con día + hora para que /display tenga un orden
  * estable entre autos del mismo día. Deja programado el aviso "tu auto entró".
+ * Sin `acepta_whatsapp` el cliente queda como que NO aceptó la post-venta.
  */
 export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): number {
   const limpio = validarDatos(datos);
   const tipos = validarServicios(servicios);
 
   const insertarVehiculo = db.prepare(`
-    INSERT INTO vehiculos (marca, modelo, color, matricula, telefono, fecha_ingreso)
-    VALUES (@marca, @modelo, @color, @matricula, @telefono, datetime('now'))
+    INSERT INTO vehiculos
+      (marca, modelo, color, matricula, telefono, acepta_whatsapp, fecha_ingreso)
+    VALUES (@marca, @modelo, @color, @matricula, @telefono, @acepta, datetime('now'))
   `);
   const insertarServicio = db.prepare(`
     INSERT INTO servicios (vehiculo_id, tipo, estado)
@@ -135,7 +147,10 @@ export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): 
 
   // Todo o nada: si algo falla, no queda un auto a medio crear (ni su historial).
   const crear = db.transaction((): number => {
-    const { lastInsertRowid } = insertarVehiculo.run(limpio);
+    const { lastInsertRowid } = insertarVehiculo.run({
+      ...limpio,
+      acepta: limpio.acepta_whatsapp ?? 0,
+    });
     const id = Number(lastInsertRowid);
     registrarEvento({ vehiculoId: id, evento: "ingreso" });
     for (const tipo of tipos) {
@@ -156,22 +171,24 @@ export function crearVehiculo(datos: DatosVehiculo, servicios: TipoServicio[]): 
 }
 
 /**
- * Edita solo los datos del auto (marca/modelo/color/matrícula/teléfono). NO
- * toca la fecha de ingreso ni los servicios: el auto sigue siendo el mismo.
- * El formulario siempre manda el teléfono: vacío lo borra. Si el campo no viene
- * en el pedido, el teléfono guardado queda como estaba.
+ * Edita solo los datos del auto (marca/modelo/color/matrícula/teléfono y si
+ * acepta mensajes). NO toca la fecha de ingreso ni los servicios: el auto sigue
+ * siendo el mismo. El formulario siempre manda el teléfono: vacío lo borra. Si
+ * el teléfono o el consentimiento no vienen en el pedido, quedan como estaban.
  */
 export function editarVehiculo(id: number, datos: DatosVehiculo): boolean {
   const limpio = validarDatos(datos);
   const tocaTelefono = datos?.telefono !== undefined;
+  const tocaAcepta = limpio.acepta_whatsapp !== undefined;
   const { changes } = db
     .prepare(
       `UPDATE vehiculos
        SET marca = @marca, modelo = @modelo, color = @color, matricula = @matricula
            ${tocaTelefono ? ", telefono = @telefono" : ""}
+           ${tocaAcepta ? ", acepta_whatsapp = @acepta" : ""}
        WHERE id = @id AND retirado_en IS NULL`,
     )
-    .run({ ...limpio, id });
+    .run({ ...limpio, acepta: limpio.acepta_whatsapp ?? 0, id });
   return changes > 0;
 }
 
@@ -206,7 +223,21 @@ function validarDatos(datos: DatosVehiculo): DatosLimpios {
     throw new ErrorValidacion("Faltan datos del auto (marca, modelo, color, matrícula).");
   }
   // El teléfono es opcional: vacío => null; mal escrito => 400 con el motivo.
-  return { ...limpio, telefono: normalizarTelefono(datos?.telefono) };
+  return {
+    ...limpio,
+    telefono: normalizarTelefono(datos?.telefono),
+    acepta_whatsapp: validarAcepta(datos?.acepta_whatsapp),
+  };
+}
+
+// El consentimiento viene de una casilla: true/false. Si no viene, undefined
+// (cada llamador decide: el alta lo toma como "no", la edición no lo toca).
+function validarAcepta(valor: unknown): 0 | 1 | undefined {
+  if (valor === undefined) return undefined;
+  if (typeof valor !== "boolean") {
+    throw new ErrorValidacion("\"Acepta recibir mensajes por WhatsApp\" tiene que ser sí o no.");
+  }
+  return valor ? 1 : 0;
 }
 
 function validarServicios(servicios: TipoServicio[]): TipoServicio[] {

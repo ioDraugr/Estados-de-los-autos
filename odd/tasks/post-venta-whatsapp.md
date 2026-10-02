@@ -43,7 +43,7 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
 - [x] T1 — Ajustes tipo `booleano` y `texto` (server `ajustes.ts` + UI `Configuracion.tsx`) y definiciones de
   post-venta (activar ×2, días reseña, meses mantenimiento, textos ×2, link, hora desde/hasta, domingo no, espaciado). Tests de validación.
   Ruta: delegated direct (writer trigger: server + client, 2+ archivos no triviales).
-- [ ] T2 — Migración: `avisos.tipo` acepta `resena`/`mantenimiento`; columna `acepta_whatsapp` (existentes 0).
+- [x] T2 — Migración: `avisos.tipo` acepta `resena`/`mantenimiento`; columna `acepta_whatsapp` (existentes 0).
   Casilla en alta/edición (server `vehiculos.ts` + client `FormVehiculo.tsx`). Tests de migración y consentimiento.
   Ruta: delegated direct (writer trigger: db, vehiculos, FormVehiculo, tipos).
 - [ ] T3 — Programar al retirar + despachador (horario, espaciado, consentimiento, activado, link, textos) +
@@ -59,10 +59,20 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
 
 ## Progreso
 - Exploración hecha; decisiones del usuario registradas.
-- T1 hecha (commit: ver la línea de T2, el hash se anota en el commit siguiente). Checks: `npm test` server
+- T1 hecha, commit `e73e11f`. Checks: `npm test` server
   59/59 pass; client `npm run build` OK; `oxlint src` sin avisos.
   - Ajustes ahora tienen `grupo` (showroom | postventa): una tarjeta por grupo en Configuración.
   - Sí/no se guarda al tocar el interruptor (sin botón Guardar). Textos con "Usar el de fábrica".
   - Interruptor extraído a `client/src/components/Interruptor.tsx` (lo usa también FormVehiculo).
   - Decisión propia (conservadora): textos sin espacios en las puntas; mensajes máx. 600, link máx. 300;
     el link puede ser http o https; no se exige que el texto de reseña contenga `{link}`.
+  - Tamaño: ~770 líneas (sobre la heurística de 400): dos tipos nuevos de ajuste en server y client, sus
+    campos táctiles y 11 definiciones con su ayuda; partirla habría dejado tipos sin UI.
+- T2 hecha (hash en el commit siguiente). Checks: `npm test` server 68/68 pass (nuevos: `migracion.test.ts`,
+  `consentimiento.test.ts`); client `npm run build` OK; `oxlint src` sin avisos.
+  - Migración: reconstruye `avisos` si su CREATE no menciona 'resena' (foreign_keys OFF fuera de la
+    transacción, copia con ids, recrea el índice, conserva el contador AUTOINCREMENT, `foreign_key_check`).
+    Ninguna tabla ni trigger referencia `avisos` (historial apunta a vehiculos/servicios).
+  - Decisión propia (conservadora): por API, alta sin `acepta_whatsapp` = no aceptó (el "marcado por
+    defecto" es solo del formulario); valores no booleanos => 400. El consentimiento solo viaja con PIN,
+    igual que el celular. En el formulario es un interruptor (mismo estilo que los servicios), no un checkbox.

@@ -81,6 +81,8 @@ export interface DatosVehiculo {
   // Celular tal como lo escribió el trabajador ("" = sin celular). El server
   // lo valida y lo guarda normalizado; vacío en una edición lo borra.
   telefono: string;
+  // Casilla "Acepta recibir mensajes por WhatsApp" (post-venta).
+  acepta_whatsapp: boolean;
 }
 
 export async function crearVehiculo(

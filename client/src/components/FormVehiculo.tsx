@@ -2,7 +2,9 @@
 // iniciales) y para editar los datos de un auto ya cargado (sin tocar sus
 // servicios: eso se hace desde la tarjeta). Sin <form> submit: onClick/onChange.
 // El celular es opcional: si se carga, el server lo valida (un error vuelve como
-// mensaje en /admin, igual que los demás datos).
+// mensaje en /admin, igual que los demás datos). Abajo, el interruptor "Acepta
+// recibir mensajes por WhatsApp" (post-venta): en el alta arranca prendido; al
+// editar muestra lo guardado.
 // Se ve como una hoja de vidrio claro sobre la lista desenfocada: los campos en
 // un grupo redondeado con separadores finos (etiqueta arriba, campo abajo, para
 // que la etiqueta larga del celular entre en el celular y en la tablet) y los
@@ -23,7 +25,7 @@ interface Props {
   // Al editar llega el auto tal como lo manda la API (telefono puede ser null).
   inicial?: Pick<
     Vehiculo,
-    "marca" | "modelo" | "color" | "matricula" | "telefono"
+    "marca" | "modelo" | "color" | "matricula" | "telefono" | "acepta_whatsapp"
   >;
   guardando: boolean;
   // Mensaje del server si no se pudo guardar (ej. celular mal escrito). Se
@@ -51,6 +53,10 @@ export function FormVehiculo({
   const [servicios, setServicios] = useState<TipoServicio[]>([]);
 
   const esAlta = modo === "alta";
+  // Alta: prendido (lo habitual es que acepte). Edición: lo guardado.
+  const [aceptaWhatsapp, setAceptaWhatsapp] = useState(
+    esAlta ? true : (inicial?.acepta_whatsapp ?? false),
+  );
   // El celular no cuenta: es opcional.
   const datosCompletos =
     marca.trim() && modelo.trim() && color.trim() && matricula.trim();
@@ -65,7 +71,10 @@ export function FormVehiculo({
 
   function guardar() {
     if (!listo || guardando) return;
-    onGuardar({ marca, modelo, color, matricula, telefono }, servicios);
+    onGuardar(
+      { marca, modelo, color, matricula, telefono, acepta_whatsapp: aceptaWhatsapp },
+      servicios,
+    );
   }
 
   return (
@@ -95,6 +104,26 @@ export function FormVehiculo({
             tipo="tel"
             placeholder="099 123 456"
           />
+        </div>
+
+        <div className={`mt-4 shrink-0 ${GRUPO}`}>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={aceptaWhatsapp}
+            onClick={() => setAceptaWhatsapp((v) => !v)}
+            className="flex min-h-[72px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors active:bg-tinta/[0.04] sm:px-[18px]"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-lg font-medium text-tinta sm:text-xl">
+                Acepta recibir mensajes por WhatsApp
+              </span>
+              <span className="mt-0.5 block text-[15px] text-tinta-suave sm:text-base">
+                Pedido de reseña y recordatorio de mantenimiento, después del retiro.
+              </span>
+            </span>
+            <Interruptor prendido={aceptaWhatsapp} />
+          </button>
         </div>
 
         {esAlta && (

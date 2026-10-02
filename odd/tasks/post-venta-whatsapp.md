@@ -115,4 +115,6 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
   - Decisión propia: el error de largo queda con el texto de #13 ("puede tener hasta N caracteres (tiene X)");
     el test de post-venta pasó de `/hasta 600 letras/` a `/hasta 600 caracteres/`. El test de #13 que lista
     las claves ahora compara la lista completa (cuidados + post-venta) y suma `grupo === "cuidados"`.
-- Próximo: push y el usuario mergea.
+- T4 verificada por el orquestador: server 104/104, client build OK. RDD assess (base `0520d39`): medium,
+  495 líneas, `slice_budget_reached`; el usuario **declinó** la revisión → `disabled/unmanaged`.
+- Próximo: el usuario mergea el PR #14 (squash).

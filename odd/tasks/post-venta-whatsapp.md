@@ -49,6 +49,12 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
 - [x] T3 — Programar al retirar + despachador (horario, espaciado, consentimiento, activado, link, textos) +
   README. Tests de programación, horario, espaciado, desactivado, sin link, sin consentimiento.
   Ruta: delegated direct (writer trigger: avisos, vehiculos, README, tests).
+- [x] T4 — Integrar `main` (PR #13 "cuidados en el aviso de listo", `01c4015`) en la rama: conflictos en
+  README, client api/types/Configuracion, server ajustes/avisos y test de ajustes. Ambas ramas sumaron un tipo
+  "texto" de ajuste: unificar en uno solo que cubra los dos usos (cuidados: vacío vale, 800 máx.; post-venta:
+  vacío solo en el link, link http(s), 600/300 máx.), con los cuidados en su propio grupo de Configuración.
+  `avisos.ts`: el "listo" lleva cuidados y el despachador conserva la post-venta. Merge commit (sin force push).
+  Ruta: delegated direct (writer trigger: 7 archivos en conflicto, server + client).
 
 ## Criterios de aceptación
 - Retirar un auto con celular y consentimiento encola reseña a +N días; con vitrificado, también mantenimiento a +N meses.
@@ -93,4 +99,20 @@ Fidelizar y conseguir reseñas sin trabajo manual del taller.
 - RDD assess (base `6688a2e`, committed-only, rango e73e11f..b0085a8): risk medium, 1941 líneas,
   `review_due=true` / `slice_budget_reached` → STATUS → `review.start` con `consent=relay`
   (linaje `review-a9b857946fd730a3`). El usuario **declinó** la revisión (2026-10-02): entrega `disabled/unmanaged` para este rango, sigue la política normal del repo.
-- Próximo: push y PR único (`single-pr`) cuando el usuario lo pida; cargar el link de reseñas en Configuración.
+- PR #14 abierto (push `0520d39`). GitHub marca conflictos con `main` por el merge de #13 → T4 (2026-10-02).
+- T4 hecha: merge commit `32ade7c` (`git merge origin/main`, sin rebase ni force push). Checks:
+  `npm test` server 104/104 pass (89 + 15 de #13); `npx tsc --noEmit` server OK; client `npm run build`
+  OK; `npx oxlint src` sin avisos. Prueba con base descartable (`DB_PATH=/tmp/postventa-demo/merge.db`,
+  `AVISOS_ENVIO=log`, `/tmp/postventa-demo/merge.mts`): el "listo" salió con los cuidados del polarizado y
+  del vitrificado (instalación vacía => omitida); la reseña no salió el domingo 11:00 y salió el sábado 11:00
+  (reloj inyectado); el mantenimiento quedó pendiente.
+  - Tipo "texto" unificado (el de esta rama, que ya cubría los dos usos): `maxLargo` por ajuste,
+    `permiteVacio`, `formato?: "url"` y `multilinea`. Cuidados: 800 (`MAX_LARGO_CUIDADOS`), vacío vale,
+    multilínea. `ValorDe<C>` queda exportado y cubre entero/booleano/texto.
+  - Grupo nuevo `cuidados` ("Cuidados en el aviso de listo"), entre showroom y post-venta, con el "Guardado"
+    y el placeholder de vacío de #13 (`Grupo.vacio`). El campo de texto suma el aviso "Es muy largo…" de #13.
+  - `avisos.ts`: `armarMensaje` arma los de post-venta (`mensajePostventa`) y al "listo" le suma los cuidados.
+  - Decisión propia: el error de largo queda con el texto de #13 ("puede tener hasta N caracteres (tiene X)");
+    el test de post-venta pasó de `/hasta 600 letras/` a `/hasta 600 caracteres/`. El test de #13 que lista
+    las claves ahora compara la lista completa (cuidados + post-venta) y suma `grupo === "cuidados"`.
+- Próximo: push y el usuario mergea.

@@ -4,14 +4,15 @@
 // solo da el valor inicial: lo que se guarda desde /admin manda.
 //
 // Para sumar uno alcanza con agregarlo a AJUSTES (y, si es de un tipo nuevo, su
-// validación en `validar` y su lectura en `desdeTexto`). El PIN NO es un ajuste:
+// validación en `validar`, su lectura en `desdeTexto` y su guardado en `aTexto`). El PIN NO es un ajuste:
 // se cambia aparte, pidiendo el actual (ver auth.ts).
 import { db } from "./db.js";
 import { ErrorValidacion } from "./errores.js";
 
-// Tipos de ajuste: número entero (con "−" / "+"), sí/no (interruptor) y texto
-// (los cuidados del aviso de listo, los mensajes de post-venta, el link de reseñas).
-export type TipoAjuste = "entero" | "booleano" | "texto";
+// Tipos de ajuste: número entero (con "−" / "+"), sí/no (interruptor), texto
+// (los cuidados del aviso de listo, los mensajes de post-venta, el link de reseñas)
+// y lista de frases cortas (las de la bienvenida del showroom).
+export type TipoAjuste = "entero" | "booleano" | "texto" | "lista";
 
 // En qué tarjeta de Configuración aparece cada ajuste.
 export type GrupoAjuste = "showroom" | "cuidados" | "postventa";
@@ -50,8 +51,19 @@ interface AjusteTexto extends AjusteBase {
   porDefecto: string;
 }
 
-export type DefinicionAjuste = AjusteEntero | AjusteBooleano | AjusteTexto;
-export type ValorAjuste = number | boolean | string;
+// Lista de frases cortas, de una línea cada una. Se guarda en config una por
+// línea. Puede quedar vacía (el que la usa decide qué significa).
+interface AjusteLista extends AjusteBase {
+  tipo: "lista";
+  // Cuántas frases como mucho.
+  maxCantidad: number;
+  // Largo máximo de cada frase (ya sin espacios de más).
+  maxLargo: number;
+  porDefecto: readonly string[];
+}
+
+export type DefinicionAjuste = AjusteEntero | AjusteBooleano | AjusteTexto | AjusteLista;
+export type ValorAjuste = number | boolean | string | readonly string[];
 export type AjusteConValor = DefinicionAjuste & { valor: ValorAjuste };
 
 // Largo máximo de los cuidados (van dentro del WhatsApp de "listo").
@@ -72,6 +84,21 @@ export const AJUSTES = [
     min: 1,
     max: 72,
     porDefecto: enteroDeEntorno("HORAS_VISIBLE_TERMINADO", 4, 1, 72),
+  },
+  {
+    clave: "frases_bienvenida",
+    grupo: "showroom",
+    etiqueta: "Frases de la bienvenida",
+    ayuda:
+      "Van pasando de a una, debajo de \"Tocá para ver el estado\". Cortas, que se lean de lejos. Sin frases, no se muestra nada.",
+    tipo: "lista",
+    maxCantidad: 10,
+    maxLargo: 80,
+    porDefecto: [
+      "Gracias por elegir Taller ML",
+      "Preguntá por el vitrificado cerámico",
+      "Polarizado con garantía escrita",
+    ],
   },
 
   // --- Cuidados que se suman al WhatsApp de "listo", uno por servicio que se le
@@ -245,6 +272,7 @@ interface ValorPorTipo {
   entero: number;
   booleano: boolean;
   texto: string;
+  lista: readonly string[];
 }
 export type ValorDe<C extends ClaveAjuste> =
   ValorPorTipo[Extract<(typeof AJUSTES)[number], { clave: C }>["tipo"]];
@@ -345,6 +373,27 @@ function validar(definicion: DefinicionAjuste, valor: unknown): ValorAjuste {
       }
       return texto;
     }
+    case "lista": {
+      if (!Array.isArray(valor) || valor.some((frase) => typeof frase !== "string")) {
+        throw new ErrorValidacion(`"${etiqueta}" tiene que ser una lista de textos.`);
+      }
+      // Cada frase en una sola línea y sin espacios de más; las vacías no cuentan.
+      const frases = (valor as string[])
+        .map((frase) => frase.replace(/\s+/g, " ").trim())
+        .filter((frase) => frase !== "");
+      if (frases.length > definicion.maxCantidad) {
+        throw new ErrorValidacion(
+          `"${etiqueta}" puede tener hasta ${definicion.maxCantidad} frases (tiene ${frases.length}).`,
+        );
+      }
+      const larga = frases.find((frase) => frase.length > definicion.maxLargo);
+      if (larga !== undefined) {
+        throw new ErrorValidacion(
+          `Cada frase de "${etiqueta}" puede tener hasta ${definicion.maxLargo} caracteres ("${larga.slice(0, 30)}…" tiene ${larga.length}).`,
+        );
+      }
+      return frases;
+    }
   }
 }
 
@@ -364,9 +413,11 @@ function validarHorario(validados: { clave: string; valor: ValorAjuste }[]): voi
   }
 }
 
-// Cómo se guarda cada valor en config (todo es texto): sí/no como "1"/"0".
+// Cómo se guarda cada valor en config (todo es texto): sí/no como "1"/"0" y
+// las listas, una frase por línea.
 function aTexto(valor: ValorAjuste): string {
   if (typeof valor === "boolean") return valor ? "1" : "0";
+  if (Array.isArray(valor)) return valor.join("\n");
   return String(valor);
 }
 
@@ -381,10 +432,18 @@ function desdeTexto(definicion: DefinicionAjuste, crudo: string): ValorAjuste | 
         return crudo === "1" ? true : crudo === "0" ? false : undefined;
       case "texto":
         return validar(definicion, crudo);
+      case "lista":
+        return validar(definicion, crudo.split("\n"));
     }
   } catch {
     return undefined;
   }
+}
+
+// Las frases de la bienvenida, lo único de la configuración que ve /display
+// (GET /api/frases, sin PIN).
+export function frasesBienvenida(): { frases: string[] } {
+  return { frases: [...leerAjuste("frases_bienvenida")] };
 }
 
 // ¿Es un link http(s) bien armado?

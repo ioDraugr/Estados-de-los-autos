@@ -13,6 +13,7 @@ import { iniciarAvisos } from "./avisos.js";
 import { elegirEnviador } from "./enviadores.js";
 import { ErrorValidacion } from "./errores.js";
 import { estadoBackups, hacerBackup, iniciarBackups } from "./respaldos.js";
+import { rutaFrases } from "./rutaFrases.js";
 import { sembrarSiVacia } from "./seed.js";
 import {
   agregarServicio,
@@ -188,6 +189,10 @@ app.delete("/api/servicios/:id", exigirPin, (req, res) => {
   });
 });
 
+// Frases de la bienvenida para /display: pública, solo { frases } (ver
+// rutaFrases.ts). Cuando se guardan, PATCH /api/config avisa el cambio.
+app.use(rutaFrases);
+
 // --- Configuración (/admin → Configuración) ---
 
 // Ajustes editables y estado de los backups, todo junto para la pantalla.
@@ -203,7 +208,7 @@ app.get("/api/config", exigirPin, (_req, res) => {
 
 // Guarda ajustes: body { clave: valor, ... } (todos o ninguno, ver ajustes.ts).
 // Se avisa el cambio para que el showroom se actualice ya (ej. las horas que
-// sigue visible un auto terminado).
+// sigue visible un auto terminado o las frases de la bienvenida).
 app.patch("/api/config", exigirPin, (req, res) => {
   manejar(res, "guardar configuración", () => {
     guardarAjustes(req.body);

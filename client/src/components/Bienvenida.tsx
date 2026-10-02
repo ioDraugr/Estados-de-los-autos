@@ -1,23 +1,40 @@
 // Pantalla de bienvenida del showroom (modo kiosko): un cartel a pantalla
 // completa que invita a tocar. Al tocar en cualquier parte muestra la lista de
-// autos (lo maneja Display con onTocar). Es puramente visual: los datos de
-// /display siguen cargándose de fondo mientras se ve este cartel.
+// autos (lo maneja Display con onTocar). Los datos de /display siguen
+// cargándose de fondo mientras se ve este cartel, y de ahí salen la frase
+// rotativa y la cápsula con el taller en vivo.
+import type { ReactNode } from "react";
+import type { Vehiculo } from "../types";
 import { CabeceraCurva } from "./CabeceraCurva";
+import { CapsulaTaller } from "./CapsulaTaller";
 import { EmblemaML } from "./EmblemaML";
-import { Flecha } from "./Flecha";
+import { FraseRotativa } from "./FraseRotativa";
 
 interface Props {
   onTocar: () => void;
+  // La lista de /display; null mientras todavía no llegó (ahí no hay cápsula,
+  // para no mostrar "sin autos" antes de saberlo).
+  vehiculos: Vehiculo[] | null;
+  // Frases de Configuración; vacía = no se muestra ninguna.
+  frases: string[];
+  // Aviso que, mientras venga, ocupa el lugar de la cápsula sobre el
+  // horizonte (ej. "tal auto está listo para retirar").
+  anuncio?: ReactNode;
 }
 
-export function Bienvenida({ onTocar }: Props) {
+export function Bienvenida({ onTocar, vehiculos, frases, anuncio }: Props) {
+  // Lo que va apoyado sobre el horizonte: el anuncio si hay uno, si no la
+  // cápsula con los números del taller.
+  const pie =
+    anuncio ?? (vehiculos ? <CapsulaTaller vehiculos={vehiculos} /> : null);
+
   return (
     <button
       type="button"
       onClick={onTocar}
       className="flex min-h-full w-full flex-col bg-tinta text-left"
     >
-      <CabeceraCurva alto="hero" conos>
+      <CabeceraCurva alto="hero" conos pie={pie}>
         <EmblemaML />
 
         {/* Los textos entran subiendo, escalonados, después del emblema. */}
@@ -44,16 +61,9 @@ export function Bienvenida({ onTocar }: Props) {
           Tocá para ver el estado
         </p>
 
-        {/* Invitación a tocar: la flecha dentro de un círculo de vidrio que
-            baja y sube suave (se queda quieto si el sistema pide menos
-            movimiento). En pantallas bajas (celular acostado) no entra sin
-            pisar el horizonte dorado: se oculta, el texto ya invita a tocar. */}
-        <span className="animate-bajar mt-5 flex h-14 w-14 items-center justify-center rounded-full vidrio-oscuro sm:mt-8 sm:h-[72px] sm:w-[72px] bajo:hidden">
-          <Flecha
-            direccion="abajo"
-            className="h-6 w-6 text-marca-suave sm:h-7 sm:w-7"
-          />
-        </span>
+        {/* Debajo de la invitación, una frase que va cambiando (reemplaza a
+            la flecha que subía y bajaba). */}
+        <FraseRotativa frases={frases} />
       </CabeceraCurva>
     </button>
   );

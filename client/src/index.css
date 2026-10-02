@@ -122,6 +122,21 @@ body {
   }
 }
 
+/* Vidrio dorado: el anuncio de "auto listo" de la bienvenida. Oro claro que
+   cae a oro tostado, con filo de luz arriba y un resplandor dorado alrededor
+   para que se note de lejos. Es casi opaco (el texto va en tinta encima), así
+   que sin desenfoque se ve igual. */
+@utility vidrio-oro {
+  background: linear-gradient(160deg, rgba(247, 214, 120, 0.95), rgba(201, 143, 29, 0.92));
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgba(255, 244, 210, 0.9);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 0 80px rgba(235, 184, 47, 0.55),
+    0 24px 60px -20px rgba(0, 0, 0, 0.7);
+}
+
 /* Hoja clara: modales y fichas que se apoyan encima de todo (más opaca y con
    más sombra que la tarjeta, para separarse del fondo). */
 @utility vidrio-hoja-clara {
@@ -320,21 +335,6 @@ body {
   animation: subir 1s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-/* Círculo con la flecha de la bienvenida: baja y sube apenas, sin marear. */
-@keyframes bajar {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(6px);
-  }
-}
-
-.animate-bajar {
-  animation: bajar 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-
 /* Pulso dorado que se expande desde el aro de un servicio en proceso. */
 @keyframes anillo {
   0% {
@@ -445,6 +445,47 @@ body {
   animation:
     llenar 0.9s 0.45s cubic-bezier(0.3, 0.7, 0.2, 1) both,
     titilar 1.8s ease-in-out infinite;
+}
+
+/* Anuncio dorado de "auto listo" (AnuncioListo.tsx): entra fundiéndose y
+   creciendo apenas. */
+@keyframes anuncio {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-anuncio {
+  animation: anuncio 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Barrita del anuncio: se achica hacia la izquierda mientras dura. La duración
+   va en el componente (style animationDuration = la del timer de la cola).
+   Con "reducir movimiento" no se muestra: el anuncio igual dura lo mismo
+   porque lo corta un timer, no el fin de esta animación. */
+@keyframes tiempo {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.anuncio-tiempo {
+  transform-origin: left center;
+  animation: tiempo 10s linear forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anuncio-tiempo {
+    display: none;
+  }
 }
 
 /* Punto del PIN que se acaba de marcar: aparece creciendo, con un rebote. */

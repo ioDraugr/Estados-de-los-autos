@@ -30,7 +30,7 @@ export interface Vehiculo {
 // --- Configuración (/admin → Configuración), tal como la manda GET /api/config ---
 
 // Un ajuste editable: su definición (qué es, qué valores acepta) y su valor
-// actual. Hay enteros, sí/no y textos; si el server suma otro tipo, se agrega
+// actual. Hay enteros, sí/no, textos y listas de frases; si el server suma otro tipo, se agrega
 // acá a la unión `Ajuste` y su campo en CampoAjuste (components/Configuracion.tsx).
 // `grupo` dice en qué tarjeta va (ver GRUPOS en Configuracion.tsx).
 interface AjusteBase {
@@ -67,7 +67,17 @@ export interface AjusteTexto extends AjusteBase {
   valor: string;
 }
 
-export type Ajuste = AjusteEntero | AjusteBooleano | AjusteTexto;
+// Lista de frases cortas (las de la bienvenida del showroom): hasta
+// `maxCantidad`, de hasta `maxLargo` caracteres cada una. Puede quedar vacía.
+export interface AjusteLista extends AjusteBase {
+  tipo: "lista";
+  maxCantidad: number;
+  maxLargo: number;
+  porDefecto: string[];
+  valor: string[];
+}
+
+export type Ajuste = AjusteEntero | AjusteBooleano | AjusteTexto | AjusteLista;
 
 export interface InfoBackup {
   archivo: string; // solo el nombre, dentro de la carpeta de backups

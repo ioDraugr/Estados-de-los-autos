@@ -370,6 +370,40 @@ archivo, salvo que se indique otra carpeta con `CARPETA_BACKUPS`):
 cd server && DB_PATH=/tmp/prueba.db PORT=3099 npm run dev
 ```
 
+## La bienvenida del showroom (/display)
+
+`/display` arranca en un cartel de bienvenida a pantalla completa (emblema ML,
+"¿Cómo va tu auto?", "Tocá para ver el estado"). Tocando en cualquier parte se
+abre la lista de autos; tras un minuto sin que nadie toque, vuelve sola al
+cartel. Mientras tanto los datos se siguen actualizando de fondo, así que el
+cartel también está vivo:
+
+- **Cápsula con el taller en vivo.** Abajo, sobre el horizonte dorado: cuántos
+  autos hay, cuántos están listos para retirar y, por cono (instalación,
+  polarizado, vitrificado), cuántos trabajos quedan sin terminar en esa área. Sale
+  de la misma lista de `/display` (Socket.IO + poll), sin pedidos extra.
+- **Anuncio dorado de "listo".** Cuando un auto pasa a tener **todos** sus
+  servicios terminados, la cápsula se cambia unos **10 segundos** por un cartel
+  dorado: "Toyota Corolla ••A427 está listo para retirar — ¡Ya podés pasar a
+  retirarlo!". Como en la lista, solo marca, modelo y los **últimos 4
+  caracteres** de la matrícula, **nunca la entera**. Si quedan listos varios a la
+  vez, salen de a uno, en fila; después vuelve la cápsula. Detalles:
+  - Se detecta comparando cada lista nueva con la anterior, en la pantalla. La
+    primera carga no anuncia nada (no hay con qué comparar): si la pantalla se
+    reinicia justo en ese momento, ese anuncio se pierde. Un auto que aparece ya
+    terminado tampoco se anuncia.
+  - Solo se anuncia mientras se ve el cartel: si alguien está mirando la lista,
+    no se junta una cola de avisos para después.
+  - Si un auto de la fila vuelve a tener algo pendiente (o lo retiran) antes de
+    su turno, se saca de la fila.
+- **Frases que van rotando.** Debajo de "Tocá para ver el estado", una frase en
+  oro claro que cambia cada ~7 segundos con un fundido (ej. "Polarizado con
+  garantía de 5 años"). Se editan en `/admin` →
+  [Configuración](#pantalla-de-configuración); sin frases no se muestra nada.
+- **Reducir movimiento.** Si el sistema tiene activado "reducir movimiento", no
+  hay fundidos, escalas ni barrita del tiempo: la frase y el anuncio cambian de
+  golpe (el anuncio igual dura sus 10 segundos).
+
 ## La vista /admin (trabajadores)
 
 En `/admin` los trabajadores dan de alta autos, cambian el estado de cada servicio,
@@ -430,6 +464,8 @@ lista de autos por tarjetas; se vuelve con "← Volver a los autos":
   algo). Ver [Respaldo de la base](#respaldo-de-la-base).
 - **Pantalla del showroom.** Cuántas horas sigue visible un auto terminado (de 1
   a 72), con "−" / "+" y "Guardar". El showroom se actualiza al instante.
+  También las **frases de la bienvenida** (hasta 10, de hasta 80 caracteres):
+  agregar, quitar y "Guardar"; llegan al showroom sin recargar.
 - **Cuidados en el aviso de listo.** Un texto por servicio (instalación,
   polarizado, vitrificado), de hasta 800 caracteres, con "Guardar" y "Usar el de
   fábrica". Van al final del WhatsApp de "listo" (ver
@@ -672,6 +708,7 @@ para el [límite de intentos](#la-vista-admin-trabajadores): bloqueado =>
 | `GET /api/health` | `{ ok: true }`, para saber si el server está vivo. |
 | `GET /api/vehiculos` | Autos de `/display`: con servicios anidados, del que hace más tiempo que entró al más nuevo, sin los terminados hace más de las horas configuradas (`horas_visible_terminado`) ni los retirados. Sin `x-pin` es pública y sin `telefono` (la clave no aparece); **con `x-pin`** el PIN se valida: bien => incluye `telefono` y `acepta_whatsapp`, mal => `401`. |
 | `GET /api/vehiculos?todos=1` | Igual, pero para `/admin`: incluye también los terminados hace rato (sigue sin los retirados). Mismo criterio con `telefono` y `acepta_whatsapp`. |
+| `GET /api/frases` | `{ frases }`: las frases de la bienvenida del showroom. Pública (sin PIN): es lo único de la configuración que ve `/display`. |
 | `POST /api/login` | Valida el PIN (body `{ pin }`). `{ ok: true }`, `401` o `429` (bloqueado). |
 | `POST /api/vehiculos` | Alta de un auto con sus servicios iniciales (todos en `esperando`). `telefono` es opcional (celular uruguayo; `400` si no es válido). `acepta_whatsapp` (`true`/`false`): si no viene, queda en `false`. |
 | `PATCH /api/vehiculos/:id` | Edita marca/modelo/color/matrícula y `telefono` (no toca fecha ni servicios). `telefono: ""` lo borra; si no se manda, queda el que estaba. Lo mismo con `acepta_whatsapp` (`true`/`false`): si no viene, no se toca. |

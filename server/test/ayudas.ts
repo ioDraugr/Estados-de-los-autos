@@ -34,9 +34,9 @@ export const {
   listarVehiculosVisibles,
   retirarVehiculo,
 } = await import("../src/vehiculos.js");
-export const { AJUSTES, guardarAjustes, leerAjuste, listarAjustes } = await import(
-  "../src/ajustes.js"
-);
+export const { AJUSTES, frasesBienvenida, guardarAjustes, leerAjuste, listarAjustes } =
+  await import("../src/ajustes.js");
+export const { rutaFrases } = await import("../src/rutaFrases.js");
 export const { cambiarPin, exigirPin, limitePin, obtenerPin, verificarPin } =
   await import("../src/auth.js");
 export const { MAX_FALLIDOS, MINUTOS_BLOQUEO, MINUTOS_OLVIDO, crearLimitador } =

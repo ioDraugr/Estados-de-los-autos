@@ -257,6 +257,7 @@ describe("ajustes de texto (cuidados del aviso de listo)", () => {
       listarAjustes().map((a) => a.clave),
       [
         "horas_visible_terminado",
+        "frases_bienvenida",
         "cuidados_instalacion",
         "cuidados_polarizado",
         "cuidados_vitrificado",

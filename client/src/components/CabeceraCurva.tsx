@@ -28,8 +28,11 @@ interface Props {
   conos?: boolean;
   // Botones propios de la vista (Inicio, + Nuevo auto, Salir…).
   acciones?: ReactNode;
-  // Contenido centrado del hero (emblema, título, subtítulo, flecha).
+  // Contenido centrado del hero (emblema, título, subtítulo, frase).
   children?: ReactNode;
+  // Solo en el hero: lo que va abajo, centrado y apoyado sobre el horizonte
+  // dorado (la cápsula con el taller en vivo de la bienvenida).
+  pie?: ReactNode;
   // "oscuro" (por defecto) = cúpula/horizonte oscuro del showroom.
   // "claro" = solo la barra de vidrio claro (vistas del personal, compacta).
   tono?: "oscuro" | "claro";
@@ -40,6 +43,7 @@ export function CabeceraCurva({
   conos,
   acciones,
   children,
+  pie,
   tono = "oscuro",
 }: Props) {
   const hero = alto === "hero";
@@ -96,10 +100,37 @@ export function CabeceraCurva({
 
         {/* En pantallas bajas (celular acostado) casi sin aire abajo, para
             que el emblema y los textos entren sin scroll ni pisen el
-            horizonte. */}
-        <div className="relative z-10 flex flex-1 flex-col items-center justify-center pt-4 pb-[16dvh] text-center bajo:pt-0 bajo:pb-[7dvh]">
+            horizonte. Con pie, el aire de abajo lo pone el pie (que va en el
+            flujo, debajo de los textos: así nunca se pisan aunque la
+            pantalla sea baja). */}
+        <div
+          className={`relative z-10 flex flex-1 flex-col items-center justify-center pt-4 text-center bajo:pt-0 ${
+            pie ? "pb-6 bajo:pb-2" : "pb-[16dvh] bajo:pb-[7dvh]"
+          }`}
+        >
           {children}
         </div>
+
+        {/* El pie queda apoyado justo sobre el filo del horizonte: el
+            horizonte arranca al 77 % del alto (92 % en pantallas bajas, ver
+            .cabecera-horizonte en index.css), así que abajo se deja un poco
+            más que ese resto. */}
+        {pie && (
+          <div className="relative z-10 flex justify-center">{pie}</div>
+        )}
+
+        {/* El aire de abajo del pie es un separador que cede: se lleva primero
+            el espacio libre (grow enorme) hasta 24dvh, y si no sobra se achica
+            hasta casi nada. Con un padding fijo, en pantallas medianas
+            (1280×720) o con un pie más alto (el anuncio de "listo") la página
+            crecía y aparecía scroll; así el pie baja un poco sobre el
+            horizonte en vez de agrandar la pantalla. */}
+        {pie && (
+          <div
+            aria-hidden="true"
+            className="min-h-2 shrink-0 grow-[1000] basis-0 max-h-[24dvh] bajo:max-h-[9dvh]"
+          />
+        )}
       </div>
     );
   }

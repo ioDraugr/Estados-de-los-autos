@@ -88,6 +88,9 @@ Pedido del usuario (2026-10-01). Plan aprobado y textos iniciales ajustados por 
   servicio (polarizado) y con 3 (un solo mensaje, orden instalación → polarizado → vitrificado);
   texto editado por `PATCH /api/config` (recortado) y texto vacío omitido. Un aviso "listo"
   enviado por auto. Falta mirar la pantalla de Configuración.
+- 2026-10-01: push de `feat/cuidados-aviso-listo` y PR #13 abierto. RDD: `disabled/unmanaged`
+  (declinada).
 
 ## Próximo paso
-Prueba manual del usuario, push/PR cuando el usuario decida.
+PR #13 abierto (https://github.com/ioDraugr/Estados-de-los-autos/pull/13). El usuario mergea
+(squash); después, limpiar worktree y rama.

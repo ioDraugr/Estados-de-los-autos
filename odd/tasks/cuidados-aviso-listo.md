@@ -76,10 +76,14 @@ Pedido del usuario (2026-10-01). Plan aprobado y textos iniciales ajustados por 
   - Tamaño: ~620 líneas (547+/73−), más que el pronóstico: ~210 son tests y el resto el campo de
     texto del cliente y el tipo nuevo de ajustes. Se mantiene un solo PR.
   - Pendiente: prueba manual de la pantalla en la tablet (no se levantó la app).
+  - Commit: `d76e879` feat(avisos): cuidados por servicio en el WhatsApp de "listo".
+  - RDD: assess sobre `6688a2e..d76e879` => riesgo medium, `review_due` true
+    (`slice_budget_reached`, 705 líneas). Preflight STATUS => `review.start` con
+    `--consent=relay`: consentimiento del usuario pendiente.
 
 ## Progreso
 - 2026-10-01: plan y textos aprobados; worktree creado; base 52/52 en verde.
 - 2026-10-01: T1 implementada y verificada.
 
 ## Próximo paso
-Commit de T1, evaluación RDD, prueba manual del usuario, push/PR cuando el usuario decida.
+Consentimiento de revisión RDD, prueba manual del usuario, push/PR cuando el usuario decida.

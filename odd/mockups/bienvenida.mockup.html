@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<title>Bienvenida /display — mockup</title>
+<style>
+  :root {
+    --tinta: #16130f; --crema: #f3ecdf; --crema-alta: #faf6ee; --marca: #ebb82f;
+    --marca-suave: #f7d678; --tabaco: #2b231b; --listo-claro: #a9d3b1;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { font-family: "Geist", system-ui, sans-serif; background: #0d0b08; color: var(--crema); }
+  .controles { display: flex; gap: 10px; justify-content: center; padding: 14px; font-size: 14px; }
+  .controles button { background: #2b231b; color: var(--crema); border: 1px solid #4a3824; border-radius: 999px; padding: 8px 16px; cursor: pointer; }
+  .controles button.activo { background: var(--marca); color: var(--tinta); border-color: var(--marca); }
+
+  /* Pantalla 16:9 del showroom */
+  .pantalla { position: relative; width: 1280px; height: 720px; margin: 0 auto 24px; overflow: hidden; border-radius: 18px;
+    background-color: #16130f;
+    background-image: radial-gradient(ellipse 60% 55% at 4% 0%, rgba(58,45,32,.95), transparent 70%),
+      radial-gradient(ellipse 40% 40% at 92% 32%, rgba(230,218,195,.07), transparent 70%); }
+  .horizonte { position: absolute; left: 50%; top: 77%; width: 170%; aspect-ratio: 12/7; translate: -50% 0; border-radius: 50%;
+    border-top: 1.5px solid rgba(247,214,120,.95); background: radial-gradient(ellipse 60% 30% at 50% 0%, #2b231b 0%, #16130f 70%);
+    box-shadow: 0 -24px 110px -6px rgba(235,184,47,.55), inset 0 40px 90px -50px rgba(235,184,47,.55); }
+  .vidrio-oscuro { background: rgba(43,35,27,.42); backdrop-filter: blur(28px) saturate(170%); border: 1px solid rgba(243,236,223,.12);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.09), 0 24px 60px -24px rgba(0,0,0,.7); }
+
+  /* Barra de arriba (ya existe) */
+  .barra { position: absolute; top: 20px; left: 32px; right: 32px; height: 60px; border-radius: 999px; display: flex; align-items: center; justify-content: space-between; padding: 0 22px; }
+  .logo { font-weight: 800; color: var(--marca); letter-spacing: -.02em; font-size: 22px; }
+  .ref { display: flex; gap: 18px; font-size: 14px; color: rgba(243,236,223,.7); }
+  .ref span { display: flex; align-items: center; gap: 6px; }
+
+  /* Centro (ya existe): emblema, Taller ML, título, subtítulo */
+  .centro { position: absolute; inset: 90px 0 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .emblema { width: 150px; height: 150px; border-radius: 34px; margin-top: 18px;
+    background: linear-gradient(160deg, #f7d678, #c98f1d); box-shadow: 0 0 90px rgba(235,184,47,.45); display: grid; place-items: center;
+    font-weight: 800; font-size: 54px; color: #16130f; }
+  .marca { margin-top: 16px; color: var(--marca); font-weight: 600; font-size: 22px; }
+  h1 { font-size: 92px; line-height: 1.02; font-weight: 650; letter-spacing: -.055em;
+    background: linear-gradient(180deg, #faf6ee 25%, #cdbd9f 100%); -webkit-background-clip: text; color: transparent; padding-bottom: .06em; }
+  .sub { margin-top: 8px; font-size: 28px; color: rgba(243,236,223,.6); letter-spacing: -.015em; }
+
+  /* NUEVO 3: frase rotativa */
+  .frase { margin-top: 10px; height: 30px; font-size: 22px; color: var(--marca-suave); opacity: .85; font-style: normal; letter-spacing: -.01em;
+    transition: opacity .9s ease, translate .9s ease; }
+  .frase.saliendo { opacity: 0; translate: 0 6px; }
+  .nuevo { outline: 2px dashed rgba(169,211,177,.55); outline-offset: 6px; border-radius: 12px; }
+
+  /* NUEVO 1: cápsula de datos en vivo, apoyada sobre el horizonte */
+  .zona-baja { position: absolute; left: 0; right: 0; top: 548px; display: flex; justify-content: center; }
+  .capsula { display: flex; align-items: center; gap: 26px; padding: 14px 30px; border-radius: 999px; font-size: 24px; transition: opacity .6s ease; }
+  .dato b { font-size: 34px; font-weight: 700; color: var(--crema-alta); letter-spacing: -.03em; margin-right: 6px; }
+  .dato.listos b { color: var(--listo-claro); }
+  .sep { width: 1px; height: 34px; background: rgba(243,236,223,.18); }
+  .conos { display: flex; gap: 18px; }
+  .conos span { display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 26px; }
+
+  /* NUEVO 2: anuncio dorado (reemplaza a la cápsula ~10 s) */
+  .anuncio { position: absolute; display: flex; align-items: center; gap: 22px; padding: 18px 40px 18px 22px; border-radius: 999px;
+    background: linear-gradient(160deg, rgba(247,214,120,.95), rgba(201,143,29,.92)); color: #16130f;
+    border: 1px solid rgba(255,244,210,.9); box-shadow: inset 0 1px 0 rgba(255,255,255,.7), 0 0 80px rgba(235,184,47,.55), 0 24px 60px -20px rgba(0,0,0,.7);
+    opacity: 0; scale: .96; transition: opacity .6s ease, scale .6s ease; overflow: hidden; }
+  .anuncio .tilde { width: 58px; height: 58px; border-radius: 999px; background: #2e5e3a; display: grid; place-items: center; flex: none; }
+  .anuncio .texto { font-size: 32px; font-weight: 650; letter-spacing: -.03em; }
+  .anuncio .texto small { display: block; font-size: 20px; font-weight: 500; opacity: .75; letter-spacing: -.01em; }
+  .anuncio .barra-tiempo { position: absolute; left: 0; bottom: 0; height: 4px; width: 100%; background: rgba(22,19,15,.35); transform-origin: left; }
+  .con-anuncio .anuncio { opacity: 1; scale: 1; }
+  .con-anuncio .capsula { opacity: 0; }
+  .con-anuncio .barra-tiempo { animation: tiempo 10s linear forwards; }
+  @keyframes tiempo { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+  .notas { width: 1280px; margin: 0 auto 40px; font-size: 15px; line-height: 1.55; color: rgba(243,236,223,.8); }
+  .notas li { margin: 4px 0; }
+</style>
+</head>
+<body>
+  <div class="controles">
+    <button id="bNormal" class="activo">Estado normal</button>
+    <button id="bAnuncio">Simular "auto listo" (10 s)</button>
+  </div>
+
+  <div class="pantalla" id="pantalla">
+    <div class="horizonte"></div>
+
+    <div class="barra vidrio-oscuro">
+      <span class="logo">ML</span>
+      <div class="ref">
+        <span><svg width="16" height="19" viewBox="0 0 40 48"><path d="M18.9 6.7 Q20 3 21.1 6.7 L31 40 L9 40 Z" fill="#E0473A"/><rect x="4" y="40" width="32" height="5" rx="2.5" fill="#E0473A"/></svg>Instalación</span>
+        <span><svg width="16" height="19" viewBox="0 0 40 48"><path d="M18.9 6.7 Q20 3 21.1 6.7 L31 40 L9 40 Z" fill="#4B7BD6"/><rect x="4" y="40" width="32" height="5" rx="2.5" fill="#4B7BD6"/></svg>Polarizado</span>
+        <span><svg width="16" height="19" viewBox="0 0 40 48"><path d="M18.9 6.7 Q20 3 21.1 6.7 L31 40 L9 40 Z" fill="#EBB82F"/><rect x="4" y="40" width="32" height="5" rx="2.5" fill="#EBB82F"/></svg>Vitrificado</span>
+      </div>
+    </div>
+
+    <div class="centro">
+      <div class="emblema">ML</div>
+      <p class="marca">Taller ML</p>
+      <h1>¿Cómo va tu auto?</h1>
+      <p class="sub">Tocá para ver el estado</p>
+      <p class="frase nuevo" id="frase">Polarizado con garantía de 5 años</p>
+    </div>
+
+    <div class="zona-baja">
+      <div class="capsula vidrio-oscuro nuevo">
+        <span class="dato"><b>7</b>autos en el taller</span>
+        <span class="sep"></span>
+        <span class="dato listos"><b>2</b>listos para retirar</span>
+        <span class="sep"></span>
+        <div class="conos">
+          <span><svg width="26" height="31" viewBox="0 0 40 48"><path d="M18.9 6.7 Q20 3 21.1 6.7 L31 40 L9 40 Z" fill="#E0473A"/><path d="M15.54 18 L24.46 18 L26.54 25 L13.46 25 Z" fill="#FAF6EE"/><path d="M11.97 30 L28.03 30 L29.81 36 L10.19 36 Z" fill="#FAF6EE"/><rect x="4" y="40" width="32" height="5" rx="2.5" fill="#E0473A"/></svg>3</span>
+          <span><svg width="26" height="31" viewBox="0 0 40 48"><path d="M18.9 6.7 Q20 3 21.1 6.7 L31 40 L9 40 Z" fill="#4B7BD6"/><path d="M15.54 18 L24.46 18 L26.54 25 L13.46 25 Z" fill="#FAF6EE"/><path d="M11.97 30 L28.03 30 L29.81 36 L10.19 36 Z" fill="#FAF6EE"/><rect x="4" y="40" width="32" height="5" rx="2.5" fill="#4B7BD6"/></svg>2</span>
+          <span><svg width="26" height="31" viewBox="0 0 40 48"><path d="M18.9 6.7 Q20 3 21.1 6.7 L31 40 L9 40 Z" fill="#EBB82F"/><path d="M15.54 18 L24.46 18 L26.54 25 L13.46 25 Z" fill="#FAF6EE"/><path d="M11.97 30 L28.03 30 L29.81 36 L10.19 36 Z" fill="#FAF6EE"/><rect x="4" y="40" width="32" height="5" rx="2.5" fill="#EBB82F"/></svg>1</span>
+        </div>
+      </div>
+
+      <div class="anuncio">
+        <span class="tilde"><svg width="30" height="30" viewBox="0 0 24 24"><path d="M5 12.5 L10 17 L19 7" fill="none" stroke="#FAF6EE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        <span class="texto">Toyota Corolla ••A427 está listo para retirar<small>¡Ya podés pasar a retirarlo!</small></span>
+        <span class="barra-tiempo"></span>
+      </div>
+    </div>
+  </div>
+
+  <ul class="notas">
+    <li><b>Línea punteada verde</b> = lo nuevo (no va en la app, es solo para el mockup).</li>
+    <li><b>Cápsula en vivo</b>: autos en el taller, cuántos están listos (en verde claro) y, por cono, cuántos servicios hay en curso en cada área. Se actualiza al instante con Socket.IO.</li>
+    <li><b>Anuncio dorado</b>: ocupa el lugar de la cápsula unos 10 s (la barrita de abajo marca el tiempo) y después vuelve la cápsula. Si se terminan dos autos juntos, salen en fila. Solo "marca modelo ••últimos 4 caracteres" (el mismo recorte que ya usa la lista).</li>
+    <li><b>Frase rotativa</b> en oro claro, cambia cada ~7 s con un fundido. Se editan en Configuración (/admin): lista de frases, agregar / quitar.</li>
+    <li><b>Reducir movimiento</b>: sin fundidos ni escala ni barrita animada; el anuncio y las frases cambian de golpe.</li>
+  </ul>
+
+<script>
+  const frases = ["Polarizado con garantía de 5 años", "Preguntá por el vitrificado cerámico", "Gracias por elegir Taller ML"];
+  let i = 0; const f = document.getElementById("frase");
+  setInterval(() => { f.classList.add("saliendo"); setTimeout(() => { i = (i + 1) % frases.length; f.textContent = frases[i]; f.classList.remove("saliendo"); }, 900); }, 4000);
+  const p = document.getElementById("pantalla"), bN = document.getElementById("bNormal"), bA = document.getElementById("bAnuncio");
+  let t;
+  function normal() { p.classList.remove("con-anuncio"); bN.classList.add("activo"); bA.classList.remove("activo"); }
+  bN.onclick = () => { clearTimeout(t); normal(); };
+  bA.onclick = () => { clearTimeout(t); p.classList.remove("con-anuncio"); void p.offsetWidth; p.classList.add("con-anuncio"); bA.classList.add("activo"); bN.classList.remove("activo"); t = setTimeout(normal, 10000); };
+</script>
+</body>
+</html>

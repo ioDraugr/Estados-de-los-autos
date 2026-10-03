@@ -14,6 +14,7 @@ import { elegirEnviador } from "./enviadores.js";
 import { ErrorValidacion } from "./errores.js";
 import { estadoBackups, hacerBackup, iniciarBackups } from "./respaldos.js";
 import { rutaFrases } from "./rutaFrases.js";
+import { rutaReportes } from "./rutaReportes.js";
 import { sembrarSiVacia } from "./seed.js";
 import {
   agregarServicio,
@@ -240,6 +241,10 @@ app.post("/api/backups", exigirPin, async (_req, res) => {
     res.status(500).json({ error: `No se pudo hacer el backup: ${motivo}` });
   }
 });
+
+// --- Reportes para el dueño (/reportes) ---
+// PIN propio del dueño y GET /api/reportes (ver rutaReportes.ts).
+app.use(rutaReportes);
 
 // --- Front (build de Vite) ---
 // En producción servimos client/dist. En dev el front corre con `vite` (:5173)

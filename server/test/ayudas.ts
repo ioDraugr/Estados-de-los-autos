@@ -37,8 +37,22 @@ export const {
 export const { AJUSTES, frasesBienvenida, guardarAjustes, leerAjuste, listarAjustes } =
   await import("../src/ajustes.js");
 export const { rutaFrases } = await import("../src/rutaFrases.js");
-export const { cambiarPin, exigirPin, limitePin, obtenerPin, verificarPin } =
-  await import("../src/auth.js");
+export const {
+  cambiarPin,
+  cambiarPinReportes,
+  crearPinReportes,
+  exigirPin,
+  exigirPinReportes,
+  hayPinReportes,
+  limitePin,
+  limitePinReportes,
+  obtenerPin,
+  obtenerPinReportes,
+  verificarPin,
+  verificarPinReportes,
+} = await import("../src/auth.js");
+export const { generarReporte, ultimosDigitos } = await import("../src/reportes.js");
+export const { rutaReportes } = await import("../src/rutaReportes.js");
 export const { MAX_FALLIDOS, MINUTOS_BLOQUEO, MINUTOS_OLVIDO, crearLimitador } =
   await import("../src/intentosPin.js");
 export const {

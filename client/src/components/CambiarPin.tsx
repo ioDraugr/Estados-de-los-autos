@@ -3,6 +3,7 @@
 // Los chequeos simples (de 4 a 8 números, que el nuevo esté repetido igual) se
 // hacen acá para avisar antes; igual el server revalida todo. Un PIN actual mal
 // (o el bloqueo por demasiados intentos) se muestra en la tarjeta: NO desloguea.
+// /reportes la reusa para el PIN del dueño (ver los props opcionales).
 import { useState } from "react";
 import { NoAutorizado, cambiarPin, textoDeError } from "../api";
 import { guardarPin } from "../sesion";
@@ -14,9 +15,25 @@ const PIN_VALIDO = /^\d{4,8}$/;
 interface Props {
   // El PIN guardado en este dispositivo ya no sirve: volver al login.
   onNoAutorizado: () => void;
+  // Lo de abajo es opcional: sin nada, es el PIN de /admin y /taller.
+  titulo?: string;
+  ayuda?: string;
+  // Aviso cuando salió bien.
+  textoListo?: string;
+  // Llamada al server que cambia el PIN.
+  cambiar?: (actual: string, nuevo: string) => Promise<void>;
+  // Dónde queda guardado el PIN nuevo en este dispositivo.
+  guardar?: (pin: string) => void;
 }
 
-export function CambiarPin({ onNoAutorizado }: Props) {
+export function CambiarPin({
+  onNoAutorizado,
+  titulo = "PIN de acceso",
+  ayuda = "Es el mismo para /admin y /taller.",
+  textoListo = "PIN cambiado. Las otras tablets y PCs van a pedir el PIN nuevo.",
+  cambiar = cambiarPin,
+  guardar: guardarNuevo = guardarPin,
+}: Props) {
   const [actual, setActual] = useState("");
   const [nuevo, setNuevo] = useState("");
   const [repetido, setRepetido] = useState("");
@@ -53,9 +70,9 @@ export function CambiarPin({ onNoAutorizado }: Props) {
     setGuardando(true);
     setError(null);
     try {
-      await cambiarPin(actual, nuevo);
+      await cambiar(actual, nuevo);
       // Este dispositivo sigue adentro con el PIN nuevo.
-      guardarPin(nuevo);
+      guardarNuevo(nuevo);
       setActual("");
       setNuevo("");
       setRepetido("");
@@ -69,10 +86,7 @@ export function CambiarPin({ onNoAutorizado }: Props) {
   }
 
   return (
-    <TarjetaConfig
-      titulo="PIN de acceso"
-      ayuda="Es el mismo para /admin y /taller."
-    >
+    <TarjetaConfig titulo={titulo} ayuda={ayuda}>
       <div className={GRUPO}>
         <CampoPin etiqueta="PIN actual" valor={actual} onCambio={cambio(setActual)} />
         <CampoPin etiqueta="PIN nuevo (4 a 8 números)" valor={nuevo} onCambio={cambio(setNuevo)} />
@@ -83,9 +97,7 @@ export function CambiarPin({ onNoAutorizado }: Props) {
         <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>
       )}
       {listo && (
-        <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>
-          PIN cambiado. Las otras tablets y PCs van a pedir el PIN nuevo.
-        </p>
+        <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>{textoListo}</p>
       )}
 
       <button

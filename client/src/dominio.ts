@@ -59,3 +59,16 @@ export function celularLocal(telefono: string): string {
   const partes = telefono.match(/^\+598(9\d)(\d{3})(\d{3})$/);
   return partes ? `0${partes[1]} ${partes[2]} ${partes[3]}` : telefono;
 }
+
+// Duración legible para los reportes: "45 min", "2 h 15 min", "1 d 3 h". Más
+// de un día no muestra los minutos (no aportan) y se omiten las partes en cero
+// ("2 h", "3 d").
+export function formatearDuracion(minutos: number): string {
+  const total = Math.max(0, Math.round(minutos));
+  if (total < 60) return `${total} min`;
+  const dias = Math.floor(total / 1440);
+  const horas = Math.floor((total % 1440) / 60);
+  const resto = total % 60;
+  if (dias > 0) return horas > 0 ? `${dias} d ${horas} h` : `${dias} d`;
+  return resto > 0 ? `${horas} h ${resto} min` : `${horas} h`;
+}

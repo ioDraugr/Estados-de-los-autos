@@ -2,11 +2,18 @@
 // Las rutas son relativas a propósito: en dev las redirige el proxy de Vite y
 // en producción salen del mismo servidor que sirve el front, así que no hay
 // ninguna IP hardcodeada que haya que cambiar si cambia la máquina del taller.
-import { borrarPin, leerPin } from "./sesion";
+import {
+  borrarPin,
+  borrarPinReportes,
+  leerPin,
+  leerPinReportes,
+} from "./sesion";
 import type {
   DatosConfig,
   EstadoBackups,
   EstadoServicio,
+  PeriodoReporte,
+  Reporte,
   TipoServicio,
   Vehiculo,
 } from "./types";
@@ -65,12 +72,11 @@ export type ResultadoLogin =
 
 // Valida el PIN contra el servidor (sin guardarlo: eso lo decide quien llama).
 export async function login(pin: string): Promise<ResultadoLogin> {
-  const res = await fetch("/api/login", {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ pin }),
-  });
-  if (res.ok) return { ok: true };
+  return loginEn("/api/login", pin);
+}
+
+// Respuesta de un pedido con PIN mal o bloqueado, como ResultadoLogin.
+async function resultadoDeRechazo(res: Response): Promise<ResultadoLogin> {
   const detalle = await res.json().catch(() => null);
   if (res.status === 429) {
     const minutos = detalle?.minutosRestantes;
@@ -82,6 +88,16 @@ export async function login(pin: string): Promise<ResultadoLogin> {
     };
   }
   return { ok: false, bloqueado: false, mensaje: "PIN incorrecto" };
+}
+
+async function loginEn(ruta: string, pin: string): Promise<ResultadoLogin> {
+  const res = await fetch(ruta, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ pin }),
+  });
+  if (res.ok) return { ok: true };
+  return resultadoDeRechazo(res);
 }
 
 export interface DatosVehiculo {
@@ -179,6 +195,91 @@ export async function cambiarPin(actual: string, nuevo: string): Promise<void> {
   await lanzarError(res);
 }
 
+// --- Reportes (/reportes, el dueño) ---
+// Usan el PIN del dueño (header x-pin-reportes), que es otro que el de /admin.
+// Un 401 de esas rutas borra SOLO la sesión de reportes: la de /admin no se toca.
+
+// ¿Ya existe el PIN del dueño? Pública: decide si se muestra crear o ingresar.
+export async function existePinReportes(): Promise<boolean> {
+  const res = await fetch("/api/reportes/pin");
+  if (!res.ok) throw new Error(`La API respondió ${res.status}`);
+  const { existe } = (await res.json()) as { existe: boolean };
+  return existe;
+}
+
+// Ingresar a /reportes con el PIN del dueño (sin guardarlo, como login).
+export async function loginReportes(pin: string): Promise<ResultadoLogin> {
+  return loginEn("/api/reportes/login", pin);
+}
+
+// Crea el PIN del dueño la primera vez. Pide el PIN de /admin (header x-pin),
+// que acá NO se guarda ni desloguea a nadie si está mal. Devuelve lo mismo que
+// login: PIN de administración mal (o bloqueado) o un error del PIN nuevo (400:
+// formato o igual al de /admin; 409: ya lo creó otro), con el mensaje del server.
+export async function crearPinReportes(
+  pinAdmin: string,
+  nuevo: string,
+): Promise<ResultadoLogin> {
+  const res = await fetch("/api/reportes/pin", {
+    method: "POST",
+    headers: { "x-pin": pinAdmin, "content-type": "application/json" },
+    body: JSON.stringify({ nuevo }),
+  });
+  if (res.ok) return { ok: true };
+  if (res.status === 401) {
+    return {
+      ok: false,
+      bloqueado: false,
+      mensaje: "El PIN de administración no es correcto.",
+    };
+  }
+  if (res.status === 429) return resultadoDeRechazo(res);
+  const detalle = await res.json().catch(() => null);
+  return {
+    ok: false,
+    bloqueado: false,
+    mensaje: detalle?.error ?? `La API respondió ${res.status}`,
+  };
+}
+
+// Cambia el PIN del dueño. Como cambiarPin: un 401 con motivo "pin_actual" es
+// el PIN actual mal escrito (ErrorApi, no desloguea); otro 401 => NoAutorizado.
+export async function cambiarPinReportes(
+  actual: string,
+  nuevo: string,
+): Promise<void> {
+  const res = await fetch("/api/reportes/pin/cambiar", {
+    method: "POST",
+    headers: {
+      "x-pin-reportes": leerPinReportes() ?? "",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ actual, nuevo }),
+  });
+  if (res.ok) return;
+  if (res.status === 401) {
+    const detalle = await res.json().catch(() => null);
+    if (detalle?.motivo === "pin_actual") throw new ErrorApi(`${detalle.error}.`);
+  }
+  await lanzarError(res, borrarPinReportes);
+}
+
+// El reporte de un período. `fecha` es un día cualquiera de él ("YYYY-MM-DD");
+// sin fecha, el período de hoy. 401 (PIN viejo o todavía sin PIN del dueño) =>
+// NoAutorizado: la vista vuelve a preguntar si existe y muestra crear o ingresar.
+export async function obtenerReporte(
+  periodo: PeriodoReporte,
+  fecha: string | null,
+): Promise<Reporte> {
+  const parametros = new URLSearchParams({ periodo });
+  if (fecha) parametros.set("fecha", fecha);
+  const res = await fetch(`/api/reportes?${parametros}`, {
+    headers: { "x-pin-reportes": leerPinReportes() ?? "" },
+  });
+  if (!res.ok) await lanzarError(res, borrarPinReportes);
+  return res.json();
+}
+
 // --- Interno ---
 
 // Hace un request que modifica datos, adjuntando el PIN en el header x-pin.
@@ -205,10 +306,14 @@ async function escribir(
 // Respuesta con error de un pedido con PIN. 401 => limpia la sesión y lanza
 // NoAutorizado. Otro error (400 de datos, 429 por demasiados intentos) => lanza
 // ErrorApi con el mensaje del server, para mostrárselo al trabajador (ej. "Un
-// auto no puede quedar sin servicios..."); el 429 NO desloguea.
-async function lanzarError(res: Response): Promise<never> {
+// auto no puede quedar sin servicios..."); el 429 NO desloguea. `borrar` es
+// la sesión a limpiar: la de /admin, salvo en las rutas de reportes.
+async function lanzarError(
+  res: Response,
+  borrar: () => void = borrarPin,
+): Promise<never> {
   if (res.status === 401) {
-    borrarPin();
+    borrar();
     throw new NoAutorizado("Sesión vencida: volvé a ingresar el PIN.");
   }
   const detalle = await res.json().catch(() => null);

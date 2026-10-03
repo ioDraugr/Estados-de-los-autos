@@ -4,8 +4,10 @@
 // en el oro de la marca.
 // Si el server bloqueó el dispositivo por demasiados PIN mal, el teclado se
 // apaga y el aviso cuenta los minutos que faltan; al terminar, vuelve solo.
-import { useEffect, useState } from "react";
-import { login } from "../api";
+// /reportes lo reusa con otro título, otra verificación (el PIN del dueño, o
+// los pasos de crearlo) y otro lugar donde guardar el PIN: ver los props.
+import { useEffect, useState, type ReactNode } from "react";
+import { login, type ResultadoLogin } from "../api";
 import { guardarPin } from "../sesion";
 import { BOTON_MARCA } from "../tema";
 import { LogoML } from "./LogoML";
@@ -24,10 +26,28 @@ const TECLA = `flex ${MEDIDA_TECLA} items-center justify-center rounded-full bor
 const AROS_MINIMOS = 4;
 
 interface Props {
-  onIngresar: () => void;
+  // El PIN pasó la verificación (y ya se guardó). Recibe el PIN.
+  onIngresar: (pin: string) => void;
+  // Lo de abajo es opcional: sin nada, es el ingreso a /admin y /taller.
+  titulo?: string;
+  // Una línea más chica debajo del título (ej. qué PIN se pide).
+  ayuda?: string;
+  // Contra qué se valida el PIN (por defecto, el PIN de /admin).
+  verificar?: (pin: string) => Promise<ResultadoLogin>;
+  // Dónde se guarda el PIN si es correcto (por defecto, la sesión de /admin).
+  guardar?: (pin: string) => void;
+  // Debajo del aviso: ej. el botón para cancelar la creación del PIN.
+  pie?: ReactNode;
 }
 
-export function PinLogin({ onIngresar }: Props) {
+export function PinLogin({
+  onIngresar,
+  titulo = "Ingresá el PIN",
+  ayuda,
+  verificar = login,
+  guardar = guardarPin,
+  pie,
+}: Props) {
   const [pin, setPin] = useState("");
   // Mensaje a mostrar debajo de los puntitos (null = sin error).
   const [error, setError] = useState<string | null>(null);
@@ -74,10 +94,10 @@ export function PinLogin({ onIngresar }: Props) {
     setVerificando(true);
     setError(null);
     try {
-      const resultado = await login(pin);
+      const resultado = await verificar(pin);
       if (resultado.ok) {
-        guardarPin(pin);
-        onIngresar();
+        guardar(pin);
+        onIngresar(pin);
       } else {
         // PIN mal ("PIN incorrecto") o bloqueado por demasiados intentos (el
         // server dice cuánto falta; si no lo dice, queda su mensaje tal cual).
@@ -107,9 +127,14 @@ export function PinLogin({ onIngresar }: Props) {
     <div className="flex min-h-full flex-col items-center justify-center fondo-oscuro px-6 py-8 text-crema bajo:flex-row bajo:gap-14 bajo:py-4">
       <div className="flex flex-col items-center">
         <LogoML className="h-12 w-auto sm:h-[50px]" />
-        <p className="mt-6 text-[28px] font-semibold tracking-[-0.04em] sm:text-[34px] bajo:mt-4">
-          Ingresá el PIN
+        <p className="mt-6 text-center text-[28px] font-semibold tracking-[-0.04em] sm:text-[34px] bajo:mt-4">
+          {titulo}
         </p>
+        {ayuda && (
+          <p className="mt-1.5 max-w-md text-center text-lg text-crema/65 sm:text-xl">
+            {ayuda}
+          </p>
+        )}
 
         {/* Puntitos que muestran cuántos dígitos van, sin revelar el PIN. */}
         <div className="mt-5 flex h-7 items-center gap-4 sm:gap-5">
@@ -134,6 +159,7 @@ export function PinLogin({ onIngresar }: Props) {
             {aviso}
           </p>
         )}
+        {pie && <div className="mt-4 bajo:mt-3">{pie}</div>}
       </div>
 
       <div className="mt-7 grid grid-cols-3 justify-items-center gap-x-5 gap-y-4 sm:mt-8 sm:gap-x-7 sm:gap-y-[18px] bajo:mt-0 bajo:gap-x-5 bajo:gap-y-3">

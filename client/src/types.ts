@@ -98,3 +98,47 @@ export interface DatosConfig {
   ajustes: Ajuste[];
   backups: EstadoBackups;
 }
+
+// --- Reportes (/reportes), tal como los manda GET /api/reportes ---
+// Ver server/src/reportes.ts: períodos y días en hora local del server.
+
+export type PeriodoReporte = "semana" | "mes";
+
+// Una barra del gráfico de autos atendidos: un día (semana) o una semana (mes).
+export interface BarraAutos {
+  etiqueta: string; // "Lun 28" o "1–4"
+  desde: string; // "YYYY-MM-DD"
+  hasta: string; // "YYYY-MM-DD" (inclusive)
+  cantidad: number;
+}
+
+// Un auto de "los que más tardaron". Solo los últimos dígitos de la matrícula:
+// el server nunca la manda entera.
+export interface AutoLento {
+  id: number;
+  marca: string;
+  modelo: string;
+  color: string;
+  ultimosDigitos: string;
+  minutos: number; // desde el ingreso hasta su último servicio terminado
+  tipos: TipoServicio[];
+}
+
+export interface Reporte {
+  periodo: PeriodoReporte;
+  desde: string; // primer día del período ("YYYY-MM-DD")
+  hasta: string; // último día del período (inclusive)
+  etiqueta: string; // "Semana del 28 sep al 4 oct" / "Octubre 2026"
+  // Un día cualquiera del período anterior y del siguiente, para navegar.
+  fechaAnterior: string;
+  fechaSiguiente: string;
+  autosAtendidos: { total: number; serie: BarraAutos[] };
+  serviciosPorTipo: { tipo: TipoServicio; cantidad: number }[];
+  // minutosPromedio es null si no hubo ninguna vuelta completa para promediar.
+  tiempoPromedioPorTipo: {
+    tipo: TipoServicio;
+    minutosPromedio: number | null;
+    muestras: number;
+  }[];
+  autosQueMasTardaron: AutoLento[];
+}

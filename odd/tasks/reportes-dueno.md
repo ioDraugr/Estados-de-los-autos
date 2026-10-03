@@ -47,10 +47,10 @@ Fuera de alcance: facturación/precios, exportar a Excel/PDF, cambios en /admin,
 - [x] T1 Server: PIN del dueño (config + validación + limitador + endpoints crear/ingresar/cambiar)
   y `GET /api/reportes?periodo=semana|mes&fecha=YYYY-MM-DD` con las 4 métricas; tests.
   Ruta: delegated direct (writer trigger: db/auth/index/reportes nuevos, 2+ archivos no triviales).
-- [ ] T2 Client: ruta `/reportes`, login/creación de PIN del dueño, pantalla con selector
+- [x] T2 Client: ruta `/reportes`, login/creación de PIN del dueño, pantalla con selector
   Semana/Mes + navegación de períodos, tarjetas de números, gráficos Recharts, lista de autos lentos.
   Ruta: delegated direct (writer trigger: App, api, página y componentes nuevos).
-- [ ] T3 README + verificación visual con datos de prueba.
+- [x] T3 README + verificación visual con datos de prueba.
   Ruta: inline (README) + verificación en navegador.
 
 ## Criterios de aceptación
@@ -70,6 +70,20 @@ Fuera de alcance: facturación/precios, exportar a Excel/PDF, cambios en /admin,
   del dueño (que errores de vendedores no bloqueen al dueño); NO se valida "PIN admin ≠ PIN dueño" al cambiar el
   PIN de admin (el rechazo filtraría el PIN del dueño sin límite de intentos). Autos cargados por seed no tienen
   historial y no aparecen. 401 con `motivo: sin_pin_reportes` → el cliente muestra "crear PIN".
+  Commit `c44b151`. RDD assess: risk **high** (hot_path auth.ts), review_due high_risk → consentimiento
+  **declined** por el usuario; sigue la política normal del repo. Boundary avanza a `c44b151`.
+
+- 2026-10-03: T2 hecho (delegated). Commit `71b0f0d`. `npm run build` y `npm run lint` (exit 0) en verde;
+  smoke test en navegador headless con base descartable (crear PIN, login, semana/mes, navegación, cambiar PIN,
+  salir, 401) OK. Decisiones: sesión del dueño en sessionStorage (PC/tablet compartida); /reportes con carga
+  diferida (Recharts en chunk aparte, el bundle principal queda en ~338 kB); sin enlace a /reportes desde otras
+  vistas. Corrección del orquestador: los textos decían "con todos sus servicios terminados" y no coincidían con la
+  métrica del server (≥1 servicio terminado); se corrigieron. ~640 líneas, supera la guía de 400.
+  RDD assess (base c44b151): risk **medium** (package-lock), review_due slice_budget_reached → **declined** por el
+  usuario. Boundary avanza a `71b0f0d`.
+- 2026-10-03: T3 hecho (inline). README: vista /reportes en la lista de vistas y sección "Los reportes del dueño".
+  Verificación visual: capturas del smoke test revisadas (semana con datos, gráficos con colores de cono, autos
+  lentos con ••últimos dígitos). Pendiente: anchos de tablet/celular no verificados visualmente.
 
 ## Próximo paso
-T2.
+Push y PR, cuando el usuario lo indique (entrega single-pr).

@@ -124,6 +124,8 @@ y muestran las direcciones para abrir desde los otros dispositivos, por ejemplo:
   Taller:                http://192.168.1.50:3000/taller
 ```
 
+(Los reportes del dueño están en `/reportes`; a propósito no se anuncian.)
+
 Si algo falla, muestran los últimos logs del server. La primera vez tarda unos
 minutos (el build); las siguientes, segundos.
 
@@ -272,7 +274,7 @@ cd client && npm run dev
 ```
 
 Abrí **http://localhost:5173** en el navegador. La raíz redirige a `/display`
-(la pantalla del showroom). Hay tres vistas:
+(la pantalla del showroom). Hay cuatro vistas:
 
 - **/display** — clientes (solo lectura, con pantalla de bienvenida).
 - **/admin** — vendedores: administran los autos (alta, editar, agregar/quitar
@@ -280,6 +282,8 @@ Abrí **http://localhost:5173** en el navegador. La raíz redirige a `/display`
 - **/taller** — trabajadores del taller: **solo** cambian el estado de cada
   trabajo (esperando / en proceso / terminado). Usa el mismo PIN que `/admin` y se
   actualiza en vivo por Socket.IO, igual que `/display`.
+- **/reportes** — el dueño: números y gráficos por semana o por mes, con **su
+  propio PIN** (ver [Los reportes](#los-reportes-del-dueño-reportes)).
 
 En dev, el front hace proxy de `/api` y `/socket.io` hacia el backend, así que no
 hace falta configurar nada más.
@@ -403,6 +407,35 @@ cartel también está vivo:
 - **Reducir movimiento.** Si el sistema tiene activado "reducir movimiento", no
   hay fundidos, escalas ni barrita del tiempo: la frase y el anuncio cambian de
   golpe (el anuncio igual dura sus 10 segundos).
+
+## Los reportes del dueño (/reportes)
+
+Pensada para mirar en una PC o tablet. Elegís **Semana** (lunes a domingo) o
+**Mes**, y con las flechas vas a los períodos anteriores ("Hoy" vuelve al actual).
+Muestra:
+
+- **Autos atendidos**: autos con al menos un servicio terminado en el período, con
+  un gráfico por día (semana) o por semana (mes).
+- **Servicios más hechos**: servicios terminados por tipo, con el color del cono.
+- **Tiempo promedio de cada servicio**: desde que pasó a "en proceso" hasta
+  "terminado". Si un servicio volvió atrás, cuenta la última vuelta.
+- **Autos que más tardaron**: los 5 que más tiempo estuvieron desde el ingreso
+  hasta tener todos sus servicios terminados (marca, modelo, color y los últimos
+  dígitos de la matrícula, nunca la entera).
+
+Sale todo de la tabla `historial`, en hora local del servidor. Los servicios
+quitados no cuentan, y los autos cargados antes de que existiera el historial (o
+por el seed) no aparecen. Todavía no hay facturación (no se guardan precios).
+
+**PIN del dueño.** Es otro PIN, distinto del de `/admin`/`/taller`: con el de
+`/admin` no se entra. La primera vez, `/reportes` pide crearlo, y para eso hay que
+ingresar antes el PIN de `/admin` (así no lo crea el primero que pase). No puede
+ser igual al de `/admin`. Se cambia desde el botón "Cambiar PIN" de la misma
+pantalla. Tiene su propio límite de intentos (las mismas reglas que el de
+`/admin`, contados aparte). A diferencia de las tablets, la sesión **no queda
+guardada**: al cerrar la pestaña o el navegador lo vuelve a pedir, porque la PC o
+tablet puede ser compartida con los vendedores. Vive en la tabla `config`
+(clave `pin_reportes`); si se olvida, borrar esa fila permite crearlo de nuevo.
 
 ## La vista /admin (trabajadores)
 

@@ -22,7 +22,7 @@ Rediseñar /taller, /admin y Configuración con estética seria: cómoda, fácil
 ## Tareas
 - [x] T1 Base: tokens/estilos staff sobrios en `index.css` y `tema.ts`, indicador de área plano, cabecera sobria para tono claro, `TituloSeccion`.
 - [x] T2 Taller y Admin: `TallerTarjeta`, `AdminTarjeta`, `BotonesEstado`, `FormVehiculo`, `DetalleVehiculo`, `PinLogin`, páginas.
-- [ ] T3 Configuración: layout maestro-detalle, filas agrupadas, `TarjetaConfig`, `Interruptor`, `CambiarPin`, respaldos.
+- [x] T3 Configuración: layout maestro-detalle, filas agrupadas, `TarjetaConfig`, `Interruptor`, `CambiarPin`, respaldos.
 
 ## Aceptación
 - Build y lint limpios; /display idéntico (revisado visualmente).
@@ -32,7 +32,8 @@ Rediseñar /taller, /admin y Configuración con estética seria: cómoda, fácil
 ## Ruta / evidencia
 (se completa por tarea: ruta inline o delegada, commit, checks)
 - T1: delegada (writer; activa el trigger de 2+ archivos). Commit 25310ab. build + lint OK. Revisión visual pendiente.
-- T2: delegada. build + lint OK (verificado por el orquestador). PinLogin sobrio también aplica a Reportes (vista de staff, aceptado). Revisión visual pendiente.
+- T3: delegada. build + lint OK (verificado por el orquestador). Campos de texto/lista van bajo el título a ancho completo. Revisión visual pendiente.
+- T2 (commit 2a91f5c): delegada. build + lint OK (verificado por el orquestador). PinLogin sobrio también aplica a Reportes (vista de staff, aceptado). Revisión visual pendiente.
 
 ## Progreso / siguiente paso
 Rama creada. Siguiente: T1.

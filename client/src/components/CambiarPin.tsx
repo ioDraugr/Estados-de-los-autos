@@ -4,11 +4,11 @@
 // hacen acá para avisar antes; igual el server revalida todo. Un PIN actual mal
 // (o el bloqueo por demasiados intentos) se muestra en la tarjeta: NO desloguea.
 // /reportes la reusa para el PIN del dueño (ver los props opcionales).
-import { useState } from "react";
+import { useId, useState } from "react";
 import { NoAutorizado, cambiarPin, textoDeError } from "../api";
 import { guardarPin } from "../sesion";
 import { AVISO_ERROR, AVISO_OK, BOTON_MARCA } from "../tema";
-import { GRUPO, TarjetaConfig } from "./TarjetaConfig";
+import { CAMPO_TEXTO, CONTENEDOR_FILAS, GRUPO, TarjetaConfig } from "./TarjetaConfig";
 
 const PIN_VALIDO = /^\d{4,8}$/;
 
@@ -24,6 +24,9 @@ interface Props {
   cambiar?: (actual: string, nuevo: string) => Promise<void>;
   // Dónde queda guardado el PIN nuevo en este dispositivo.
   guardar?: (pin: string) => void;
+  // Dentro de la categoría "Seguridad" de Configuración: sin tarjeta propia
+  // (el título y la ayuda los pone el detalle), solo las filas y el botón.
+  incrustado?: boolean;
 }
 
 export function CambiarPin({
@@ -33,6 +36,7 @@ export function CambiarPin({
   textoListo = "PIN cambiado. Las otras tablets y PCs van a pedir el PIN nuevo.",
   cambiar = cambiarPin,
   guardar: guardarNuevo = guardarPin,
+  incrustado = false,
 }: Props) {
   const [actual, setActual] = useState("");
   const [nuevo, setNuevo] = useState("");
@@ -85,29 +89,38 @@ export function CambiarPin({
     }
   }
 
-  return (
-    <TarjetaConfig titulo={titulo} ayuda={ayuda}>
-      <div className={GRUPO}>
+  const cuerpo = (
+    <>
+      <div className={incrustado ? CONTENEDOR_FILAS : GRUPO}>
         <CampoPin etiqueta="PIN actual" valor={actual} onCambio={cambio(setActual)} />
         <CampoPin etiqueta="PIN nuevo (4 a 8 números)" valor={nuevo} onCambio={cambio(setNuevo)} />
         <CampoPin etiqueta="Repetí el PIN nuevo" valor={repetido} onCambio={cambio(setRepetido)} />
       </div>
 
       {error && (
-        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>
+        <p role="alert" className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>
       )}
       {listo && (
-        <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>{textoListo}</p>
+        <p role="status" className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>{textoListo}</p>
       )}
 
       <button
         type="button"
         onClick={guardar}
         disabled={!completo || guardando}
-        className={`${BOTON_MARCA} mt-5 h-14 w-full text-lg sm:h-16 sm:text-xl`}
+        className={`${BOTON_MARCA} mt-5 h-14 w-full text-lg sm:text-xl ${
+          incrustado ? "sm:w-auto sm:px-8" : ""
+        }`}
       >
         {guardando ? "Cambiando…" : "Cambiar PIN"}
       </button>
+    </>
+  );
+
+  if (incrustado) return cuerpo;
+  return (
+    <TarjetaConfig titulo={titulo} ayuda={ayuda}>
+      {cuerpo}
     </TarjetaConfig>
   );
 }
@@ -118,23 +131,26 @@ interface CampoPinProps {
   onCambio: (v: string) => void;
 }
 
-// Una fila del grupo, como las del formulario de autos: etiqueta arriba y el
-// campo abajo. Teclado numérico en la tablet y solo se aceptan números.
+// Una fila del grupo: etiqueta a la izquierda y el campo a la derecha (en
+// pantalla chica, el campo debajo). Teclado numérico en la tablet y solo se
+// aceptan números.
 function CampoPin({ etiqueta, valor, onCambio }: CampoPinProps) {
+  const id = useId();
   return (
-    <label className="flex flex-col border-t border-tinta/[0.08] px-4 pt-2.5 transition-colors first:border-t-0 focus-within:bg-marca/[0.12] sm:px-[18px]">
-      <span className="text-[15px] font-medium text-tinta-suave sm:text-base">
+    <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-5">
+      <label htmlFor={id} className="text-lg font-semibold text-tinta">
         {etiqueta}
-      </span>
+      </label>
       <input
+        id={id}
         type="password"
         inputMode="numeric"
         autoComplete="off"
         maxLength={8}
         value={valor}
         onChange={(e) => onCambio(e.target.value.replace(/\D/g, ""))}
-        className="h-12 w-full min-w-0 bg-transparent text-2xl tracking-[0.3em] text-tinta caret-[#be8a18] outline-none sm:h-[52px]"
+        className={`${CAMPO_TEXTO} h-12 text-2xl tracking-[0.3em] sm:w-56`}
       />
-    </label>
+    </div>
   );
 }

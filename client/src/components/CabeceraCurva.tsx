@@ -14,8 +14,8 @@
 // (.cabecera-cupula y .cabecera-horizonte), porque necesitan media queries.
 //
 // Las vistas del personal (/taller y /admin) usan tono="claro": sin parte
-// oscura ni curva, solo la barra cápsula de vidrio CLARO flotando sobre el
-// fondo claro de la página (texto en tinta y conos en sus tonos para claro).
+// oscura ni curva, solo una barra sobria de superficie sólida con borde
+// inferior fino (texto en tinta, sin cápsula flotante ni sombras).
 // /display usa el tono "oscuro" (por defecto), que es lo de arriba.
 import type { ReactNode } from "react";
 import { AREAS, COLOR_AREA, COLOR_AREA_OSCURO, NOMBRE_AREA } from "../dominio";
@@ -55,8 +55,10 @@ export function CabeceraCurva({
   // redondeadas). De tablet para arriba, todo en una sola fila.
   const barra = (
     <div
-      className={`relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-[28px] py-2 pr-2 pl-4 sm:gap-x-6 sm:rounded-full sm:pl-5 ${
-        claro ? "text-tinta vidrio-claro" : "vidrio-oscuro"
+      className={`relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 ${
+        claro
+          ? "px-3 py-2 text-tinta sm:gap-x-6 sm:px-6 xl:px-10"
+          : "rounded-[28px] py-2 pr-2 pl-4 sm:gap-x-6 sm:rounded-full sm:pl-5 vidrio-oscuro"
       }`}
     >
       <LogoML className="h-9 w-auto shrink-0 sm:h-10 xl:h-12" />
@@ -135,10 +137,12 @@ export function CabeceraCurva({
     );
   }
 
-  // Claro: la barra sola, flotando con un margen chico alrededor. Sin relleno
-  // abajo: el aire hasta el título lo pone la página.
+  // Claro: barra a todo el ancho, superficie sólida y borde inferior fino. El
+  // aire hasta el título lo pone la página.
   if (claro) {
-    return <div className="px-3 pt-3 sm:px-6 sm:pt-6 xl:px-10">{barra}</div>;
+    return (
+      <div className="border-b border-linea bg-crema-alta">{barra}</div>
+    );
   }
 
   // Compacta: la cúpula oscura va detrás de la barra y termina un poco antes

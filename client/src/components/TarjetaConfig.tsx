@@ -1,11 +1,12 @@
-// Tarjeta de vidrio de una sección de Configuración (PIN, backups, ajustes):
+// Tarjeta plana de una sección de Configuración (PIN, backups, ajustes):
 // título, una línea de ayuda opcional y el contenido.
 import type { ReactNode } from "react";
 import { TARJETA } from "../tema";
 
-// Grupo redondeado blanco translúcido, estilo lista agrupada (como en el
-// formulario de autos): los campos van adentro separados por líneas finas.
-export const GRUPO = "overflow-hidden rounded-[20px] bg-white/[0.72]";
+// Grupo plano de filas: marfil con borde de lino, estilo lista agrupada (como
+// en el formulario de autos); los campos van adentro separados por líneas finas.
+export const GRUPO =
+  "overflow-hidden rounded-xl border border-linea bg-crema";
 
 interface Props {
   titulo: string;

@@ -130,7 +130,7 @@ export function Admin() {
 
   return (
     <div className="min-h-full fondo-claro">
-      {/* Barra cápsula de vidrio claro, flotando sobre el fondo de la página. */}
+      {/* Barra a todo el ancho de la página. */}
       <CabeceraCurva
         alto="compacta"
         tono="claro"
@@ -142,7 +142,7 @@ export function Admin() {
                   type="button"
                   onClick={() => abrirModal({ tipo: "alta" })}
                   disabled={ocupado}
-                  className={`${BOTON_MARCA} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
+                  className={`${BOTON_MARCA} px-5 text-base sm:text-[17px]`}
                 >
                   + Nuevo auto
                 </button>
@@ -154,7 +154,7 @@ export function Admin() {
                     setVista("config");
                   }}
                   aria-label="Configuración"
-                  className={`${BOTON_SUAVE} flex h-11 w-11 items-center justify-center gap-2 text-base sm:h-12 sm:w-auto sm:px-[22px] sm:text-[17px]`}
+                  className={`${BOTON_SUAVE} flex w-12 items-center justify-center gap-2 text-base sm:w-auto sm:px-5 sm:text-[17px]`}
                 >
                   <IconoAjustes />
                   <span className="hidden sm:inline">Configuración</span>
@@ -164,7 +164,7 @@ export function Admin() {
             <button
               type="button"
               onClick={salir}
-              className={`${BOTON_SUAVE} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
+              className={`${BOTON_SUAVE} px-5 text-base sm:text-[17px]`}
             >
               Salir
             </button>
@@ -172,7 +172,8 @@ export function Admin() {
         }
       />
 
-      <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
+      {/* Mismos márgenes laterales que la barra de arriba. */}
+      <main className="px-3 pt-6 pb-10 sm:px-6 sm:pt-8 sm:pb-14 xl:px-10">
         {vista === "config" ? (
           <Configuracion
             onVolver={volverALosAutos}
@@ -182,7 +183,7 @@ export function Admin() {
           <>
             {error && (
               <p
-                className={`${AVISO_ERROR} mb-6 px-4 py-3 text-lg sm:mb-8 sm:text-xl`}
+                className={`${AVISO_ERROR} mb-6 px-4 py-3 text-lg`}
               >
                 {error}
               </p>
@@ -194,13 +195,13 @@ export function Admin() {
             />
 
             {cargando ? (
-              <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>Cargando…</p>
+              <p className={`${TEXTO_VACIO} p-10 text-xl sm:p-16`}>Cargando…</p>
             ) : vehiculos.length === 0 ? (
-              <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>
+              <p className={`${TEXTO_VACIO} p-10 text-xl sm:p-16`}>
                 No hay autos en el taller. Tocá “+ Nuevo auto” para agregar uno.
               </p>
             ) : (
-              <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-9 sm:gap-7 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
                 {vehiculos.map((v) => (
                   <AdminTarjeta
                     key={v.id}

@@ -18,8 +18,9 @@
 // inferior fino (texto en tinta, sin cápsula flotante ni sombras).
 // /display usa el tono "oscuro" (por defecto), que es lo de arriba.
 import type { ReactNode } from "react";
-import { AREAS, COLOR_AREA, COLOR_AREA_OSCURO, NOMBRE_AREA } from "../dominio";
+import { AREAS, COLOR_AREA_OSCURO, NOMBRE_AREA } from "../dominio";
 import { Cono } from "./Cono";
+import { IndicadorArea } from "./IndicadorArea";
 import { LogoML } from "./LogoML";
 
 interface Props {
@@ -67,11 +68,16 @@ export function CabeceraCurva({
         <div className="order-last flex w-full flex-wrap justify-center gap-x-4 gap-y-1 pb-1 sm:order-none sm:ml-auto sm:w-auto sm:justify-end sm:gap-x-6 sm:pb-0 xl:gap-x-8">
           {AREAS.map((tipo) => (
             <div key={tipo} className="flex items-center gap-2 sm:gap-2.5">
-              <Cono
-                color={claro ? COLOR_AREA[tipo] : COLOR_AREA_OSCURO[tipo]}
-                estado="esperando"
-                className="h-5 w-auto shrink-0 sm:h-6 xl:h-7"
-              />
+              {claro ? (
+                // Vistas del personal: círculo plano del color del área.
+                <IndicadorArea tipo={tipo} />
+              ) : (
+                <Cono
+                  color={COLOR_AREA_OSCURO[tipo]}
+                  estado="esperando"
+                  className="h-5 w-auto shrink-0 sm:h-6 xl:h-7"
+                />
+              )}
               <span className="text-sm font-medium sm:text-lg xl:text-xl">
                 {NOMBRE_AREA[tipo]}
               </span>

@@ -36,9 +36,10 @@ export const BOTON_PELIGRO = `min-h-12 rounded-lg border border-peligro/60 bg-cr
 export const BOTON_OSCURO =
   "rounded-full bg-crema/10 font-semibold text-crema transition hover:bg-crema/[0.18] active:scale-95 disabled:opacity-50";
 
-// Pastilla "Listo" de un auto terminado, con un resplandor verde suave.
+// Etiqueta "Listo" de un auto terminado (solo el personal): verde bosque
+// plano con esquinas chicas, sin resplandor.
 export const PASTILLA_LISTO =
-  "shrink-0 rounded-full bg-listo font-semibold text-crema-alta shadow-[0_10px_24px_-10px_rgba(46,94,58,0.8)]";
+  "shrink-0 rounded-md bg-listo font-semibold text-crema-alta";
 
 // Pastilla "Listo" sobre fondo oscuro (showroom): verde más encendido para que
 // no se pierda contra el carbón. Lleva un puntito claro adelante.
@@ -60,6 +61,11 @@ export const CAPSULA_MATRICULA_CLARA =
 // (sin-vidrio) el dorado va casi lleno, para que el texto oscuro se lea igual.
 export const AVISO =
   "rounded-full border border-white/60 bg-marca/55 text-center font-semibold text-tinta backdrop-blur-md sin-vidrio:bg-marca/90";
+
+// Aviso de "sin conexión" de las vistas del personal: recuadro plano en oro
+// con borde carbón, sin desenfoque ni sombras (lleva texto e ícono estático).
+export const AVISO_CONEXION =
+  "rounded-lg border border-tinta bg-marca font-semibold text-tinta";
 
 // Aviso de error: recuadro plano con borde rojo (puede ocupar varias líneas).
 export const AVISO_ERROR =

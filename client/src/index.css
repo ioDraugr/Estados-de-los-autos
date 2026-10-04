@@ -92,19 +92,12 @@ body {
    opaco para que el texto se siga leyendo bien.
    --------------------------------------------------------------------------- */
 
-/* Vidrio claro: tarjetas, cabecera cápsula y paneles sobre el fondo claro. */
+/* Superficie clara de las vistas del personal (/taller, /admin, Configuración).
+   Pese al nombre histórico ("vidrio"), es sólida y plana: papel con borde fino
+   de arena, sin desenfoque, sin sombras. Solo la usa el personal. */
 @utility vidrio-claro {
-  background-color: rgba(250, 246, 238, 0.58);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
-  backdrop-filter: blur(30px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 18px 50px -24px rgba(43, 35, 27, 0.35);
-
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background-color: rgba(250, 246, 238, 0.94);
-  }
+  background-color: #faf6ee;
+  border: 1px solid #d8c9ae;
 }
 
 /* Vidrio oscuro: tarjetas y paneles sobre el fondo oscuro (showroom). */
@@ -137,22 +130,13 @@ body {
     0 24px 60px -20px rgba(0, 0, 0, 0.7);
 }
 
-/* Hoja clara: modales y fichas que se apoyan encima de todo (más opaca y con
-   más sombra que la tarjeta, para separarse del fondo). */
+/* Hoja clara: modales y fichas del personal que se apoyan encima de todo.
+   Sólida, con borde de lino y una sombra neutra mínima solo para separarla de
+   lo que tapa (sin color ni brillo). */
 @utility vidrio-hoja-clara {
-  background-color: rgba(247, 242, 232, 0.8);
-  -webkit-backdrop-filter: blur(40px) saturate(180%);
-  backdrop-filter: blur(40px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.8);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.9),
-    0 50px 120px -30px rgba(43, 35, 27, 0.55);
-
-  /* Sin desenfoque, la hoja va opaca del todo: se apoya sobre la lista y con
-     un 6 % de transparencia los textos de atrás se leían como fantasmas. */
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background-color: #f7f2e8;
-  }
+  background-color: #faf6ee;
+  border: 1px solid #d8c9ae;
+  box-shadow: 0 8px 24px -12px rgba(22, 19, 15, 0.35);
 }
 
 /* Hoja oscura: lo mismo que la hoja clara, sobre el fondo oscuro. */
@@ -194,23 +178,9 @@ body {
    encima de su propio color de fondo y no se esconda detrás de la página.
    --------------------------------------------------------------------------- */
 
-/* Fondo claro: marfil con luz dorada, lino y un toque de bosque. */
+/* Fondo claro de las vistas del personal: papel sólido, sin manchas de luz. */
 @utility fondo-claro {
-  background-color: #f3ecdf;
-  isolation: isolate;
-
-  &::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background-image:
-      radial-gradient(ellipse 55% 45% at 88% 4%, rgba(235, 184, 47, 0.38), transparent 70%),
-      radial-gradient(ellipse 50% 45% at 6% 48%, rgba(216, 201, 174, 0.9), transparent 70%),
-      radial-gradient(ellipse 50% 40% at 84% 78%, rgba(235, 184, 47, 0.22), transparent 70%),
-      radial-gradient(ellipse 45% 35% at 26% 96%, rgba(141, 190, 150, 0.25), transparent 70%);
-  }
+  background-color: #faf6ee;
 }
 
 /* Fondo oscuro: carbón con tabaco, luz dorada y bosque. */

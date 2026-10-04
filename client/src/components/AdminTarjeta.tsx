@@ -4,12 +4,12 @@
 // A diferencia de /display, acá SÍ se muestra la matrícula entera: los
 // trabajadores la necesitan para identificar el auto. Lo mismo el celular del
 // cliente (si se cargó): solo existe acá, nunca en /taller ni en /display.
-// Tarjeta de vidrio claro como la de /taller: los servicios van separados por
-// líneas finas y las acciones son cápsulas.
+// Tarjeta plana como la de /taller: los servicios van separados por líneas
+// finas y las acciones son botones de esquinas chicas.
 import {
   AREAS,
-  COLOR_AREA,
   NOMBRE_AREA,
+  NOMBRE_ESTADO,
   autoTerminado,
   celularLocal,
 } from "../dominio";
@@ -22,8 +22,7 @@ import {
   TARJETA,
 } from "../tema";
 import { BotonesEstado } from "./BotonesEstado";
-import { Cono } from "./Cono";
-import { ConoCirculo } from "./ConoCirculo";
+import { IndicadorArea } from "./IndicadorArea";
 import { PastillaListo } from "./PastillaListo";
 
 interface Props {
@@ -52,21 +51,21 @@ export function AdminTarjeta({
 
   return (
     <div
-      className={`flex flex-col p-5 sm:p-[26px] ${TARJETA} ${
+      className={`flex flex-col p-5 sm:p-6 ${TARJETA} ${
         terminado ? RESALTE_LISTO : ""
       }`}
     >
       {/* Encabezado: datos del auto. */}
       <div className="flex items-start justify-between gap-3">
-        <p className="min-w-0 text-[26px] leading-[1.04] font-[650] tracking-[-0.045em] break-words text-tinta sm:text-[30px]">
+        <p className="min-w-0 text-2xl leading-tight font-semibold break-words text-tinta">
           {vehiculo.marca} {vehiculo.modelo}
         </p>
         {terminado && (
-          <PastillaListo className="h-[34px] text-[15px] sm:text-base" />
+          <PastillaListo className="h-9 text-base" />
         )}
       </div>
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1.5">
-        <span className="text-base text-tinta-suave sm:text-[17px]">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <span className="text-base text-tinta-suave">
           {vehiculo.color}
         </span>
         <span className={`${CAPSULA_MATRICULA_CLARA} text-[15px]`}>
@@ -74,32 +73,29 @@ export function AdminTarjeta({
         </span>
       </div>
       {vehiculo.telefono && (
-        <p className="mt-3 inline-flex min-h-8 items-center gap-2 self-start rounded-full bg-listo/10 px-3 text-[15px] font-medium text-listo tabular-nums">
-          <span
-            aria-hidden="true"
-            className="h-[7px] w-[7px] shrink-0 rounded-full bg-listo-vivo"
-          />
+        <p className="mt-3 inline-flex min-h-8 items-center gap-2 self-start rounded-md border border-listo/40 bg-listo/10 px-3 text-[15px] font-medium text-listo tabular-nums">
           WhatsApp: {celularLocal(vehiculo.telefono)}
         </p>
       )}
 
       {/* Un servicio por fila con su cono y los tres estados, separados por
           líneas finas. */}
-      <div className="mt-[18px]">
+      <div className="mt-4">
         {vehiculo.servicios.map((s) => (
           <div
             key={s.id}
-            className="border-t border-tinta/[0.08] pt-3.5 pb-4"
+            className="border-t border-linea pt-4 pb-4"
           >
-            <div className="mb-2.5 flex items-center gap-3">
-              <ConoCirculo
-                color={COLOR_AREA[s.tipo]}
-                estado={s.estado}
-                tamano="tarjeta"
-                tono="claro"
-              />
-              <span className="min-w-0 flex-1 text-xl font-semibold tracking-[-0.02em] text-tinta">
-                {NOMBRE_AREA[s.tipo]}
+            <div className="mb-3 flex items-center gap-3">
+              <IndicadorArea tipo={s.tipo} estado={s.estado} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-lg leading-tight font-semibold text-tinta">
+                  {NOMBRE_AREA[s.tipo]}
+                </span>
+                {/* El estado también va en texto, no solo en el color. */}
+                <span className="block text-base text-tinta-suave">
+                  {NOMBRE_ESTADO[s.estado]}
+                </span>
               </span>
               <button
                 type="button"
@@ -116,7 +112,7 @@ export function AdminTarjeta({
                     ? "Si terminó, retiralo"
                     : `Quitar ${NOMBRE_AREA[s.tipo]}`
                 }
-                className="h-11 shrink-0 rounded-full bg-tinta/[0.06] px-4 text-[15px] font-semibold text-tinta-suave transition hover:bg-tinta/[0.12] hover:text-tinta active:scale-95 disabled:opacity-40"
+                className="min-h-12 shrink-0 rounded-lg border border-linea bg-crema-alta px-4 text-base font-semibold text-tinta transition-colors hover:bg-arena focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-tinta disabled:opacity-40"
               >
                 Quitar
               </button>
@@ -140,13 +136,9 @@ export function AdminTarjeta({
               type="button"
               onClick={() => onAgregarServicio(vehiculo.id, tipo)}
               disabled={ocupado}
-              className="inline-flex h-[46px] items-center gap-2 rounded-full border border-dashed border-tinta/[0.22] bg-white/40 px-4 text-base font-semibold text-tinta transition hover:border-tinta/35 hover:bg-white/80 active:scale-95 disabled:opacity-40"
+              className="inline-flex min-h-12 items-center gap-2 rounded-lg border border-dashed border-tinta/50 bg-crema-alta px-3 text-base font-semibold text-tinta transition-colors hover:bg-arena focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-tinta disabled:opacity-40"
             >
-              <Cono
-                color={COLOR_AREA[tipo]}
-                estado="esperando"
-                className="h-[19px] w-auto shrink-0"
-              />
+              <IndicadorArea tipo={tipo} />
               + {NOMBRE_AREA[tipo]}
             </button>
           ))}
@@ -154,12 +146,12 @@ export function AdminTarjeta({
       )}
 
       {/* Acciones sobre el auto: dos cápsulas del mismo ancho. */}
-      <div className="mt-auto flex gap-2.5 pt-5">
+      <div className="mt-auto flex gap-3 pt-5">
         <button
           type="button"
           onClick={() => onEditar(vehiculo)}
           disabled={ocupado}
-          className={`${BOTON_SUAVE} h-[54px] flex-1 text-[17px]`}
+          className={`${BOTON_SUAVE} h-14 flex-1 text-lg`}
         >
           Editar
         </button>
@@ -175,7 +167,7 @@ export function AdminTarjeta({
             }
           }}
           disabled={ocupado}
-          className={`${BOTON_PELIGRO} h-[54px] flex-1 text-[17px]`}
+          className={`${BOTON_PELIGRO} h-14 flex-1 text-lg`}
         >
           Retirar
         </button>

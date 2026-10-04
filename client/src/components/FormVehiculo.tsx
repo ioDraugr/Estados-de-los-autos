@@ -5,20 +5,19 @@
 // mensaje en /admin, igual que los demás datos). Abajo, el interruptor "Acepta
 // recibir mensajes por WhatsApp" (post-venta): en el alta arranca prendido; al
 // editar muestra lo guardado.
-// Se ve como una hoja de vidrio claro sobre la lista desenfocada: los campos en
-// un grupo redondeado con separadores finos (etiqueta arriba, campo abajo, para
-// que la etiqueta larga del celular entre en el celular y en la tablet) y los
-// servicios con un interruptor cada uno.
+// Se ve como una hoja sólida sobre la lista oscurecida: los campos con
+// etiqueta visible arriba y borde propio (la etiqueta larga del celular entra
+// en el celular y en la tablet) y los servicios con un interruptor cada uno.
 import { useState } from "react";
 import type { DatosVehiculo } from "../api";
-import { AREAS, COLOR_AREA, NOMBRE_AREA, celularLocal } from "../dominio";
+import { AREAS, NOMBRE_AREA, celularLocal } from "../dominio";
 import type { TipoServicio, Vehiculo } from "../types";
 import { AVISO_ERROR, BOTON_MARCA, BOTON_SUAVE } from "../tema";
-import { ConoCirculo } from "./ConoCirculo";
+import { IndicadorArea } from "./IndicadorArea";
 import { Interruptor } from "./Interruptor";
 
-// Grupo redondeado blanco translúcido, estilo lista agrupada.
-const GRUPO = "overflow-hidden rounded-[20px] bg-white/[0.72]";
+// Grupo plano: papel con borde fino y esquinas de 12px.
+const GRUPO = "overflow-hidden rounded-xl border border-linea bg-crema-alta";
 
 interface Props {
   modo: "alta" | "edicion";
@@ -78,21 +77,20 @@ export function FormVehiculo({
   }
 
   return (
-    // El fondo tiñe y desenfoca la lista; tocarlo cancela. Sin desenfoque
-    // (sin-vidrio) tiñe más, para que la lista de atrás no distraiga.
+    // El fondo oscurece la lista (sin desenfoque); tocarlo cancela.
     <div
-      className="fixed inset-0 z-10 flex items-center justify-center bg-tabaco/[0.22] p-3 backdrop-blur-[22px] backdrop-saturate-[1.4] sm:p-4 sin-vidrio:bg-tabaco/60"
+      className="fixed inset-0 z-10 flex items-center justify-center bg-tinta/60 p-3 sm:p-4"
       onClick={onCancelar}
     >
       <div
-        className="animate-hoja flex max-h-[90dvh] w-full max-w-xl flex-col overflow-y-auto rounded-[32px] p-5 vidrio-hoja-clara sm:rounded-[40px] sm:p-9"
+        className="flex max-h-[90dvh] w-full max-w-xl flex-col overflow-y-auto rounded-xl p-5 vidrio-hoja-clara sm:p-8"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-[34px] leading-[1.05] font-[650] tracking-[-0.05em] text-tinta sm:text-[44px]">
+        <h2 className="text-3xl leading-tight font-semibold text-tinta">
           {esAlta ? "Nuevo auto" : "Editar auto"}
         </h2>
 
-        <div className={`mt-5 shrink-0 sm:mt-6 ${GRUPO}`}>
+        <div className={`mt-5 shrink-0 ${GRUPO}`}>
           <Campo etiqueta="Marca" valor={marca} onCambio={setMarca} />
           <Campo etiqueta="Modelo" valor={modelo} onCambio={setModelo} />
           <Campo etiqueta="Color" valor={color} onCambio={setColor} />
@@ -112,13 +110,13 @@ export function FormVehiculo({
             role="switch"
             aria-checked={aceptaWhatsapp}
             onClick={() => setAceptaWhatsapp((v) => !v)}
-            className="flex min-h-[72px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors active:bg-tinta/[0.04] sm:px-[18px]"
+            className="flex min-h-[72px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-arena/50 focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-tinta"
           >
             <span className="min-w-0 flex-1">
-              <span className="block text-lg font-medium text-tinta sm:text-xl">
+              <span className="block text-lg font-medium text-tinta">
                 Acepta recibir mensajes por WhatsApp
               </span>
-              <span className="mt-0.5 block text-[15px] text-tinta-suave sm:text-base">
+              <span className="mt-0.5 block text-[15px] text-tinta-suave">
                 Pedido de reseña y recordatorio de mantenimiento, después del retiro.
               </span>
             </span>
@@ -128,7 +126,7 @@ export function FormVehiculo({
 
         {esAlta && (
           <div className="mt-6 shrink-0">
-            <p className="mb-2 ml-4 text-base font-medium text-tinta-suave sm:ml-[18px]">
+            <p className="mb-2 text-base font-semibold text-tinta">
               Servicios
             </p>
             <div className={GRUPO}>
@@ -141,15 +139,10 @@ export function FormVehiculo({
                     role="switch"
                     aria-checked={activo}
                     onClick={() => alternarServicio(tipo)}
-                    className="flex min-h-[62px] w-full items-center gap-3.5 border-t border-tinta/[0.08] px-4 py-2.5 text-left transition-colors first:border-t-0 active:bg-tinta/[0.04] sm:px-[18px]"
+                    className="flex min-h-[62px] w-full items-center gap-3.5 border-t border-linea px-4 py-2.5 text-left transition-colors first:border-t-0 hover:bg-arena/50 focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-tinta"
                   >
-                    <ConoCirculo
-                      color={COLOR_AREA[tipo]}
-                      estado="esperando"
-                      tamano="tarjeta"
-                      tono="claro"
-                    />
-                    <span className="min-w-0 flex-1 text-lg font-medium text-tinta sm:text-xl">
+                    <IndicadorArea tipo={tipo} />
+                    <span className="min-w-0 flex-1 text-lg font-medium text-tinta">
                       {NOMBRE_AREA[tipo]}
                     </span>
                     <Interruptor prendido={activo} />
@@ -162,7 +155,7 @@ export function FormVehiculo({
 
         {error && (
           <p
-            className={`${AVISO_ERROR} mt-5 shrink-0 px-4 py-3 text-lg sm:text-xl`}
+            className={`${AVISO_ERROR} mt-5 shrink-0 px-4 py-3 text-lg`}
           >
             {error}
           </p>
@@ -172,7 +165,7 @@ export function FormVehiculo({
           <button
             type="button"
             onClick={onCancelar}
-            className={`${BOTON_SUAVE} h-14 flex-1 text-lg sm:h-16 sm:text-xl`}
+            className={`${BOTON_SUAVE} h-14 flex-1 text-lg`}
           >
             Cancelar
           </button>
@@ -180,7 +173,7 @@ export function FormVehiculo({
             type="button"
             onClick={guardar}
             disabled={!listo || guardando}
-            className={`${BOTON_MARCA} h-14 flex-1 text-lg sm:h-16 sm:text-xl`}
+            className={`${BOTON_MARCA} h-14 flex-1 text-lg`}
           >
             {guardando ? "Guardando…" : esAlta ? "Crear" : "Guardar"}
           </button>
@@ -206,13 +199,11 @@ function Campo({
   tipo = "text",
   placeholder,
 }: CampoProps) {
-  // Una fila del grupo: etiqueta arriba y el campo abajo, grande y sin borde.
-  // Al escribir, la fila se tiñe de dorado.
+  // Una fila del grupo: etiqueta siempre visible arriba y el campo abajo, con
+  // borde propio. Al enfocarlo, el borde se engrosa en carbón.
   return (
-    <label className="flex flex-col border-t border-tinta/[0.08] px-4 pt-2.5 transition-colors first:border-t-0 focus-within:bg-marca/[0.12] sm:px-[18px]">
-      <span className="text-[15px] font-medium text-tinta-suave sm:text-base">
-        {etiqueta}
-      </span>
+    <label className="flex flex-col gap-1 border-t border-linea px-4 py-3 first:border-t-0">
+      <span className="text-[15px] font-semibold text-tinta">{etiqueta}</span>
       <input
         type={tipo}
         inputMode={tipo === "tel" ? "tel" : undefined}
@@ -220,7 +211,7 @@ function Campo({
         value={valor}
         placeholder={placeholder}
         onChange={(e) => onCambio(e.target.value)}
-        className="h-12 w-full min-w-0 bg-transparent text-xl text-tinta caret-[#be8a18] outline-none placeholder:text-[#A89B84] sm:h-[52px] sm:text-[22px]"
+        className="h-12 w-full min-w-0 rounded-lg border border-tinta-suave bg-white px-3 text-xl text-tinta outline-none placeholder:text-[#8a7d68] focus-visible:border-tinta focus-visible:ring-2 focus-visible:ring-tinta"
       />
     </label>
   );

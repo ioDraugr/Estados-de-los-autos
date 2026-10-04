@@ -1,7 +1,7 @@
 // Pantalla de ingreso a /admin y /taller: teclado numérico grande (pensado para
 // tablet). Valida el PIN contra el servidor; si es correcto lo guarda y avisa al
-// padre. Se ve sobre el fondo oscuro, con teclas circulares de vidrio y el OK
-// en el oro de la marca.
+// padre. Se ve sobre carbón liso, con teclas planas de esquinas chicas y el OK
+// en el oro de la marca (sin vidrio, brillos ni animaciones).
 // Si el server bloqueó el dispositivo por demasiados PIN mal, el teclado se
 // apaga y el aviso cuenta los minutos que faltan; al terminar, vuelve solo.
 // /reportes lo reusa con otro título, otra verificación (el PIN del dueño, o
@@ -12,15 +12,18 @@ import { guardarPin } from "../sesion";
 import { BOTON_MARCA } from "../tema";
 import { LogoML } from "./LogoML";
 
-// Medida de las teclas redondas: 76 px en el celular, 88 px de tablet para
-// arriba y 64 px en pantallas bajas (celular acostado), donde el teclado va al
-// costado del título y tiene que entrar entero en el alto.
+// Medida de las teclas: 72 px en el celular, 80 px de tablet para arriba y
+// 60 px en pantallas bajas (celular acostado), donde el teclado va al costado
+// del título y tiene que entrar entero en el alto. Siempre >= 56 px.
 const MEDIDA_TECLA =
-  "h-[76px] w-[76px] sm:h-[88px] sm:w-[88px] bajo:h-16 bajo:w-16";
+  "h-[72px] w-[72px] sm:h-20 sm:w-20 bajo:h-[60px] bajo:w-[60px]";
 
-// Tecla circular de vidrio sobre el fondo oscuro. Al tocarla se ilumina y se
-// hunde apenas.
-const TECLA = `flex ${MEDIDA_TECLA} items-center justify-center rounded-full border border-crema/10 bg-crema/[0.09] text-[32px] font-normal text-crema shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-xl backdrop-saturate-[1.7] transition-[background-color,scale] duration-150 hover:bg-crema/[0.16] active:scale-[0.94] active:bg-crema/30 disabled:opacity-40 sm:text-4xl bajo:text-[28px]`;
+// Foco visible: anillo en marfil con separación, se lee sobre el carbón.
+const FOCO =
+  "focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-crema";
+
+// Tecla plana: superficie sólida con borde fino. Al tocarla se aclara.
+const TECLA = `flex ${MEDIDA_TECLA} items-center justify-center rounded-xl border border-crema/25 bg-crema/10 text-3xl font-medium text-crema transition-colors hover:bg-crema/20 active:bg-crema/30 disabled:opacity-40 bajo:text-2xl ${FOCO}`;
 
 // Cuántos aros se ven como mínimo (el PIN puede tener hasta 8 dígitos).
 const AROS_MINIMOS = 4;
@@ -124,14 +127,14 @@ export function PinLogin({
   return (
     // En pantallas bajas (celular acostado) el título y los puntitos van a la
     // izquierda y el teclado a la derecha, para que todo entre sin scroll.
-    <div className="flex min-h-full flex-col items-center justify-center fondo-oscuro px-6 py-8 text-crema bajo:flex-row bajo:gap-14 bajo:py-4">
+    <div className="flex min-h-full flex-col items-center justify-center bg-tinta px-6 py-8 text-crema bajo:flex-row bajo:gap-14 bajo:py-4">
       <div className="flex flex-col items-center">
         <LogoML className="h-12 w-auto sm:h-[50px]" />
-        <p className="mt-6 text-center text-[28px] font-semibold tracking-[-0.04em] sm:text-[34px] bajo:mt-4">
+        <p className="mt-6 text-center text-3xl font-semibold sm:text-[34px] bajo:mt-4">
           {titulo}
         </p>
         {ayuda && (
-          <p className="mt-1.5 max-w-md text-center text-lg text-crema/65 sm:text-xl">
+          <p className="mt-1.5 max-w-md text-center text-lg text-crema/80">
             {ayuda}
           </p>
         )}
@@ -142,12 +145,12 @@ export function PinLogin({
             i < pin.length ? (
               <span
                 key={i}
-                className="animate-marcar h-3.5 w-3.5 rounded-full bg-crema shadow-[0_0_12px_rgba(243,236,223,0.5)]"
+                className="h-3.5 w-3.5 rounded-full bg-crema"
               />
             ) : (
               <span
                 key={i}
-                className="h-3.5 w-3.5 rounded-full border-[1.5px] border-crema/50"
+                className="h-3.5 w-3.5 rounded-full border-2 border-crema/70"
               />
             ),
           )}
@@ -155,7 +158,7 @@ export function PinLogin({
 
         {/* Mismo lugar para el error: un rojo claro que se lee sobre el oscuro. */}
         {aviso && (
-          <p className="mt-3 max-w-md rounded-3xl bg-peligro/30 px-4 py-1.5 text-center text-lg font-semibold text-[#F6B7A9] sm:text-xl">
+          <p className="mt-3 max-w-md rounded-lg border border-[#F6B7A9]/60 bg-peligro/30 px-4 py-2 text-center text-lg font-semibold text-[#F6B7A9]">
             {aviso}
           </p>
         )}
@@ -174,13 +177,13 @@ export function PinLogin({
             {t}
           </button>
         ))}
-        {/* Borrar: sin vidrio, para que no se confunda con un dígito. */}
+        {/* Borrar: sin relleno, para que no se confunda con un dígito. */}
         <button
           type="button"
           onClick={borrar}
           disabled={bloqueado}
           aria-label="Borrar"
-          className={`flex ${MEDIDA_TECLA} items-center justify-center rounded-full text-[28px] text-crema/75 transition-[background-color,color,scale] duration-150 hover:text-crema active:scale-[0.94] active:bg-crema/10 disabled:opacity-40 sm:text-[32px] bajo:text-[26px]`}
+          className={`flex ${MEDIDA_TECLA} items-center justify-center rounded-xl text-3xl text-crema/85 transition-colors hover:bg-crema/10 hover:text-crema active:bg-crema/20 disabled:opacity-40 bajo:text-2xl ${FOCO}`}
         >
           ←
         </button>
@@ -196,7 +199,7 @@ export function PinLogin({
           type="button"
           onClick={ingresar}
           disabled={verificando || bloqueado}
-          className={`${BOTON_MARCA} flex ${MEDIDA_TECLA} items-center justify-center text-[22px] tracking-[-0.01em] bajo:text-xl`}
+          className={`${BOTON_MARCA} focus-visible:outline-crema! flex ${MEDIDA_TECLA} items-center justify-center text-2xl bajo:text-xl`}
         >
           {verificando ? "…" : "OK"}
         </button>

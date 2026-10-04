@@ -1,15 +1,33 @@
 // Pantalla "Configuración" de /admin: reemplaza a la lista de autos (la
-// cabecera queda) y se vuelve con "← Volver". Tarjetas de vidrio:
-//   - PIN de acceso (CambiarPin.tsx),
-//   - Backups: cuándo fue el último, cuántos hay y "Hacer backup ahora",
-//   - Ajustes, una tarjeta por grupo (showroom, cuidados del aviso de "listo",
-//     post-venta por WhatsApp): se
-//     arman solos desde la lista que manda el server (GET /api/config), así un
-//     ajuste nuevo en server/src/ajustes.ts aparece acá sin tocar esta pantalla
-//     (salvo que sea de un tipo o grupo nuevo: ver CampoAjuste y GRUPOS).
+// cabecera queda) y se vuelve con "← Volver a los autos". Maestro-detalle,
+// como Ajustes de un teléfono o la cuenta de Google:
+//   - Escritorio (>= lg): a la izquierda la lista de categorías (navegación) y
+//     a la derecha el detalle de la elegida (la primera por defecto).
+//   - Móvil (< lg): primero la lista; al tocar una categoría se ve solo su
+//     detalle, con "‹ Configuración" para volver a la lista.
+// La categoría elegida se guarda en el hash (#seguridad, #respaldos,
+// #showroom…) para que sobreviva a una recarga; se escribe con replaceState,
+// así no toca al router.
+// Categorías:
+//   - Seguridad: el PIN de acceso (CambiarPin.tsx),
+//   - Respaldos: cuándo fue el último, cuántos hay y "Hacer backup ahora",
+//   - Una por grupo de ajustes (showroom, cuidados del aviso de "listo",
+//     post-venta por WhatsApp): se arman solas desde la lista que manda el
+//     server (GET /api/config), así un ajuste nuevo en server/src/ajustes.ts
+//     aparece acá sin tocar esta pantalla (salvo que sea de un tipo o grupo
+//     nuevo: ver CampoAjuste y GRUPOS).
+// Cada categoría es un solo contenedor con filas separadas por líneas finas:
+// título y ayuda a la izquierda, el control a la derecha.
 // Si el PIN de este dispositivo deja de servir (ej. lo cambiaron desde otra
 // tablet), vuelve al login como el resto de /admin.
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import {
   NoAutorizado,
   guardarAjustes,
@@ -35,7 +53,7 @@ import {
 } from "../tema";
 import { CambiarPin } from "./CambiarPin";
 import { Interruptor } from "./Interruptor";
-import { GRUPO, TarjetaConfig } from "./TarjetaConfig";
+import { CAMPO_TEXTO, CONTENEDOR_FILAS, Fila } from "./TarjetaConfig";
 import { TituloSeccion } from "./TituloSeccion";
 
 interface Props {
@@ -44,9 +62,40 @@ interface Props {
   onNoAutorizado: () => void;
 }
 
+// Una categoría de la lista de la izquierda.
+interface Categoria {
+  id: string;
+  titulo: string;
+  ayuda?: string;
+  contenido: ReactNode;
+}
+
+// ¿Pantalla de escritorio (>= lg, 1024px)? Decide si se ve lista + detalle a
+// la vez o una cosa por vez.
+const ESCRITORIO = "(min-width: 1024px)";
+
+function useEsEscritorio(): boolean {
+  return useSyncExternalStore(
+    (avisar) => {
+      const mq = window.matchMedia(ESCRITORIO);
+      mq.addEventListener("change", avisar);
+      return () => mq.removeEventListener("change", avisar);
+    },
+    () => window.matchMedia(ESCRITORIO).matches,
+    () => true,
+  );
+}
+
+function hashActual(): string | null {
+  return window.location.hash.slice(1) || null;
+}
+
 export function Configuracion({ onVolver, onNoAutorizado }: Props) {
   const [datos, setDatos] = useState<DatosConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Categoría elegida (id). En móvil null = se ve la lista.
+  const [elegida, setElegida] = useState<string | null>(hashActual);
+  const escritorio = useEsEscritorio();
 
   const cargar = useCallback(async () => {
     try {
@@ -62,24 +111,90 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
     cargar();
   }, [cargar]);
 
+  // Si alguien cambia el hash a mano o con atrás/adelante, seguirlo.
+  useEffect(() => {
+    const alCambiar = () => setElegida(hashActual());
+    window.addEventListener("hashchange", alCambiar);
+    return () => window.removeEventListener("hashchange", alCambiar);
+  }, []);
+
+  function elegir(id: string | null) {
+    setElegida(id);
+    // replaceState (no location.hash =): no suma pasos al historial ni le
+    // avisa al router. Se conserva history.state, que es del router.
+    const url = window.location.pathname + window.location.search + (id ? `#${id}` : "");
+    window.history.replaceState(window.history.state, "", url);
+    window.scrollTo(0, 0);
+  }
+
+  const categorias: Categoria[] = datos
+    ? [
+        {
+          id: "seguridad",
+          titulo: "Seguridad",
+          ayuda: "El PIN de acceso. Es el mismo para /admin y /taller.",
+          contenido: <CambiarPin incrustado onNoAutorizado={onNoAutorizado} />,
+        },
+        {
+          id: "respaldos",
+          titulo: "Respaldos",
+          ayuda: "Copia de la base al arrancar el server y una vez por día.",
+          contenido: (
+            <Backups
+              estado={datos.backups}
+              onEstado={(backups) => setDatos((d) => d && { ...d, backups })}
+              onNoAutorizado={onNoAutorizado}
+            />
+          ),
+        },
+        ...GRUPOS.filter((g) => datos.ajustes.some((a) => a.grupo === g.id)).map(
+          (grupo): Categoria => ({
+            id: grupo.id,
+            titulo: grupo.titulo,
+            ayuda: grupo.ayuda,
+            contenido: (
+              <Ajustes
+                grupo={grupo}
+                ajustes={datos.ajustes.filter((a) => a.grupo === grupo.id)}
+                onGuardado={setDatos}
+                onNoAutorizado={onNoAutorizado}
+              />
+            ),
+          }),
+        ),
+      ]
+    : [];
+
+  // Un hash que no corresponde a ninguna categoría se ignora. En escritorio
+  // siempre hay una elegida (la primera por defecto).
+  const hayElegida = categorias.some((c) => c.id === elegida);
+  const actual = hayElegida ? elegida : escritorio ? (categorias[0]?.id ?? null) : null;
+  const categoria = categorias.find((c) => c.id === actual);
+
+  // En móvil, con una categoría abierta, el título general no hace falta: el
+  // botón "‹ Configuración" y el título de la categoría ocupan su lugar.
+  const verCabecera = escritorio || !categoria;
+
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <TituloSeccion
-          titulo="Configuración"
-          ayuda="El PIN, los backups de la base, el showroom, los cuidados del aviso de listo y los mensajes de post-venta."
-        />
-        <button
-          type="button"
-          onClick={onVolver}
-          className={`${BOTON_SUAVE} h-14 px-6 text-lg sm:text-xl`}
-        >
-          ← Volver a los autos
-        </button>
-      </div>
+      {verCabecera && (
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <TituloSeccion
+            titulo="Configuración"
+            ayuda="El PIN, los respaldos de la base, el showroom, los cuidados del aviso de listo y los mensajes de post-venta."
+          />
+          <button
+            type="button"
+            onClick={onVolver}
+            className={`${BOTON_SUAVE} h-12 px-6 text-lg`}
+          >
+            ← Volver a los autos
+          </button>
+        </div>
+      )}
 
       {error && (
-        <div className={`${AVISO_ERROR} mt-6 px-4 py-3 text-lg sm:mt-8 sm:text-xl`}>
+        <div role="alert" className={`${AVISO_ERROR} mt-6 px-4 py-3 text-lg sm:mt-8`}>
           <p>{error}</p>
           <button
             type="button"
@@ -92,27 +207,68 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
       )}
 
       {!datos ? (
-        !error && (
-          <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>Cargando…</p>
-        )
+        !error && <p className={`${TEXTO_VACIO} p-10 text-xl sm:p-16`}>Cargando…</p>
       ) : (
-        <div className="mt-6 grid grid-cols-1 items-start gap-5 sm:mt-9 sm:gap-7 lg:grid-cols-2">
-          <CambiarPin onNoAutorizado={onNoAutorizado} />
-          <Backups
-            estado={datos.backups}
-            onEstado={(backups) => setDatos((d) => d && { ...d, backups })}
-            onNoAutorizado={onNoAutorizado}
-          />
-          {GRUPOS.map((grupo) => (
-            <div key={grupo.id} className="lg:col-span-2">
-              <Ajustes
-                grupo={grupo}
-                ajustes={datos.ajustes.filter((a) => a.grupo === grupo.id)}
-                onGuardado={setDatos}
-                onNoAutorizado={onNoAutorizado}
-              />
-            </div>
-          ))}
+        <div
+          className={`${verCabecera ? "mt-6 sm:mt-8" : ""} lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:items-start lg:gap-10`}
+        >
+          {(escritorio || !categoria) && (
+            <nav aria-label="Categorías de configuración" className="lg:sticky lg:top-6">
+              <ul className="flex flex-col gap-2">
+                {categorias.map((c) => {
+                  const activa = escritorio && c.id === actual;
+                  return (
+                    <li key={c.id}>
+                      <button
+                        type="button"
+                        onClick={() => elegir(c.id)}
+                        aria-current={activa ? "page" : undefined}
+                        className={`flex min-h-14 w-full items-center justify-between gap-3 rounded-lg border px-4 py-2 text-left text-lg font-medium text-tinta focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-tinta ${
+                          activa
+                            ? "border-tinta bg-crema-alta font-semibold"
+                            : "border-linea bg-crema-alta hover:bg-arena/60 lg:border-transparent lg:bg-transparent"
+                        }`}
+                      >
+                        <span>{c.titulo}</span>
+                        {!escritorio && (
+                          <span aria-hidden="true" className="text-3xl leading-none text-tinta-suave">
+                            ›
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </nav>
+          )}
+
+          {categoria && (
+            <section aria-labelledby="titulo-categoria" className="min-w-0">
+              {!escritorio && (
+                <button
+                  type="button"
+                  onClick={() => elegir(null)}
+                  className={`${BOTON_SUAVE} mb-5 h-12 px-5 text-lg`}
+                >
+                  ‹ Configuración
+                </button>
+              )}
+              <h2
+                id="titulo-categoria"
+                className="text-2xl leading-tight font-semibold tracking-[-0.02em] text-tinta sm:text-3xl"
+              >
+                {categoria.titulo}
+              </h2>
+              {categoria.ayuda && (
+                <p className="mt-1 mb-5 max-w-2xl text-base text-tinta-suave sm:text-lg">
+                  {categoria.ayuda}
+                </p>
+              )}
+              {!categoria.ayuda && <div className="mb-5" />}
+              {categoria.contenido}
+            </section>
+          )}
         </div>
       )}
     </>
@@ -150,60 +306,65 @@ function Backups({ estado, onEstado, onNoAutorizado }: BackupsProps) {
   }
 
   return (
-    <TarjetaConfig
-      titulo="Backups"
-      ayuda="Copia de la base al arrancar el server y una vez por día."
-    >
-      <div className={GRUPO}>
-        <Dato etiqueta="Último backup">
-          {ultimo ? cuando(ultimo.fecha) : "Todavía no hay ninguno"}
-        </Dato>
-        {ultimo && <Dato etiqueta="Tamaño">{tamano(ultimo.bytes)}</Dato>}
-        <Dato etiqueta="Guardados">
-          {estado.cantidad} de {estado.maximo}
-        </Dato>
-      </div>
-
-      <p className="mt-3 px-1 text-sm break-all text-tinta-suave">
-        Carpeta en la PC servidor: {estado.carpeta}
-      </p>
+    <div className={CONTENEDOR_FILAS}>
+      <Dato etiqueta="Último backup">
+        {ultimo ? cuando(ultimo.fecha) : "Todavía no hay ninguno"}
+      </Dato>
+      {ultimo && <Dato etiqueta="Tamaño">{tamano(ultimo.bytes)}</Dato>}
+      <Dato etiqueta="Guardados">
+        {estado.cantidad} de {estado.maximo}
+      </Dato>
+      <Fila
+        titulo="Carpeta en la PC servidor"
+        ayuda={<span className="break-all">{estado.carpeta}</span>}
+      />
 
       {/* El error de recién (el del botón) le gana al del último intento que
           vino con los datos: es más nuevo. */}
-      {error ? (
-        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>
-      ) : (
-        ultimoError && (
-          <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
-            El último backup falló ({cuando(ultimoError.fecha).toLowerCase()}):{" "}
-            {ultimoError.mensaje}
-          </p>
-        )
-      )}
-      {listo && (
-        <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>Backup hecho.</p>
+      {(error || ultimoError || listo) && (
+        <div className="px-4 py-4 sm:px-5">
+          {error ? (
+            <p role="alert" className={`${AVISO_ERROR} px-4 py-3 text-lg`}>{error}</p>
+          ) : (
+            ultimoError && (
+              <p role="alert" className={`${AVISO_ERROR} px-4 py-3 text-lg`}>
+                El último backup falló ({cuando(ultimoError.fecha).toLowerCase()}):{" "}
+                {ultimoError.mensaje}
+              </p>
+            )
+          )}
+          {listo && (
+            <p role="status" className={`${AVISO_OK} mt-3 px-4 py-3 text-lg first:mt-0`}>
+              Backup hecho.
+            </p>
+          )}
+        </div>
       )}
 
-      <button
-        type="button"
-        onClick={hacerAhora}
-        disabled={haciendo}
-        className={`${BOTON_MARCA} mt-5 h-14 w-full text-lg sm:h-16 sm:text-xl`}
-      >
-        {haciendo ? "Haciendo backup…" : "Hacer backup ahora"}
-      </button>
-    </TarjetaConfig>
+      <Fila
+        titulo="Hacer un backup ahora"
+        ayuda="Además de los automáticos."
+        control={
+          <button
+            type="button"
+            onClick={hacerAhora}
+            disabled={haciendo}
+            className={`${BOTON_MARCA} h-12 px-6 text-lg`}
+          >
+            {haciendo ? "Haciendo backup…" : "Hacer backup ahora"}
+          </button>
+        }
+      />
+    </div>
   );
 }
 
 // Una fila del grupo: etiqueta a la izquierda y el dato a la derecha.
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return (
-    <div className="flex min-h-[58px] items-center justify-between gap-4 border-t border-tinta/[0.08] px-4 py-2.5 first:border-t-0 sm:px-[18px]">
-      <span className="text-lg text-tinta-suave">{etiqueta}</span>
-      <span className="text-right text-lg font-semibold text-tinta tabular-nums sm:text-xl">
-        {children}
-      </span>
+    <div className="flex min-h-14 items-center justify-between gap-4 px-4 py-3 sm:px-5">
+      <span className="text-lg font-semibold text-tinta">{etiqueta}</span>
+      <span className="text-right text-lg text-tinta tabular-nums">{children}</span>
     </div>
   );
 }
@@ -220,12 +381,14 @@ interface Grupo {
   vacio?: string;
 }
 
-// Una tarjeta por grupo, en este orden. Un ajuste de un grupo que este front no
-// conoce (server más nuevo) no se muestra.
+// Una categoría por grupo, en este orden (después de Seguridad y Respaldos).
+// Un ajuste de un grupo que este front no conoce (server más nuevo) no se
+// muestra.
 const GRUPOS: Grupo[] = [
   {
     id: "showroom",
     titulo: "Pantalla del showroom",
+    ayuda: "Lo que se ve en la pantalla de los clientes.",
     guardado: "Guardado. El showroom ya se actualizó.",
   },
   {
@@ -255,20 +418,18 @@ interface AjustesProps {
 function Ajustes({ grupo, ajustes, onGuardado, onNoAutorizado }: AjustesProps) {
   if (ajustes.length === 0) return null;
   return (
-    <TarjetaConfig titulo={grupo.titulo} ayuda={grupo.ayuda}>
-      <div className="flex flex-col gap-4">
-        {ajustes.map((ajuste) => (
-          <CampoAjuste
-            key={ajuste.clave}
-            ajuste={ajuste}
-            textoGuardado={grupo.guardado}
-            textoVacio={grupo.vacio}
-            onGuardado={onGuardado}
-            onNoAutorizado={onNoAutorizado}
-          />
-        ))}
-      </div>
-    </TarjetaConfig>
+    <div className={CONTENEDOR_FILAS}>
+      {ajustes.map((ajuste) => (
+        <CampoAjuste
+          key={ajuste.clave}
+          ajuste={ajuste}
+          textoGuardado={grupo.guardado}
+          textoVacio={grupo.vacio}
+          onGuardado={onGuardado}
+          onNoAutorizado={onNoAutorizado}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -280,9 +441,10 @@ interface CampoProps<A extends Ajuste> {
   onNoAutorizado: () => void;
 }
 
-// Un campo por tipo de ajuste. Para sumar un tipo: agregarlo a `Ajuste` en
-// types.ts y acá su caso, con su propio campo (el guardado es el mismo: PATCH
-// /api/config con { clave: valor }, ver useGuardar).
+// Un campo por tipo de ajuste: cada uno es una fila del contenedor. Para sumar
+// un tipo: agregarlo a `Ajuste` en types.ts y acá su caso, con su propio campo
+// (el guardado es el mismo: PATCH /api/config con { clave: valor }, ver
+// useGuardar).
 function CampoAjuste({ ajuste, ...resto }: CampoProps<Ajuste>) {
   switch (ajuste.tipo) {
     case "entero":
@@ -345,13 +507,15 @@ function Resultado({
   listo: boolean;
   textoGuardado: string;
 }) {
-  if (error) return <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>;
-  if (listo) return <p className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>{textoGuardado}</p>;
+  if (error)
+    return <p role="alert" className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>{error}</p>;
+  if (listo)
+    return <p role="status" className={`${AVISO_OK} mt-4 px-4 py-3 text-lg`}>{textoGuardado}</p>;
   return null;
 }
 
-// Ajuste entero: "−" / valor / "+" grandes, entre min y max, y "Guardar" que
-// se habilita solo si el valor cambió.
+// Ajuste entero: "−" / valor / "+" entre min y max, y "Guardar" que se
+// habilita solo si el valor cambió. Todo a la derecha de la fila.
 function CampoEntero({
   ajuste,
   textoGuardado,
@@ -372,15 +536,18 @@ function CampoEntero({
     limpiar();
   }
 
-  const BOTON_PASO = `${BOTON_SUAVE} flex h-16 w-16 shrink-0 items-center justify-center text-4xl font-normal sm:h-[72px] sm:w-[72px]`;
+  const BOTON_PASO = `${BOTON_SUAVE} flex h-12 w-12 shrink-0 items-center justify-center text-2xl font-normal`;
 
   return (
-    <div className={`${GRUPO} p-4 sm:p-[18px]`}>
-      <p className="text-xl font-semibold text-tinta sm:text-[22px]">{ajuste.etiqueta}</p>
-      <p className="mt-1 text-base text-tinta-suave sm:text-lg">{ajuste.ayuda}</p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-4 sm:gap-6">
-        <div className="flex items-center gap-3">
+    <Fila
+      titulo={ajuste.etiqueta}
+      ayuda={
+        <>
+          {ajuste.ayuda} De {ajuste.min} a {ajuste.max} (valor inicial: {ajuste.porDefecto}).
+        </>
+      }
+      control={
+        <>
           <button
             type="button"
             onClick={() => sumar(-1)}
@@ -390,7 +557,10 @@ function CampoEntero({
           >
             −
           </button>
-          <span className="min-w-[3ch] text-center text-4xl font-[650] tracking-[-0.03em] text-tinta tabular-nums sm:text-5xl">
+          <span
+            aria-live="polite"
+            className="min-w-[3ch] text-center text-2xl font-semibold text-tinta tabular-nums"
+          >
             {valor}
           </span>
           <button
@@ -402,29 +572,25 @@ function CampoEntero({
           >
             +
           </button>
-        </div>
-
-        <button
-          type="button"
-          onClick={() => cambiado && guardar(valor)}
-          disabled={!cambiado || guardando}
-          className={`${BOTON_MARCA} h-14 min-w-40 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
-        >
-          {guardando ? "Guardando…" : "Guardar"}
-        </button>
-      </div>
-
-      <p className="mt-3 text-base text-tinta-suave">
-        De {ajuste.min} a {ajuste.max} (valor inicial: {ajuste.porDefecto}).
-      </p>
-
+          <button
+            type="button"
+            onClick={() => cambiado && guardar(valor)}
+            disabled={!cambiado || guardando}
+            className={`${BOTON_MARCA} h-12 px-6 text-lg`}
+          >
+            {guardando ? "Guardando…" : "Guardar"}
+          </button>
+        </>
+      }
+    >
       <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
-    </div>
+    </Fila>
   );
 }
 
 // Ajuste sí/no: toda la fila es el interruptor y se guarda al tocarla (no hay
-// "Guardar": es un solo toque, como en el teléfono).
+// "Guardar": es un solo toque, como en el teléfono). El estado se lee también
+// como texto ("Activado" / "Desactivado").
 function CampoBooleano({
   ajuste,
   textoGuardado,
@@ -438,27 +604,23 @@ function CampoBooleano({
   );
 
   return (
-    <div className={GRUPO}>
+    <div>
       <button
         type="button"
         role="switch"
         aria-checked={ajuste.valor}
         onClick={() => guardar(!ajuste.valor)}
         disabled={guardando}
-        className="flex min-h-[72px] w-full items-center gap-4 p-4 text-left transition-colors active:bg-tinta/[0.04] disabled:opacity-60 sm:p-[18px]"
+        className="flex min-h-[72px] w-full items-center gap-4 px-4 py-4 text-left hover:bg-arena/40 focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-tinta disabled:opacity-60 sm:px-5"
       >
         <span className="min-w-0 flex-1">
-          <span className="block text-xl font-semibold text-tinta sm:text-[22px]">
-            {ajuste.etiqueta}
-          </span>
-          <span className="mt-1 block text-base text-tinta-suave sm:text-lg">
-            {ajuste.ayuda}
-          </span>
+          <span className="block text-lg font-semibold text-tinta">{ajuste.etiqueta}</span>
+          <span className="mt-1 block text-base text-tinta-suave">{ajuste.ayuda}</span>
         </span>
-        <Interruptor prendido={ajuste.valor} />
+        <Interruptor prendido={ajuste.valor} conTexto />
       </button>
       {(error || listo) && (
-        <div className="px-4 pb-4 sm:px-[18px]">
+        <div className="px-4 pb-4 sm:px-5">
           <Resultado error={error} listo={listo} textoGuardado={textoGuardado} />
         </div>
       )}
@@ -477,6 +639,7 @@ function CampoTexto({
   onGuardado,
   onNoAutorizado,
 }: CampoProps<AjusteTexto>) {
+  const idCampo = useId();
   const [valor, setValor] = useState(ajuste.valor);
   const { guardando, error, listo, guardar, limpiar } = useGuardar(
     ajuste.clave,
@@ -494,39 +657,32 @@ function CampoTexto({
     limpiar();
   }
 
-  const CAMPO =
-    "w-full min-w-0 rounded-2xl bg-tinta/[0.05] px-4 text-xl text-tinta caret-[#be8a18] outline-none transition-colors placeholder:text-[#A89B84] focus:bg-marca/[0.12] sm:text-[22px]";
-
   return (
-    <div className={`${GRUPO} p-4 sm:p-[18px]`}>
-      <label>
-        <span className="block text-xl font-semibold text-tinta sm:text-[22px]">
-          {ajuste.etiqueta}
-        </span>
-        <span className="mt-1 block text-base text-tinta-suave sm:text-lg">{ajuste.ayuda}</span>
-        {ajuste.multilinea ? (
-          <textarea
-            value={valor}
-            rows={4}
-            placeholder={ajuste.permiteVacio ? textoVacio : undefined}
-            onChange={(e) => cambiar(e.target.value)}
-            className={`${CAMPO} mt-4 resize-y py-3 leading-snug`}
-          />
-        ) : (
-          <input
-            type={ajuste.formato === "url" ? "url" : "text"}
-            inputMode={ajuste.formato === "url" ? "url" : undefined}
-            autoComplete="off"
-            value={valor}
-            placeholder={ajuste.formato === "url" ? "https://…" : undefined}
-            onChange={(e) => cambiar(e.target.value)}
-            className={`${CAMPO} mt-4 h-14 sm:h-16`}
-          />
-        )}
-      </label>
+    <Fila titulo={ajuste.etiqueta} ayuda={ajuste.ayuda} paraCampo={idCampo}>
+      {ajuste.multilinea ? (
+        <textarea
+          id={idCampo}
+          value={valor}
+          rows={4}
+          placeholder={ajuste.permiteVacio ? textoVacio : undefined}
+          onChange={(e) => cambiar(e.target.value)}
+          className={`${CAMPO_TEXTO} mt-3 resize-y py-3 leading-snug`}
+        />
+      ) : (
+        <input
+          id={idCampo}
+          type={ajuste.formato === "url" ? "url" : "text"}
+          inputMode={ajuste.formato === "url" ? "url" : undefined}
+          autoComplete="off"
+          value={valor}
+          placeholder={ajuste.formato === "url" ? "https://…" : undefined}
+          onChange={(e) => cambiar(e.target.value)}
+          className={`${CAMPO_TEXTO} mt-3 h-12`}
+        />
+      )}
 
       <p
-        className={`mt-2 px-1 text-right text-base tabular-nums ${
+        className={`mt-2 text-right text-base tabular-nums ${
           largoOk ? "text-tinta-suave" : "font-semibold text-peligro"
         }`}
       >
@@ -538,7 +694,7 @@ function CampoTexto({
           type="button"
           onClick={() => puedeGuardar && guardar(limpio)}
           disabled={!puedeGuardar || guardando}
-          className={`${BOTON_MARCA} h-14 min-w-40 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
+          className={`${BOTON_MARCA} h-12 min-w-40 px-6 text-lg`}
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
@@ -547,7 +703,7 @@ function CampoTexto({
             type="button"
             onClick={() => cambiar(ajuste.porDefecto)}
             disabled={guardando}
-            className={`${BOTON_SUAVE} h-14 px-6 text-lg sm:h-16 sm:text-xl`}
+            className={`${BOTON_SUAVE} h-12 px-6 text-lg`}
           >
             Usar el de fábrica
           </button>
@@ -555,12 +711,12 @@ function CampoTexto({
       </div>
 
       {!largoOk && (
-        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
+        <p role="alert" className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
           Es muy largo: puede tener hasta {ajuste.maxLargo} caracteres.
         </p>
       )}
       <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
-    </div>
+    </Fila>
   );
 }
 
@@ -573,6 +729,7 @@ function CampoLista({
   onGuardado,
   onNoAutorizado,
 }: CampoProps<AjusteLista>) {
+  const idCampo = useId();
   const [frases, setFrases] = useState(ajuste.valor);
   const [nueva, setNueva] = useState("");
   const { guardando, error, listo, guardar, limpiar } = useGuardar(
@@ -601,29 +758,25 @@ function CampoLista({
   }
 
   return (
-    <div className={`${GRUPO} p-4 sm:p-[18px]`}>
-      <p className="text-xl font-semibold text-tinta sm:text-[22px]">{ajuste.etiqueta}</p>
-      <p className="mt-1 text-base text-tinta-suave sm:text-lg">{ajuste.ayuda}</p>
-
+    <Fila titulo={ajuste.etiqueta} ayuda={ajuste.ayuda} paraCampo={idCampo}>
       {frases.length === 0 ? (
-        <p className={`${TEXTO_VACIO} mt-4 rounded-2xl bg-tinta/[0.04] px-4 py-5 text-lg`}>
+        <p className={`${TEXTO_VACIO} mt-3 rounded-lg border border-linea bg-crema px-4 py-4 text-lg`}>
           Sin frases: en el showroom no se muestra ninguna.
         </p>
       ) : (
-        <ul className="mt-4 flex flex-col gap-2">
+        <ul className="mt-3 flex flex-col gap-2">
           {frases.map((frase, i) => (
             <li
               key={`${i}-${frase}`}
-              className="flex min-h-16 items-center gap-3 rounded-2xl bg-tinta/[0.05] py-2 pr-2 pl-4"
+              className="flex min-h-14 items-center gap-3 rounded-lg border border-linea bg-crema py-1.5 pr-1.5 pl-4"
             >
-              <span className="min-w-0 flex-1 text-xl break-words text-tinta sm:text-[22px]">
-                {frase}
-              </span>
+              <span className="min-w-0 flex-1 text-lg break-words text-tinta">{frase}</span>
               <button
                 type="button"
                 onClick={() => cambiar(frases.filter((_, j) => j !== i))}
                 disabled={guardando}
-                className={`${BOTON_SUAVE} h-14 shrink-0 px-5 text-lg sm:text-xl`}
+                aria-label={`Quitar: ${frase}`}
+                className={`${BOTON_SUAVE} h-12 shrink-0 px-5 text-lg`}
               >
                 Quitar
               </button>
@@ -632,8 +785,9 @@ function CampoLista({
         </ul>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-3 flex flex-wrap gap-3">
         <input
+          id={idCampo}
           type="text"
           autoComplete="off"
           value={nueva}
@@ -646,37 +800,37 @@ function CampoLista({
           onKeyDown={(e) => {
             if (e.key === "Enter") agregar();
           }}
-          className="h-14 min-w-0 flex-[1_1_16rem] rounded-2xl bg-tinta/[0.05] px-4 text-xl text-tinta caret-[#be8a18] outline-none transition-colors placeholder:text-[#A89B84] focus:bg-marca/[0.12] disabled:opacity-60 sm:h-16 sm:text-[22px]"
+          className={`${CAMPO_TEXTO} h-12 flex-[1_1_16rem]`}
         />
         <button
           type="button"
           onClick={agregar}
           disabled={!puedeAgregar}
-          className={`${BOTON_SUAVE} h-14 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
+          className={`${BOTON_SUAVE} h-12 px-6 text-lg`}
         >
           Agregar
         </button>
       </div>
 
       <p
-        className={`mt-2 px-1 text-right text-base tabular-nums ${
+        className={`mt-2 text-right text-base tabular-nums ${
           largoOk ? "text-tinta-suave" : "font-semibold text-peligro"
         }`}
       >
         {frases.length} de {ajuste.maxCantidad} frases · {limpia.length} / {ajuste.maxLargo}
       </p>
       {!largoOk && (
-        <p className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
+        <p role="alert" className={`${AVISO_ERROR} mt-4 px-4 py-3 text-lg`}>
           Es muy larga: cada frase puede tener hasta {ajuste.maxLargo} caracteres.
         </p>
       )}
 
-      <div className="mt-4 flex flex-wrap gap-3">
+      <div className="mt-3 flex flex-wrap gap-3">
         <button
           type="button"
           onClick={() => cambiado && guardar(frases)}
           disabled={!cambiado || guardando}
-          className={`${BOTON_MARCA} h-14 min-w-40 flex-1 px-6 text-lg sm:h-16 sm:flex-none sm:text-xl`}
+          className={`${BOTON_MARCA} h-12 min-w-40 px-6 text-lg`}
         >
           {guardando ? "Guardando…" : "Guardar"}
         </button>
@@ -685,7 +839,7 @@ function CampoLista({
             type="button"
             onClick={() => cambiar(ajuste.porDefecto)}
             disabled={guardando}
-            className={`${BOTON_SUAVE} h-14 px-6 text-lg sm:h-16 sm:text-xl`}
+            className={`${BOTON_SUAVE} h-12 px-6 text-lg`}
           >
             Usar las de fábrica
           </button>
@@ -693,9 +847,10 @@ function CampoLista({
       </div>
 
       <Resultado error={error} listo={listo && !cambiado} textoGuardado={textoGuardado} />
-    </div>
+    </Fila>
   );
 }
+
 
 // ¿Las dos listas tienen las mismas frases, en el mismo orden?
 function mismasFrases(a: string[], b: string[]): boolean {

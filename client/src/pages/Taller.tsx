@@ -15,7 +15,7 @@ import {
 } from "../api";
 import { borrarPin, leerPin } from "../sesion";
 import type { EstadoServicio, Vehiculo } from "../types";
-import { AVISO, BOTON_SUAVE, TEXTO_VACIO } from "../tema";
+import { AVISO_CONEXION, BOTON_SUAVE, TEXTO_VACIO } from "../tema";
 import { CabeceraCurva } from "../components/CabeceraCurva";
 import { PinLogin } from "../components/PinLogin";
 import { TallerTarjeta } from "../components/TallerTarjeta";
@@ -103,7 +103,7 @@ export function Taller() {
 
   return (
     <div className="min-h-full fondo-claro">
-      {/* Barra cápsula de vidrio claro, flotando sobre el fondo de la página. */}
+      {/* Barra a todo el ancho, con la referencia de áreas. */}
       <CabeceraCurva
         alto="compacta"
         tono="claro"
@@ -112,25 +112,22 @@ export function Taller() {
           <button
             type="button"
             onClick={salir}
-            className={`${BOTON_SUAVE} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
+            className={`${BOTON_SUAVE} px-5 text-base sm:text-[17px]`}
           >
             Salir
           </button>
         }
       />
 
-      <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
+      {/* Mismos márgenes laterales que la barra de arriba. */}
+      <main className="px-3 pt-6 pb-10 sm:px-6 sm:pt-8 sm:pb-14 xl:px-10">
         {aviso && (
           <p
-            className={`${AVISO} mx-auto mb-6 flex w-fit max-w-full items-center justify-center gap-3 px-5 py-3 text-base shadow-[0_16px_40px_-18px_rgba(150,100,10,0.6)] sm:mb-8 sm:text-lg`}
+            role="status"
+            className={`${AVISO_CONEXION} mb-6 flex items-center gap-3 px-4 py-3 text-base sm:text-lg`}
           >
-            {/* Puntito que titila: está reintentando. */}
-            {aviso.reintentando && (
-              <span
-                aria-hidden="true"
-                className="animate-titilar h-2 w-2 shrink-0 rounded-full bg-tinta"
-              />
-            )}
+            {/* Ícono estático (sin animación): sin conexión, reintentando. */}
+            {aviso.reintentando && <IconoSinConexion />}
             {aviso.texto}
           </p>
         )}
@@ -141,13 +138,13 @@ export function Taller() {
         />
 
         {cargando ? (
-          <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>Cargando…</p>
+          <p className={`${TEXTO_VACIO} p-10 text-xl sm:p-16`}>Cargando…</p>
         ) : vehiculos.length === 0 ? (
-          <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>
+          <p className={`${TEXTO_VACIO} p-10 text-xl sm:p-16`}>
             No hay autos en el taller.
           </p>
         ) : (
-          <div className="mt-6 grid grid-cols-1 items-start gap-5 sm:mt-9 sm:gap-7 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-5 grid grid-cols-1 items-start gap-4 sm:mt-6 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
             {vehiculos.map((v) => (
               <TallerTarjeta
                 key={v.id}
@@ -174,4 +171,23 @@ function avisoDeError(e: unknown): Aviso {
   return e instanceof ErrorApi
     ? { texto: e.message, reintentando: false }
     : { texto: "Sin conexión con el servidor — reintentando…", reintentando: true };
+}
+
+// Ícono de "sin conexión" (triángulo de aviso), estático.
+function IconoSinConexion() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-6 w-6 shrink-0"
+    >
+      <path d="M12 3 2.5 20h19L12 3Z" />
+      <path d="M12 10v4.5M12 17.5h0" />
+    </svg>
+  );
 }

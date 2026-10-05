@@ -918,3 +918,69 @@ body {
 .tema-consola [class*="rounded-"]:not([class*="rounded-full"]) {
   border-radius: 2px;
 }
+
+/* ---------------------------------------------------------------------------
+   Animaciones de la consola de /taller. Solo transform y opacity, cortas
+   (150-250 ms, el destello 600 ms). La regla global de prefers-reduced-motion
+   de arriba las deja en 0,01 ms, así que también quedan cubiertas.
+   --------------------------------------------------------------------------- */
+@keyframes con-anim-entrada {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes con-anim-destello {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+@keyframes con-anim-aviso-entra {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes con-anim-aviso-sale {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+/* Pantalla o modo que aparece: fade + deslizamiento corto. */
+@utility con-anim-entrada {
+  animation: con-anim-entrada 220ms ease-out both;
+}
+/* Tarjeta de una grilla en la primera carga (la demora va en el componente). */
+@utility con-anim-item {
+  animation: con-anim-entrada 200ms ease-out both;
+}
+/* Destello del fondo de lo que se acaba de tocar (solo opacity). */
+@utility con-anim-destello {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-color: rgba(28, 30, 38, 0.1);
+  animation: con-anim-destello 600ms ease-out both;
+}
+@utility con-anim-aviso-entra {
+  animation: con-anim-aviso-entra 220ms ease-out both;
+}
+@utility con-anim-aviso-sale {
+  animation: con-anim-aviso-sale 180ms ease-in both;
+}

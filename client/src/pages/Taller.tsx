@@ -5,7 +5,9 @@
 // Reusa el login por PIN de /admin (mismo PIN, misma clave de localStorage, así la
 // tablet del taller se loguea una sola vez) y se actualiza en vivo como /display:
 // escucha el evento de Socket.IO y refetchea, con un poll de 30 s de respaldo.
-import { useCallback, useEffect, useState } from "react";
+// Tablero por estado de TRABAJOS (un servicio de un auto), con filtro de área
+// guardado en la tablet y aviso para deshacer el último cambio.
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
 import {
   ErrorApi,
@@ -14,12 +16,28 @@ import {
   obtenerVehiculosAdmin,
 } from "../api";
 import { borrarPin, leerPin } from "../sesion";
-import type { EstadoServicio, Vehiculo } from "../types";
-import { AVISO_CONEXION, BOTON_SUAVE, TEXTO_VACIO } from "../tema";
-import { CabeceraCurva } from "../components/CabeceraCurva";
+import type { EstadoServicio, TipoServicio, Vehiculo } from "../types";
+import { NOMBRE_AREA, NOMBRE_ESTADO } from "../dominio";
 import { PinLogin } from "../components/PinLogin";
-import { TallerTarjeta } from "../components/TallerTarjeta";
-import { TituloSeccion } from "../components/TituloSeccion";
+import { TallerAvisoDeshacer } from "../components/TallerAvisoDeshacer";
+import type { AvisoDeshacer } from "../components/TallerAvisoDeshacer";
+import { TallerCabecera } from "../components/TallerCabecera";
+import { TallerEleccionModo } from "../components/TallerEleccionModo";
+import { TallerFiltroArea } from "../components/TallerFiltroArea";
+import { TallerGeneral } from "../components/TallerGeneral";
+import { TallerSectores } from "../components/TallerSectores";
+import { TallerTablero } from "../components/TallerTablero";
+import {
+  armarTablero,
+  guardarArea,
+  leerArea,
+  type Toque,
+  type Trabajo,
+} from "../components/tallerTablero";
+
+// Pantallas: elegir modo (siempre al entrar, no se guarda), General (tarjeta por
+// auto), elegir sector y el tablero por estado de un sector.
+type Pantalla = "eleccion" | "general" | "sector-eleccion" | "sector";
 
 // Poll de respaldo por si el socket se pierde algún evento.
 const MS_REFRESCO = 30_000;
@@ -32,6 +50,22 @@ export function Taller() {
   // server (ej. 429 por demasiados intentos, que no es un problema de conexión).
   const [aviso, setAviso] = useState<Aviso | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [socketConectado, setSocketConectado] = useState(true);
+  const [pantalla, setPantalla] = useState<Pantalla>("eleccion");
+  // Sector del modo "Por sector". Lo guardado solo resalta la opción en la
+  // pantalla de elección de sector.
+  const [area, setArea] = useState<TipoServicio | null>(leerArea);
+  // Último servicio tocado: su tarjeta destella un instante.
+  const [toque, setToque] = useState<Toque | null>(null);
+  // Último cambio, para ofrecer deshacerlo unos segundos.
+  const [deshacer, setDeshacer] = useState<
+    (AvisoDeshacer & { servicioId: number; previo: EstadoServicio }) | null
+  >(null);
+
+  const tablero = useMemo(
+    () => armarTablero(vehiculos, area),
+    [vehiculos, area],
+  );
 
   // 401 (PIN viejo) => volver al login, que corta el poll y el socket.
   const cargar = useCallback(async () => {
@@ -57,8 +91,14 @@ export function Taller() {
     const id = setInterval(cargar, MS_REFRESCO);
 
     const socket = io();
+    const alConectar = () => {
+      setSocketConectado(true);
+      cargar();
+    };
+    const alDesconectar = () => setSocketConectado(false);
     socket.on("vehiculos:cambio", cargar);
-    socket.on("connect", cargar);
+    socket.on("connect", alConectar);
+    socket.on("disconnect", alDesconectar);
 
     return () => {
       clearInterval(id);
@@ -66,28 +106,77 @@ export function Taller() {
     };
   }, [logueado, cargar]);
 
-  // Cambiar el estado de un servicio. El evento del server hace que el cambio
+  const claveToque = toque?.clave;
+  useEffect(() => {
+    if (claveToque === undefined) return;
+    const id = setTimeout(() => setToque(null), 900);
+    return () => clearTimeout(id);
+  }, [claveToque]);
+
+  // Cambia el estado de un servicio. El evento del server hace que el cambio
   // (propio y de otras tablets) aparezca solo; igual refetcheamos por las dudas.
-  async function cambiar(servicioId: number, estado: EstadoServicio) {
+  // Devuelve si salió bien.
+  async function aplicar(servicioId: number, estado: EstadoServicio) {
     setOcupado(true);
     try {
       await cambiarEstadoServicio(servicioId, estado);
       await cargar();
+      return true;
     } catch (e) {
       if (e instanceof NoAutorizado) {
         setLogueado(false);
       } else {
         setAviso(avisoDeError(e));
       }
+      return false;
     } finally {
       setOcupado(false);
     }
+  }
+
+  async function cambiar(trabajo: Trabajo, estado: EstadoServicio) {
+    const { vehiculo: v, servicio: s } = trabajo;
+    const previo = s.estado;
+    const ok = await aplicar(s.id, estado);
+    if (ok) {
+      setToque({ servicioId: s.id, clave: Date.now() });
+      setDeshacer({
+        clave: Date.now(),
+        servicioId: s.id,
+        previo,
+        texto: `${NOMBRE_AREA[s.tipo]} de ${v.marca} ${v.modelo} → ${NOMBRE_ESTADO[estado]}`,
+      });
+    }
+  }
+
+  async function deshacerUltimo() {
+    if (!deshacer) return;
+    const { servicioId, previo } = deshacer;
+    setDeshacer(null);
+    if (await aplicar(servicioId, previo)) {
+      setToque({ servicioId, clave: Date.now() });
+    }
+  }
+
+  const cerrarDeshacer = useCallback(() => setDeshacer(null), []);
+
+  function elegirArea(a: TipoServicio) {
+    setArea(a);
+    guardarArea(a);
+  }
+
+  // Cambiar de pantalla descarta el aviso de deshacer.
+  function ir(p: Pantalla) {
+    setDeshacer(null);
+    setPantalla(p);
   }
 
   function salir() {
     borrarPin();
     setLogueado(false);
     setVehiculos([]);
+    setDeshacer(null);
+    setPantalla("eleccion");
   }
 
   if (!logueado) {
@@ -101,61 +190,79 @@ export function Taller() {
     );
   }
 
+  const enVivo = socketConectado && !aviso?.reintentando;
+
   return (
-    <div className="min-h-full fondo-claro">
-      {/* Barra a todo el ancho, con la referencia de áreas. */}
-      <CabeceraCurva
-        alto="compacta"
-        tono="claro"
-        conos
-        acciones={
-          <button
-            type="button"
-            onClick={salir}
-            className={`${BOTON_SUAVE} px-5 text-base sm:text-[17px]`}
-          >
-            Salir
-          </button>
+    <div className="flex min-h-dvh flex-col bg-con-fondo tracking-[-0.01em] text-con-texto">
+      <TallerCabecera
+        enVivo={enVivo}
+        onSalir={salir}
+        onCambiarModo={
+          pantalla === "eleccion" ? undefined : () => ir("eleccion")
         }
       />
 
-      {/* Mismos márgenes laterales que la barra de arriba. */}
-      <main className="px-3 pt-6 pb-10 sm:px-6 sm:pt-8 sm:pb-14 xl:px-10">
-        {aviso && (
+      {/* Espacio abajo: el aviso de deshacer no tapa las acciones. */}
+      <main className="flex flex-col gap-4 px-3 pt-4 pb-32 sm:px-6 sm:pt-6">
+        {aviso && !aviso.reintentando && (
           <p
-            role="status"
-            className={`${AVISO_CONEXION} mb-6 flex items-center gap-3 px-4 py-3 text-base sm:text-lg`}
+            role="alert"
+            className="rounded-sm border border-con-peligro/60 bg-con-peligro/10 px-4 py-3 text-lg font-medium text-[#8f1d17]"
           >
-            {/* Ícono estático (sin animación): sin conexión, reintentando. */}
-            {aviso.reintentando && <IconoSinConexion />}
             {aviso.texto}
           </p>
         )}
 
-        <TituloSeccion
-          titulo="Trabajos del taller"
-          ayuda="Tocá el estado de cada trabajo para actualizarlo."
-        />
-
-        {cargando ? (
-          <p className={`${TEXTO_VACIO} p-10 text-xl sm:p-16`}>Cargando…</p>
-        ) : vehiculos.length === 0 ? (
-          <p className={`${TEXTO_VACIO} p-10 text-xl sm:p-16`}>
-            No hay autos en el taller.
-          </p>
-        ) : (
-          <div className="mt-5 grid grid-cols-1 items-start gap-4 sm:mt-6 sm:gap-5 lg:grid-cols-2 xl:grid-cols-3">
-            {vehiculos.map((v) => (
-              <TallerTarjeta
-                key={v.id}
-                vehiculo={v}
+        {/* key: cada pantalla entra con su fade + deslizamiento corto. */}
+        <div key={pantalla} className="con-anim-entrada flex flex-col gap-4">
+          {pantalla === "eleccion" ? (
+            <TallerEleccionModo
+              onElegir={(m) =>
+                ir(m === "general" ? "general" : "sector-eleccion")
+              }
+            />
+          ) : cargando ? (
+            <p className="p-10 text-center text-xl text-con-suave sm:p-16">
+              Cargando…
+            </p>
+          ) : pantalla === "general" ? (
+            <TallerGeneral
+              vehiculos={vehiculos}
+              toque={toque}
+              ocupado={ocupado}
+              onCambiar={cambiar}
+            />
+          ) : pantalla === "sector-eleccion" || !area || !tablero ? (
+            <TallerSectores
+              vehiculos={vehiculos}
+              ultimo={area}
+              onElegir={(a) => {
+                elegirArea(a);
+                ir("sector");
+              }}
+            />
+          ) : (
+            <>
+              <TallerFiltroArea area={area} onArea={elegirArea} />
+              <TallerTablero
+                key={area}
+                tablero={tablero}
+                area={area}
+                toque={toque}
                 ocupado={ocupado}
-                onCambiarEstado={cambiar}
+                onCambiar={cambiar}
               />
-            ))}
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </main>
+
+      <TallerAvisoDeshacer
+        aviso={deshacer}
+        ocupado={ocupado}
+        onDeshacer={deshacerUltimo}
+        onCerrar={cerrarDeshacer}
+      />
     </div>
   );
 }
@@ -170,24 +277,8 @@ interface Aviso {
 function avisoDeError(e: unknown): Aviso {
   return e instanceof ErrorApi
     ? { texto: e.message, reintentando: false }
-    : { texto: "Sin conexión con el servidor — reintentando…", reintentando: true };
-}
-
-// Ícono de "sin conexión" (triángulo de aviso), estático.
-function IconoSinConexion() {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-      className="h-6 w-6 shrink-0"
-    >
-      <path d="M12 3 2.5 20h19L12 3Z" />
-      <path d="M12 10v4.5M12 17.5h0" />
-    </svg>
-  );
+    : {
+        texto: "Sin conexión con el servidor — reintentando…",
+        reintentando: true,
+      };
 }

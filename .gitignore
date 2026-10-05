@@ -10,6 +10,9 @@ server/data/*.db
 server/data/*.db-shm
 server/data/*.db-wal
 
+# Base y backups del modo presentación (npm run demo): se recrean en cada arranque.
+server/data/demo/
+
 # Backups automáticos de la base (tienen los datos de los clientes). La carpeta
 # queda en git vacía (.gitkeep) para que exista antes de levantar Docker.
 server/data/backups/*

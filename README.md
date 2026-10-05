@@ -319,6 +319,89 @@ terminar): **nunca tocan `server/data/taller.db`** ni se conectan a WhatsApp (lo
 envíos son de mentira). Se pueden correr con el server de desarrollo andando.
 Están en `server/test/`, fuera de `src/`, así que no terminan en el build.
 
+## Modo presentación
+
+Para mostrar el sistema en vivo sin tocar nada real. `npm run demo` levanta el
+tablero con una **base propia** (`server/data/demo/demo.db`, se borra y se
+arma de nuevo en cada arranque) con 5 autos falsos ya cargados, y comprime a
+segundos los tiempos de los mensajes de WhatsApp para que se vean durante la
+presentación. La base real (`server/data/taller.db`) **no se toca nunca**.
+
+```bash
+cd server
+npm run demo                  # WhatsApp REAL (la sesión ya vinculada)
+AVISOS_ENVIO=log npm run demo # ensayo: los mensajes salen en la consola, no le escribe a nadie
+npm run demo -- --build       # fuerza recompilar el cliente (si no, solo compila si falta client/dist)
+```
+
+Al arrancar imprime un cartel con las URLs (con la IP local, por ejemplo
+`http://192.168.1.50:3001/admin`), el cronograma y el PIN de `/admin`: **1234**.
+Corre en el puerto **3001** (se cambia con `PORT=3002 npm run demo`); si está
+ocupado, avisa con un error claro.
+
+**Qué cambia en la demo** (solo con `MODO_DEMO=1`, que el script ya pone; sin esa
+variable todo funciona como siempre):
+
+| Mensaje al cliente | Cuándo sale |
+| --- | --- |
+| Ingreso ("tu auto entró") | ~10 s después de crear el auto |
+| "Ya arrancamos" | ~10 s después de pasar un servicio a en proceso |
+| "Listo" | ~10 s después de terminar todos los servicios |
+| Pedido de reseña | ~45 s después de retirar el auto |
+| Mantenimiento | ~105 s después de retirar (solo si tiene vitrificado) |
+
+Los estados y el retiro los cambia el presentador a mano: el server no avanza
+solo. En la demo la post-venta ignora el horario, los domingos y el espaciado, y
+el link de reseñas es uno falso (`https://ejemplo.invalid/resenas-ml-center-demo`).
+Los 5 autos de ejemplo no tienen celular ni aceptan mensajes: no escriben a nadie.
+Los tiempos se ajustan con `DEMO_RESENA_SEG` y `DEMO_MANTENIMIENTO_SEG`.
+
+**Qué verá en `/reportes`:** la demo trae ~50 autos falsos ya retirados, repartidos
+en las últimas ~5 semanas (más movimiento de martes a viernes, poco los sábados,
+nada los domingos, con algunos autos de 2 o 3 servicios y un par que tardaron
+mucho más). El PIN de `/reportes` ya está creado: **5678** (el de `/admin` sigue
+siendo 1234). Los números son **inventados** y se calculan **relativos a hoy**
+(misma demo cada vez, siempre vigente): la semana actual llega hasta hoy, la
+anterior está completa. Si hoy es lunes o los primeros días del mes, la semana o
+el mes actual tendrán poco: es normal, se ve lleno yendo a la semana anterior o
+al mes anterior con las flechas. Esos autos no aparecen en `/admin`, `/taller` ni
+`/display` y no generan mensajes.
+
+### Guion sugerido (unos 4 minutos)
+
+1. Mostrar `/display` (los 5 autos, los tres conos, una tarjeta "Listo") y abrir
+   `/admin` con el PIN 1234.
+2. En `/admin`, crear un auto con **tu celular real**, servicios que incluyan
+   **vitrificado** y el interruptor de **WhatsApp encendido**. A los ~10 s llega
+   el mensaje de **ingreso**.
+3. Pasar un servicio a **en proceso**. A los ~10 s llega **"ya arrancamos"**.
+4. Terminar todos los servicios. A los ~10 s llega **"listo"** (con los cuidados
+   de cada servicio).
+5. **Retirar** el auto. A los ~45 s llega el **pedido de reseña** y a los ~105 s
+   el de **mantenimiento** (porque tiene vitrificado). Mientras tanto se puede
+   mostrar `/taller` y `/reportes`.
+
+Entre mensaje y mensaje, WhatsApp respeta una pausa mínima de unos segundos, así
+que pueden llegar un poco después de lo indicado.
+
+### Límites y cuidados
+
+- El **server real y Docker no pueden estar corriendo a la vez**: comparten la
+  sesión de WhatsApp (un solo proceso puede usarla). Apagalos antes de presentar.
+- Con `MODO_DEMO=1` el server se niega a arrancar sin `DB_PATH` explícito o si la
+  base no se llama `demo.db`: es la guarda para no ensuciar la base real. No lo
+  uses a mano contra `taller.db`.
+- Los mensajes salen reales: se prueba con tu propio celular. Para ensayar sin
+  escribirle a nadie, `AVISOS_ENVIO=log`.
+- La demo necesita Node con las dependencias del server instaladas (`npm install`
+  en `server/` y en `client/`).
+
+### Volver a lo real
+
+Cortar la demo con Ctrl+C y levantar el server como siempre (`npm start`, o
+Docker). Nada de la demo quedó en la base real. Si querés, borrá la carpeta
+`server/data/demo/` (se vuelve a crear sola).
+
 ## La base de datos
 
 Es un solo archivo: `server/data/taller.db`. **No hay ningún paso manual de

@@ -1,9 +1,12 @@
 // Datos de ejemplo para arrancar el tablero sin tener /admin todavía.
 // Se cargan UNA sola vez: si la base ya tiene autos, no se toca nada.
+import { guardarAjustes } from "./ajustes.js";
 import { db } from "./db.js";
+import { cargarHistorialDemo } from "./demoHistorial.js";
+import { AJUSTES_DEMO, MODO_DEMO, SEMILLA_DEMO } from "./demo.js";
 import type { EstadoServicio, TipoServicio } from "./tipos.js";
 
-interface VehiculoSemilla {
+export interface VehiculoSemilla {
   marca: string;
   modelo: string;
   color: string;
@@ -117,6 +120,10 @@ function fechaHaceDias(dias: number): string {
 }
 
 export function sembrarSiVacia(): void {
+  // En la demo, los ajustes de post-venta quedan listos aunque la base ya
+  // tenga autos (ver demo.ts).
+  if (MODO_DEMO) guardarAjustes(AJUSTES_DEMO);
+
   const { total } = db.prepare("SELECT COUNT(*) AS total FROM vehiculos").get() as {
     total: number;
   };
@@ -149,9 +156,18 @@ export function sembrarSiVacia(): void {
         insertarServicio.run(Number(lastInsertRowid), servicio.tipo, servicio.estado);
       }
     }
+    // Demo: además, historial falso de ~5 semanas y el PIN de /reportes (en la
+    // misma transacción: o queda todo o no queda nada).
+    if (MODO_DEMO) {
+      const historicos = cargarHistorialDemo();
+      console.log(`Historial falso para /reportes: ${historicos} autos ya retirados.`);
+    }
   });
 
-  console.log("Base vacía: cargando datos de ejemplo…");
-  sembrar(SEMILLA);
-  console.log(`Datos de ejemplo cargados: ${SEMILLA.length} vehículos.`);
+  const semilla = MODO_DEMO ? SEMILLA_DEMO : SEMILLA;
+  console.log(
+    MODO_DEMO ? "Base vacía (MODO DEMO): cargando 5 autos falsos…" : "Base vacía: cargando datos de ejemplo…",
+  );
+  sembrar(semilla);
+  console.log(`Datos de ejemplo cargados: ${semilla.length} vehículos.`);
 }

@@ -12,6 +12,7 @@
 // Solo importa la base y los ajustes: avisos.ts y vehiculos.ts lo llaman a él.
 import { leerAjuste } from "./ajustes.js";
 import { db } from "./db.js";
+import { MODO_DEMO, desplazamientoPostventaDemo } from "./demo.js";
 
 export type TipoPostventa = "resena" | "mantenimiento";
 
@@ -33,7 +34,14 @@ export function programarPostventa(vehiculoId: number): void {
     `INSERT OR IGNORE INTO avisos (vehiculo_id, tipo, enviar_en)
      VALUES (?, ?, datetime('now', ?))`,
   );
-  programar.run(vehiculoId, "resena", `+${leerAjuste("postventa_resena_dias")} days`);
+  // Con MODO_DEMO los plazos son de segundos (demo.ts), no de días y meses.
+  const cuando = (tipo: TipoPostventa): string =>
+    MODO_DEMO
+      ? desplazamientoPostventaDemo(tipo)
+      : tipo === "resena"
+        ? `+${leerAjuste("postventa_resena_dias")} days`
+        : `+${leerAjuste("postventa_mantenimiento_meses")} months`;
+  programar.run(vehiculoId, "resena", cuando("resena"));
 
   const tuvoVitrificado = db
     .prepare(
@@ -42,11 +50,7 @@ export function programarPostventa(vehiculoId: number): void {
     )
     .get(vehiculoId);
   if (tuvoVitrificado) {
-    programar.run(
-      vehiculoId,
-      "mantenimiento",
-      `+${leerAjuste("postventa_mantenimiento_meses")} months`,
-    );
+    programar.run(vehiculoId, "mantenimiento", cuando("mantenimiento"));
   }
 }
 
@@ -55,6 +59,7 @@ export function programarPostventa(vehiculoId: number): void {
  * hora local de la PC servidor y, si es domingo, solo si está permitido.
  */
 export function horarioAbierto(ahora: Date): boolean {
+  if (MODO_DEMO) return true; // la demo ignora horario y domingos
   if (ahora.getDay() === 0 && !leerAjuste("postventa_domingos")) return false;
   const hora = ahora.getHours();
   return hora >= leerAjuste("postventa_hora_desde") && hora < leerAjuste("postventa_hora_hasta");
@@ -66,6 +71,9 @@ export function horarioAbierto(ahora: Date): boolean {
  * taller no cuentan.
  */
 export function espaciadoCumplido(): boolean {
+  // La demo ya espacia los mensajes con su cronograma; el despachador igual
+  // respeta la pausa mínima entre mensajes de whatsapp.ts.
+  if (MODO_DEMO) return true;
   const minutos = leerAjuste("postventa_espaciado_min");
   if (minutos === 0) return true;
   const reciente = db

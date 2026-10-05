@@ -9,6 +9,7 @@
 // post-venta: vehiculos.ts y servicios.ts lo llaman a él.
 import { leerAjuste } from "./ajustes.js";
 import { db } from "./db.js";
+import { DEMO_AVISOS_DEMORA_MIN, DEMO_AVISOS_INTERVALO_SEG, MODO_DEMO } from "./demo.js";
 import { ErrorDefinitivo, type Enviador } from "./enviadores.js";
 import {
   esPostventa,
@@ -25,9 +26,9 @@ export type TipoAvisoTaller = "ingreso" | "en_proceso" | "listo";
 export type TipoAviso = TipoAvisoTaller | TipoPostventa;
 
 // Minutos entre el cambio y el envío. Acepta decimales (0.1 = 6 s, para probar).
-export const DEMORA_MIN = leerNumero("AVISOS_DEMORA_MIN", 5);
+export const DEMORA_MIN = leerNumero("AVISOS_DEMORA_MIN", MODO_DEMO ? DEMO_AVISOS_DEMORA_MIN : 5);
 // Cada cuántos segundos el despachador busca avisos vencidos.
-export const INTERVALO_SEG = leerNumero("AVISOS_INTERVALO_SEG", 30, 1);
+export const INTERVALO_SEG = leerNumero("AVISOS_INTERVALO_SEG", MODO_DEMO ? DEMO_AVISOS_INTERVALO_SEG : 30, 1);
 
 // Tras este número de intentos fallidos, el aviso queda "fallido" y no se reintenta
 // solo (evaluarAvisos lo reprograma si un cambio de servicios lo hace corresponder).

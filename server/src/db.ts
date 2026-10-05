@@ -4,6 +4,7 @@ import Database from "better-sqlite3";
 import { mkdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
+import { MODO_DEMO, exigirBaseDemo } from "./demo.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -14,6 +15,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const rutaDb = process.env.DB_PATH
   ? resolve(process.env.DB_PATH)
   : join(__dirname, "..", "data", "taller.db");
+// Con MODO_DEMO solo se acepta una base llamada demo.db (ver demo.ts): se corta
+// ANTES de crear carpetas o abrir nada.
+exigirBaseDemo(MODO_DEMO, process.env.DB_PATH, rutaDb);
 mkdirSync(dirname(rutaDb), { recursive: true });
 
 export const db = new Database(rutaDb);

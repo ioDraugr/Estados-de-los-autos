@@ -58,6 +58,8 @@ import { TituloSeccion } from "./TituloSeccion";
 
 interface Props {
   onVolver: () => void;
+  // Dentro de la ventana flotante: el título y "Cerrar" los pone la ventana.
+  enVentana?: boolean;
   // Tiene que ser estable (useCallback): la carga depende de él.
   onNoAutorizado: () => void;
 }
@@ -90,7 +92,7 @@ function hashActual(): string | null {
   return window.location.hash.slice(1) || null;
 }
 
-export function Configuracion({ onVolver, onNoAutorizado }: Props) {
+export function Configuracion({ onVolver, onNoAutorizado, enVentana = false }: Props) {
   const [datos, setDatos] = useState<DatosConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Categoría elegida (id). En móvil null = se ve la lista.
@@ -173,7 +175,7 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
 
   // En móvil, con una categoría abierta, el título general no hace falta: el
   // botón "‹ Configuración" y el título de la categoría ocupan su lugar.
-  const verCabecera = escritorio || !categoria;
+  const verCabecera = !enVentana && (escritorio || !categoria);
 
   return (
     <>
@@ -251,7 +253,7 @@ export function Configuracion({ onVolver, onNoAutorizado }: Props) {
                   onClick={() => elegir(null)}
                   className={`${BOTON_SUAVE} mb-5 h-12 px-5 text-lg`}
                 >
-                  ‹ Configuración
+                  ← Volver a Configuración
                 </button>
               )}
               <h2

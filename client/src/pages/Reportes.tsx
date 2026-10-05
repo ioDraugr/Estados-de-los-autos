@@ -6,7 +6,7 @@
 // arriba (autos atendidos, servicios terminados, tiempo promedio), dos
 // gráficos de barras, el tiempo promedio de cada servicio y los autos que más
 // tardaron. Sin tiempo real: el reporte se pide al cambiar de período.
-// Pensada para PC o tablet, con el mismo estilo "Vidrio cálido" que /admin.
+// Pensada para PC o tablet, con la misma estética de consola que /admin.
 import { useCallback, useEffect, useState } from "react";
 import {
   NoAutorizado,
@@ -17,25 +17,27 @@ import {
   textoDeError,
 } from "../api";
 import { formatearDuracion } from "../dominio";
-import { borrarPinReportes, guardarPinReportes, leerPinReportes } from "../sesion";
-import type { PeriodoReporte, Reporte } from "../types";
 import {
-  AVISO_ERROR,
-  BOTON_MARCA,
-  BOTON_SUAVE,
-  TARJETA,
-  TEXTO_VACIO,
-} from "../tema";
-import { CabeceraCurva } from "../components/CabeceraCurva";
+  borrarPinReportes,
+  guardarPinReportes,
+  leerPinReportes,
+} from "../sesion";
+import type { PeriodoReporte, Reporte } from "../types";
 import { CambiarPin } from "../components/CambiarPin";
+import { ConsolaVentana } from "../components/ConsolaVentana";
 import { LogoML } from "../components/LogoML";
 import { PinLogin } from "../components/PinLogin";
-import { TituloSeccion } from "../components/TituloSeccion";
 import { AutosLentos } from "../components/reportes/AutosLentos";
 import { CrearPinReportes } from "../components/reportes/CrearPinReportes";
-import { GraficoAutos, GraficoServicios } from "../components/reportes/Graficos";
+import {
+  GraficoAutos,
+  GraficoServicios,
+} from "../components/reportes/Graficos";
 import { SelectorPeriodo } from "../components/reportes/SelectorPeriodo";
 import { TiemposPromedio } from "../components/reportes/TiemposPromedio";
+
+const BOTON_NEUTRO =
+  "con-foco inline-flex min-h-12 items-center justify-center gap-2 rounded-sm border border-con-borde-fuerte bg-con-sup px-4 text-base font-medium text-con-texto transition-colors hover:bg-con-sup2 disabled:opacity-50";
 
 // En qué pantalla está: preguntando al server si ya hay PIN del dueño, sin
 // conexión para saberlo, creándolo, ingresándolo o ya adentro.
@@ -91,21 +93,21 @@ export function Reportes() {
     );
   }
 
-  // Consultando o sin conexión: sobre el mismo fondo oscuro del teclado.
+  // Consultando o sin conexión: pantalla clara, con el mismo estilo de la consola.
   return (
-    <div className="flex min-h-full flex-col items-center justify-center gap-6 fondo-oscuro px-6 py-8 text-center text-crema">
+    <div className="tema-consola flex min-h-full flex-col items-center justify-center gap-6 bg-con-fondo px-6 py-8 text-center text-con-texto">
       <LogoML className="h-12 w-auto sm:h-[50px]" />
       {acceso === "consultando" ? (
-        <p className="text-2xl text-crema/70">Cargando…</p>
+        <p className="text-xl font-light text-con-suave">Cargando…</p>
       ) : (
         <>
-          <p className="max-w-md rounded-3xl bg-peligro/30 px-4 py-1.5 text-xl font-semibold text-[#F6B7A9]">
+          <p className="max-w-md rounded-sm border border-con-peligro/60 bg-con-peligro/10 px-4 py-3 text-lg font-medium text-[#8f1d17]">
             No se pudo conectar con el servidor.
           </p>
           <button
             type="button"
             onClick={consultarAcceso}
-            className={`${BOTON_MARCA} h-14 px-8 text-xl`}
+            className={BOTON_NEUTRO}
           >
             Reintentar
           </button>
@@ -143,7 +145,7 @@ function PanelReportes({ onNoAutorizado, onSalir }: PanelProps) {
     clave: string;
     error: string | null;
   } | null>(null);
-  const [vista, setVista] = useState<"reporte" | "pin">("reporte");
+  const [cambiandoPin, setCambiandoPin] = useState(false);
 
   const clave = `${periodo}|${fecha ?? "hoy"}|${intento}`;
   const cargando = respuesta?.clave !== clave;
@@ -171,118 +173,116 @@ function PanelReportes({ onNoAutorizado, onSalir }: PanelProps) {
 
   const hoy = diaDeHoy();
   // ¿El reporte en pantalla es el del período de hoy?
-  const esActual = reporte !== null && reporte.desde <= hoy && hoy <= reporte.hasta;
+  const esActual =
+    reporte !== null && reporte.desde <= hoy && hoy <= reporte.hasta;
 
   return (
-    <div className="min-h-full fondo-claro">
-      <CabeceraCurva
-        alto="compacta"
-        tono="claro"
-        acciones={
-          <>
-            {vista === "reporte" && (
-              <button
-                type="button"
-                onClick={() => setVista("pin")}
-                className={`${BOTON_SUAVE} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
-              >
-                Cambiar PIN
-              </button>
-            )}
+    <div className="min-h-full bg-con-fondo tracking-[-0.01em] text-con-texto">
+      <header className="flex items-center gap-3 border-b border-con-borde bg-con-sup px-3 py-3 sm:px-6">
+        <LogoML className="h-10 w-auto shrink-0" />
+        <span className="invisible min-w-0 flex-1 truncate font-mono sm:visible text-xs tracking-[0.08em] text-con-suave uppercase sm:text-sm">
+          Reportes
+        </span>
+        <button
+          type="button"
+          onClick={() => setCambiandoPin(true)}
+          className={BOTON_NEUTRO}
+        >
+          Cambiar PIN
+        </button>
+        <button type="button" onClick={onSalir} className={BOTON_NEUTRO}>
+          Salir
+        </button>
+      </header>
+
+      <main className="mx-auto w-full max-w-[1400px] px-4 pt-8 pb-12 sm:px-8 sm:pt-12 sm:pb-16">
+        <h1 className="text-3xl font-normal tracking-[-0.025em] sm:text-4xl">
+          Reportes
+        </h1>
+        <p className="mt-2 text-base text-con-suave sm:text-lg">
+          Cómo rindió el taller: autos atendidos, servicios terminados y
+          tiempos.
+        </p>
+
+        <div className="mt-6 sm:mt-8">
+          <SelectorPeriodo
+            periodo={periodo}
+            onPeriodo={setPeriodo}
+            etiqueta={reporte?.periodo === periodo ? reporte.etiqueta : null}
+            onAnterior={() => reporte && setFecha(reporte.fechaAnterior)}
+            onSiguiente={() => reporte && setFecha(reporte.fechaSiguiente)}
+            onHoy={() => setFecha(null)}
+            puedeAnterior={!cargando && reporte !== null}
+            puedeSiguiente={
+              !cargando && reporte !== null && reporte.hasta < hoy
+            }
+            puedeHoy={!cargando && !esActual}
+          />
+        </div>
+
+        {error && (
+          <div
+            role="alert"
+            className="mt-6 flex flex-wrap items-center justify-center gap-4 rounded-sm border border-con-peligro/60 bg-con-peligro/10 px-4 py-3 text-lg font-medium text-[#8f1d17] sm:mt-8"
+          >
+            <span>{error}</span>
             <button
               type="button"
-              onClick={onSalir}
-              className={`${BOTON_SUAVE} h-11 px-5 text-base sm:h-12 sm:px-[22px] sm:text-[17px]`}
+              onClick={() => setIntento((n) => n + 1)}
+              className={BOTON_NEUTRO}
             >
-              Salir
+              Reintentar
             </button>
-          </>
-        }
-      />
+          </div>
+        )}
 
-      <main className="px-4 pt-7 pb-10 sm:px-8 sm:pt-10 sm:pb-14 xl:px-12">
-        {vista === "pin" ? (
-          <>
-            <div className="flex flex-wrap items-end justify-between gap-4">
-              <TituloSeccion titulo="PIN de reportes" />
-              <button
-                type="button"
-                onClick={() => setVista("reporte")}
-                className={`${BOTON_SUAVE} h-14 px-6 text-lg sm:text-xl`}
-              >
-                ← Volver a los reportes
-              </button>
-            </div>
-            <div className="mt-6 max-w-xl sm:mt-9">
-              <CambiarPin
-                titulo="Cambiar PIN de reportes"
-                ayuda="Solo para /reportes. No puede ser igual al de /admin."
-                textoListo="PIN cambiado. Las otras pestañas abiertas en /reportes van a pedir el PIN nuevo."
-                cambiar={cambiarPinReportes}
-                guardar={guardarPinReportes}
-                onNoAutorizado={onNoAutorizado}
-              />
-            </div>
-          </>
+        {reporte === null ? (
+          !error && (
+            <p className="mt-6 rounded-sm border border-con-borde bg-con-sup p-10 text-center text-xl font-light text-con-suave sm:mt-8 sm:p-16">
+              Cargando…
+            </p>
+          )
         ) : (
-          <>
-            <TituloSeccion
-              titulo="Reportes"
-              ayuda="Cómo rindió el taller: autos atendidos, servicios terminados y tiempos."
-            />
-
-            <div className="mt-6 sm:mt-9">
-              <SelectorPeriodo
-                periodo={periodo}
-                onPeriodo={setPeriodo}
-                etiqueta={reporte?.periodo === periodo ? reporte.etiqueta : null}
-                onAnterior={() => reporte && setFecha(reporte.fechaAnterior)}
-                onSiguiente={() => reporte && setFecha(reporte.fechaSiguiente)}
-                onHoy={() => setFecha(null)}
-                puedeAnterior={!cargando && reporte !== null}
-                puedeSiguiente={!cargando && reporte !== null && reporte.hasta < hoy}
-                puedeHoy={!cargando && !esActual}
-              />
-            </div>
-
-            {error && (
-              <div
-                className={`${AVISO_ERROR} mt-6 flex flex-wrap items-center justify-center gap-4 px-4 py-3 text-lg sm:mt-8 sm:text-xl`}
-              >
-                <span>{error}</span>
-                <button
-                  type="button"
-                  onClick={() => setIntento((n) => n + 1)}
-                  className={`${BOTON_SUAVE} h-12 px-6 text-lg`}
-                >
-                  Reintentar
-                </button>
-              </div>
-            )}
-
-            {reporte === null ? (
-              !error && (
-                <p className={`${TEXTO_VACIO} p-10 text-2xl sm:p-16`}>Cargando…</p>
-              )
-            ) : (
-              <div
-                aria-busy={cargando}
-                className={`transition-opacity ${cargando ? "opacity-60" : ""}`}
-              >
-                <ContenidoReporte reporte={reporte} />
-              </div>
-            )}
-          </>
+          <div
+            aria-busy={cargando}
+            className={`transition-opacity ${cargando ? "opacity-60" : ""}`}
+          >
+            <ContenidoReporte reporte={reporte} />
+          </div>
         )}
       </main>
+
+      {cambiandoPin && (
+        <ConsolaVentana
+          titulo="PIN de reportes"
+          onCerrar={() => setCambiandoPin(false)}
+        >
+          <div className="max-w-xl">
+            <CambiarPin
+              titulo="Cambiar PIN de reportes"
+              ayuda="Solo para /reportes. No puede ser igual al de /admin."
+              textoListo="PIN cambiado. Las otras pestañas abiertas en /reportes van a pedir el PIN nuevo."
+              cambiar={cambiarPinReportes}
+              guardar={guardarPinReportes}
+              onNoAutorizado={onNoAutorizado}
+            />
+          </div>
+        </ConsolaVentana>
+      )}
     </div>
   );
 }
 
 function ContenidoReporte({ reporte }: { reporte: Reporte }) {
-  const servicios = reporte.serviciosPorTipo.reduce((suma, s) => suma + s.cantidad, 0);
+  const servicios = reporte.serviciosPorTipo.reduce(
+    (suma, s) => suma + s.cantidad,
+    0,
+  );
   // Promedio general: el de cada área pesado por cuántos servicios lo forman.
-  const muestras = reporte.tiempoPromedioPorTipo.reduce((suma, t) => suma + t.muestras, 0);
+  const muestras = reporte.tiempoPromedioPorTipo.reduce(
+    (suma, t) => suma + t.muestras,
+    0,
+  );
   const minutos = reporte.tiempoPromedioPorTipo.reduce(
     (suma, t) => suma + (t.minutosPromedio ?? 0) * t.muestras,
     0,
@@ -291,11 +291,11 @@ function ContenidoReporte({ reporte }: { reporte: Reporte }) {
 
   if (reporte.autosAtendidos.total === 0 && servicios === 0) {
     return (
-      <div className={`${TARJETA} mt-6 px-6 py-14 text-center sm:mt-8 sm:py-20`}>
-        <p className="text-2xl font-semibold tracking-[-0.02em] text-tinta sm:text-3xl">
+      <div className="mt-6 rounded-sm border border-con-borde bg-con-sup px-6 py-14 text-center sm:mt-8 sm:py-20">
+        <p className="text-2xl font-light tracking-[-0.02em] text-con-texto sm:text-3xl">
           Sin trabajos terminados en este período.
         </p>
-        <p className="mt-2 text-lg text-tinta-suave sm:text-xl">
+        <p className="mt-2 text-base text-con-suave sm:text-lg">
           Probá con otro período con las flechas, o cambiá entre semana y mes.
         </p>
       </div>
@@ -304,7 +304,7 @@ function ContenidoReporte({ reporte }: { reporte: Reporte }) {
 
   return (
     <>
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:mt-8 sm:grid-cols-3 sm:gap-7">
+      <div className="mt-6 grid grid-cols-1 divide-y divide-con-borde rounded-sm border border-con-borde bg-con-sup sm:mt-8 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <Numero
           titulo="Autos atendidos"
           valor={String(reporte.autosAtendidos.total)}
@@ -322,8 +322,11 @@ function ContenidoReporte({ reporte }: { reporte: Reporte }) {
         />
       </div>
 
-      <div className="mt-5 grid grid-cols-1 gap-5 sm:mt-7 sm:gap-7 lg:grid-cols-2">
-        <GraficoAutos serie={reporte.autosAtendidos.serie} periodo={reporte.periodo} />
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-2">
+        <GraficoAutos
+          serie={reporte.autosAtendidos.serie}
+          periodo={reporte.periodo}
+        />
         <GraficoServicios servicios={reporte.serviciosPorTipo} />
         <TiemposPromedio tiempos={reporte.tiempoPromedioPorTipo} />
         <AutosLentos autos={reporte.autosQueMasTardaron} />
@@ -338,15 +341,22 @@ interface NumeroProps {
   ayuda: string;
 }
 
-// Tarjeta con un número grande (autos, servicios, tiempo).
+// Celda de la franja de KPIs: etiqueta, número grande liviano y una ayuda.
 function Numero({ titulo, valor, ayuda }: NumeroProps) {
+  const esNumero = /^\d/.test(valor);
   return (
-    <section className={`${TARJETA} flex flex-col p-5 sm:p-7`}>
-      <h3 className="text-lg font-medium text-tinta-suave sm:text-xl">{titulo}</h3>
-      <p className="mt-1 text-5xl leading-tight font-[650] tracking-[-0.05em] text-tinta tabular-nums sm:text-[56px]">
+    <section className="flex flex-col p-5 sm:p-7">
+      <h3 className="font-mono text-xs tracking-[0.08em] text-con-suave uppercase">
+        {titulo}
+      </h3>
+      <p
+        className={`mt-3 leading-none font-light tracking-[-0.04em] text-con-texto tabular-nums ${
+          esNumero ? "text-5xl sm:text-6xl" : "text-3xl sm:text-4xl"
+        }`}
+      >
         {valor}
       </p>
-      <p className="mt-1 text-base text-tinta-suave sm:text-lg">{ayuda}</p>
+      <p className="mt-3 text-sm text-con-suave">{ayuda}</p>
     </section>
   );
 }

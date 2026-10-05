@@ -2,10 +2,10 @@
 // que quedaron con todos sus servicios terminados. Cada auto como en el
 // showroom: "Marca Modelo Color" y solo los últimos dígitos de la matrícula
 // (el server nunca manda la entera), con su tiempo y los servicios que tuvo.
-import { COLOR_AREA, NOMBRE_AREA, formatearDuracion } from "../../dominio";
+import { NOMBRE_AREA, formatearDuracion } from "../../dominio";
 import type { AutoLento } from "../../types";
-import { CAPSULA_MATRICULA_CLARA, TEXTO_VACIO } from "../../tema";
-import { TarjetaConfig } from "../TarjetaConfig";
+import { ConsolaPunto } from "../ConsolaPunto";
+import { PanelReporte } from "./PanelReporte";
 
 interface Props {
   autos: AutoLento[];
@@ -13,12 +13,12 @@ interface Props {
 
 export function AutosLentos({ autos }: Props) {
   return (
-    <TarjetaConfig
+    <PanelReporte
       titulo="Autos que más tardaron"
       ayuda="Desde que entraron hasta que terminaron todos sus servicios."
     >
       {autos.length === 0 ? (
-        <p className={`${TEXTO_VACIO} py-6 text-xl`}>
+        <p className="py-6 text-center text-lg font-light text-con-suave">
           Ningún auto terminó todos sus servicios en este período.
         </p>
       ) : (
@@ -26,18 +26,18 @@ export function AutosLentos({ autos }: Props) {
           {autos.map((auto, i) => (
             <li
               key={auto.id}
-              className="flex items-center gap-3 border-t border-tinta/[0.08] py-4 first:border-t-0 first:pt-0 last:pb-0 sm:gap-4"
+              className="flex items-start gap-3 border-t border-con-borde py-4 first:border-t-0 first:pt-0 last:pb-0 sm:gap-4"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tinta/[0.07] text-lg font-semibold text-tinta-suave tabular-nums">
-                {i + 1}
+              <span className="w-6 shrink-0 pt-1 font-mono text-sm text-con-suave tabular-nums">
+                {String(i + 1).padStart(2, "0")}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                  <span className="text-xl font-semibold tracking-[-0.02em] text-tinta sm:text-[22px]">
+                  <span className="text-lg font-medium tracking-[-0.01em] text-con-texto">
                     {auto.marca} {auto.modelo} {auto.color}
                   </span>
-                  <span className={CAPSULA_MATRICULA_CLARA}>
-                    <span aria-hidden="true" className="tracking-[0.12em] text-tinta-suave">
+                  <span className="inline-flex items-center gap-1 rounded-sm border border-con-borde-fuerte bg-con-fondo px-2 py-0.5 font-mono text-sm text-con-texto">
+                    <span aria-hidden="true" className="text-con-suave">
                       ••
                     </span>
                     {auto.ultimosDigitos}
@@ -47,25 +47,21 @@ export function AutosLentos({ autos }: Props) {
                   {auto.tipos.map((tipo) => (
                     <span
                       key={tipo}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-base font-medium text-tinta"
+                      className="inline-flex items-center gap-1.5 rounded-sm border border-con-borde px-2 py-0.5 font-mono text-xs tracking-[0.04em] text-con-texto uppercase"
                     >
-                      <span
-                        aria-hidden="true"
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: COLOR_AREA[tipo] }}
-                      />
+                      <ConsolaPunto tipo={tipo} tamano={10} />
                       {NOMBRE_AREA[tipo]}
                     </span>
                   ))}
                 </div>
               </div>
-              <span className="shrink-0 text-right text-xl font-semibold text-tinta tabular-nums sm:text-2xl">
+              <span className="shrink-0 pt-0.5 text-right text-xl font-light text-con-texto tabular-nums">
                 {formatearDuracion(auto.minutos)}
               </span>
             </li>
           ))}
         </ol>
       )}
-    </TarjetaConfig>
+    </PanelReporte>
   );
 }

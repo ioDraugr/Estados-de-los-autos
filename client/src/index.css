@@ -853,3 +853,68 @@ body {
     transform: scale(0) rotate(180deg);
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Consola de /admin: tema claro corporativo, de referencia sobria y editorial
+   (blanco, negro azulado, grises neutros, líneas finas, esquinas casi rectas,
+   letra liviana y etiquetas en monoespaciada). Sin color de acento: el botón
+   principal es negro. El oro de la marca queda solo en el logo. Solo lo usan
+   los componentes Consola* y el FormVehiculo; las utilidades de arriba (usadas
+   por /taller, /display y /reportes) no cambian.
+   Son colores nuevos de Tailwind: bg-con-fondo, text-con-suave, etc.
+   --------------------------------------------------------------------------- */
+@theme {
+  --color-con-fondo: #f7f7f8; /* gris casi blanco: fondo de la página */
+  --color-con-sup: #ffffff; /* superficie: paneles y filas */
+  --color-con-sup2: #efeff1; /* superficie elevada: hover */
+  --color-con-borde: #e3e3e6; /* línea fina */
+  --color-con-borde-fuerte: #c8c9ce;
+  --color-con-texto: #1c1e26; /* negro azulado */
+  --color-con-suave: #6b6e76; /* texto secundario */
+  --color-con-acento: #1c1e26; /* botón principal (texto blanco) */
+  --color-con-acento-claro: #1c1e26; /* selección y foco */
+  --color-con-listo: #2f6b4a;
+  --color-con-listo-claro: #2f6b4a;
+  --color-con-peligro: #a8322b;
+}
+
+/* Foco visible de la consola: anillo negro con separación. */
+@utility con-foco {
+  &:focus-visible {
+    outline: 3px solid #1c1e26;
+    outline-offset: 2px;
+  }
+}
+
+/* Configuración dentro de la ventana flotante: reutiliza los mismos componentes
+   que /taller (papel crema, arena, oro), así que acá se redefine su paleta con
+   grises neutros y botón principal negro, solo dentro de .tema-consola. */
+.tema-consola {
+  --color-tinta: #1c1e26;
+  --color-tinta-suave: #6b6e76;
+  --color-crema: #f7f7f8;
+  --color-crema-alta: #ffffff;
+  --color-linea: #e3e3e6;
+  --color-arena: #efeff1;
+  --color-marca: #1c1e26;
+  --color-listo: #2f6b4a;
+  --color-peligro: #a8322b;
+  background-color: #ffffff;
+}
+.tema-consola .fondo-claro,
+.tema-consola .vidrio-claro {
+  background-color: #ffffff;
+  border-color: #e3e3e6;
+}
+.tema-consola .bg-marca {
+  color: #ffffff;
+}
+.tema-consola .bg-marca:hover {
+  background-color: #3a3d47;
+}
+.tema-consola .bg-arena:hover {
+  background-color: #e3e3e6;
+}
+.tema-consola [class*="rounded-"]:not([class*="rounded-full"]) {
+  border-radius: 2px;
+}
